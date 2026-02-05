@@ -12,9 +12,67 @@ import os
 from datetime import datetime
 from typing import List
 
-from config import RUTA_BASE
+from pathlib import Path
+
+from config import RUTA_BASE, _is_container_env
 from domain import Caso
-from fs_repo import GestorCasos
+from repo import GestorCasos, is_db_path
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# APERTURA DE ARCHIVOS/CARPETAS (cross-platform)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def open_path(path: Path, container: "st.container | None" = None) -> bool:
+    """
+    Abre un archivo o carpeta de forma segura (cross-platform).
+
+    - En Windows: usa os.startfile()
+    - En Linux/contenedor: muestra mensaje informativo (no hay GUI)
+    - En modo DB: muestra info (no hay carpeta física)
+
+    Args:
+        path: Ruta al archivo o carpeta a abrir (puede ser None o pseudo-path db://)
+        container: Contenedor de Streamlit donde mostrar mensajes (default: st)
+
+    Returns:
+        True si se abrió exitosamente, False en caso contrario
+    """
+    target = container or st
+
+    # Manejar None o path vacío
+    if path is None:
+        target.info("📂 No hay carpeta física asociada (modo base de datos).")
+        return False
+
+    path = Path(path)
+    path_str = str(path)
+
+    # Manejar pseudo-paths de base de datos (db://cases/uuid)
+    if is_db_path(path):
+        target.info(f"📂 Este caso está almacenado en base de datos.\n\n**ID:** `{path_str.replace('db://cases/', '')}`")
+        return False
+
+    # En entorno de contenedor (Render/Docker) no hay GUI
+    if _is_container_env():
+        target.info(f"📂 Apertura local no disponible en este entorno.\n\n**Ruta:** `{path}`")
+        return False
+
+    # En Windows, usar os.startfile
+    if os.name == "nt":
+        try:
+            os.startfile(str(path))
+            return True
+        except FileNotFoundError:
+            target.error(f"Ruta no encontrada: `{path}`")
+            return False
+        except Exception as e:
+            target.error(f"No se pudo abrir: {e}")
+            return False
+
+    # En otros sistemas (Linux/Mac sin contenedor), mostrar mensaje
+    target.warning(f"📂 Apertura automática no soportada en este sistema.\n\n**Ruta:** `{path}`")
+    return False
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1229,10 +1287,7 @@ def barra_lateral_config(gestor: 'GestorCasos'):
 
     # Botones operativos
     if st.sidebar.button("Abrir carpeta base", use_container_width=True):
-        try:
-            os.startfile(str(RUTA_BASE))
-        except Exception:
-            st.sidebar.error("No se pudo abrir la carpeta base.")
+        open_path(RUTA_BASE, st.sidebar)
 
     if st.sidebar.button("Recargar datos", use_container_width=True):
         st.cache_data.clear()

@@ -20,7 +20,7 @@ from config import (
     limpiar_nombre_carpeta,
 )
 from domain import Caso
-from fs_repo import GestorCasos
+from repo import GestorCasos, is_db_mode
 from exports import df_to_xlsx_bytes
 from ui import (
     _ensure_bool_state, _ensure_int_step_state, _swap,
@@ -28,7 +28,7 @@ from ui import (
     page_header, render_grid, section,
     mode_tabs, empty_state_nav, grid_shell, detail_shell, edit_shell,
     kpi_card, progress_row, audit_status_badge,
-    ui_centro_ayuda_content,
+    ui_centro_ayuda_content, open_path,
 )
 from grids import render_aggrid
 from audit import auditar_app
@@ -359,43 +359,24 @@ def mostrar_filtros(df: pd.DataFrame) -> pd.DataFrame:
 # DOCUMENTOS RECIENTES
 # ══════════════════════════════════════════════════════════════════════════════
 
-def listar_documentos_recientes(ruta_caso: Path, subcarpeta: str = "02. ESCRITOS", n: int = 5) -> List[Path]:
-    """Retorna los ultimos n archivos modificados en la subcarpeta del caso."""
-    carpeta = ruta_caso / subcarpeta
-    if not carpeta.exists():
-        return []
-    files = []
-    for f in carpeta.rglob("*"):
-        if f.is_file():
-            try:
-                files.append((f.stat().st_mtime, f))
-            except Exception:
-                pass
-    files.sort(key=lambda x: x[0], reverse=True)
-    return [f for _, f in files[:n]]
-
-
-def mostrar_documentos_recientes(ruta_caso: Path, key_suffix: str = ""):
+def mostrar_documentos_recientes(gestor: GestorCasos, ruta_caso: Path, key_suffix: str = ""):
     """Muestra los ultimos documentos modificados del caso."""
-    docs = listar_documentos_recientes(ruta_caso)
+    docs = gestor.listar_documentos_recientes(ruta_caso)
     with st.expander(f"Documentos recientes ({len(docs)})", expanded=False):
         if not docs:
-            st.caption("Sin documentos en 02. ESCRITOS")
+            st.caption("Sin documentos recientes")
             return
         for idx, doc in enumerate(docs):
             c1, c2 = st.columns([6, 2])
             with c1:
-                try:
-                    fecha_mod = datetime.fromtimestamp(doc.stat().st_mtime).strftime("%d/%m %H:%M")
-                except Exception:
-                    fecha_mod = ""
-                st.caption(f"{doc.name}  •  {fecha_mod}")
+                st.caption(f"{doc['filename']}  •  {doc['updated_at']}")
             with c2:
-                if st.button("Abrir", key=f"doc_{key_suffix}_{idx}", use_container_width=True):
-                    try:
-                        os.startfile(str(doc))
-                    except Exception:
-                        st.error("No se pudo abrir el archivo.")
+                target = doc.get("open_target")
+                if target:
+                    if st.button("Abrir", key=f"doc_{key_suffix}_{idx}", use_container_width=True):
+                        open_path(target)
+                else:
+                    st.button("Abrir", key=f"doc_{key_suffix}_{idx}", use_container_width=True, disabled=True, help="Archivo no disponible")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -707,10 +688,7 @@ def _render_tarjetas(df: pd.DataFrame, gestor: GestorCasos):
                 act1, act2, act3 = st.columns(3)
                 with act1:
                     if st.button("Abrir carpeta", key=f"open_{i}", use_container_width=True):
-                        try:
-                            os.startfile(ruta)
-                        except Exception:
-                            st.error("No se pudo abrir la carpeta.")
+                        open_path(ruta)
                 with act2:
                     if tarea and tarea != "S/D":
                         if st.button("Tarea completada", key=f"done_{i}", use_container_width=True):
@@ -804,10 +782,7 @@ def _render_casos_detalle_v3(df: pd.DataFrame, gestor: GestorCasos):
             st.rerun()
     with ac2:
         if st.button("Abrir carpeta", key="det_open_v3", use_container_width=True):
-            try:
-                os.startfile(ruta)
-            except Exception:
-                st.error("No se pudo abrir la carpeta.")
+            open_path(ruta)
     with ac3:
         if st.button("Volver a Listado", key="det_back", use_container_width=True):
             st.session_state["route_mode"] = "listado"
@@ -824,7 +799,7 @@ def _render_casos_detalle_v3(df: pd.DataFrame, gestor: GestorCasos):
     render_quick_edit(gestor, Path(ruta), "detalle")
 
     # Documentos recientes
-    mostrar_documentos_recientes(Path(ruta), key_suffix="detalle_v3")
+    mostrar_documentos_recientes(gestor, Path(ruta), key_suffix="detalle_v3")
 
 
 def _render_casos_editar_v3(df: pd.DataFrame, gestor: GestorCasos):
@@ -1077,10 +1052,7 @@ def _render_cliente_detalle(casos_cliente: list, cliente_sel: str, gestor: Gesto
     ac1, ac2, ac3 = st.columns(3)
     with ac1:
         if st.button("Abrir carpeta", key="cli_open_v3", use_container_width=True):
-            try:
-                os.startfile(str(caso_sel.ruta))
-            except Exception:
-                st.error("No se pudo abrir la carpeta.")
+            open_path(caso_sel.ruta)
     with ac2:
         if caso_sel.tarea_pendiente and caso_sel.tarea_pendiente != "S/D":
             if st.button("Tarea completada", key="cli_done_v3", use_container_width=True):
@@ -1094,7 +1066,7 @@ def _render_cliente_detalle(casos_cliente: list, cliente_sel: str, gestor: Gesto
 
     st.markdown("---")
     render_quick_edit(gestor, caso_sel.ruta, "cli_det")
-    mostrar_documentos_recientes(caso_sel.ruta, key_suffix="cli_det_v3")
+    mostrar_documentos_recientes(gestor, caso_sel.ruta, key_suffix="cli_det_v3")
 
     # Estadisticas del cliente
     st.markdown("---")
@@ -1294,10 +1266,7 @@ def _render_agenda_detalle(tareas_filtradas: list, gestor: GestorCasos):
     ab1, ab2, ab3 = st.columns(3)
     with ab1:
         if st.button("Abrir carpeta", key="agenda_det_open_v3", use_container_width=True):
-            try:
-                os.startfile(str(t.ruta))
-            except Exception:
-                st.error("No se pudo abrir la carpeta.")
+            open_path(t.ruta)
     with ab2:
         if st.button("Marcar completada", key="agenda_det_done_v3", use_container_width=True):
             accion_completar_tarea(gestor, t.ruta)
@@ -1569,10 +1538,7 @@ def formulario_editar_caso(ui, gestor: GestorCasos, casos: List[Caso]):
     st.caption(f"{caso.cliente} | {caso.fuero}")
 
     if ui.button("Abrir carpeta del caso", use_container_width=True):
-        try:
-            os.startfile(str(caso.ruta))
-        except Exception:
-            ui.error("No se pudo abrir la carpeta. Verificar permisos/ruta.")
+        open_path(caso.ruta, ui)
 
     with ui.form("editar_caso_form"):
         st.markdown("#### Ubicacion del Caso")
@@ -1614,13 +1580,18 @@ def formulario_editar_caso(ui, gestor: GestorCasos, casos: List[Caso]):
         fecha_tarea = st.text_input("Fecha Tarea (DD/MM/YYYY)", caso.fecha_tarea)
         observaciones = st.text_area("Observaciones", caso.observaciones)
 
-        nueva_ruta_prevista = RUTA_BASE / nuevo_año / nuevo_estado / nuevo_cliente / nuevo_fuero / nueva_causa
-        hay_movimiento = str(caso.ruta) != str(nueva_ruta_prevista)
-
+        # Logica de movimiento solo aplica en modo filesystem
+        hay_movimiento = False
         confirmar_mov = True
-        if hay_movimiento and st.session_state.get("modo_seguro", True):
-            st.warning(f"**Origen:** {caso.ruta}\n\n**Destino:** {nueva_ruta_prevista}")
-            confirmar_mov = st.checkbox("Confirmo mover carpeta fisica", key="confirmar_mover")
+        nueva_ruta = caso.ruta
+
+        if not is_db_mode():
+            nueva_ruta_prevista = RUTA_BASE / nuevo_año / nuevo_estado / nuevo_cliente / nuevo_fuero / nueva_causa
+            hay_movimiento = str(caso.ruta) != str(nueva_ruta_prevista)
+
+            if hay_movimiento and st.session_state.get("modo_seguro", True):
+                st.warning(f"**Origen:** {caso.ruta}\n\n**Destino:** {nueva_ruta_prevista}")
+                confirmar_mov = st.checkbox("Confirmo mover carpeta fisica", key="confirmar_mover")
 
         submitted = st.form_submit_button("GUARDAR CAMBIOS", use_container_width=True)
 
@@ -1629,12 +1600,13 @@ def formulario_editar_caso(ui, gestor: GestorCasos, casos: List[Caso]):
                 st.error("Debe confirmar el movimiento de carpeta para guardar cambios.")
                 return
 
+            # En modo DB, mover_carpeta_fisica actualiza clasificacion sin mover carpetas
             exito_mov, nueva_ruta = gestor.mover_carpeta_fisica(
                 caso, nuevo_año, nuevo_estado, nuevo_cliente, nuevo_fuero, nueva_causa
             )
 
             if not exito_mov:
-                st.error("No se pudo mover la carpeta fisica. Cambios cancelados.")
+                st.error("No se pudo actualizar la clasificacion. Cambios cancelados.")
                 return
 
             datos = {
@@ -1657,7 +1629,8 @@ def formulario_editar_caso(ui, gestor: GestorCasos, casos: List[Caso]):
                 st.success("Caso actualizado y sincronizado correctamente")
                 st.rerun()
             else:
-                if nueva_ruta != caso.ruta:
+                # Reversion de movimiento solo aplica en modo filesystem
+                if not is_db_mode() and nueva_ruta != caso.ruta:
                     try:
                         os.makedirs(caso.ruta.parent, exist_ok=True)
                         shutil.move(str(nueva_ruta), str(caso.ruta))
@@ -1772,16 +1745,22 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
     # Diagnostico basico (siempre visible)
     st.markdown("---")
     st.markdown("#### Diagnostico basico")
-    ruta_ok = RUTA_BASE.exists() and RUTA_BASE.is_dir()
-    st.write(f"**Ruta base:** `{RUTA_BASE}` — {'Accesible' if ruta_ok else 'NO ACCESIBLE'}")
 
-    try:
-        perms_ok = os.access(str(RUTA_BASE), os.R_OK | os.W_OK)
-        st.write(f"**Permisos lectura/escritura:** {'OK' if perms_ok else 'Sin permisos'}")
-    except Exception:
-        st.write("**Permisos:** No se pudo verificar")
+    if is_db_mode():
+        st.write("**Backend:** Base de datos PostgreSQL")
+        st.write("**Casos cargados:** " + str(len(casos)))
+    else:
+        ruta_ok = RUTA_BASE.exists() and RUTA_BASE.is_dir()
+        st.write(f"**Backend:** Sistema de archivos")
+        st.write(f"**Ruta base:** `{RUTA_BASE}` — {'Accesible' if ruta_ok else 'NO ACCESIBLE'}")
 
-    st.write(f"**Casos cargados:** {len(casos)}")
+        try:
+            perms_ok = os.access(str(RUTA_BASE), os.R_OK | os.W_OK)
+            st.write(f"**Permisos lectura/escritura:** {'OK' if perms_ok else 'Sin permisos'}")
+        except Exception:
+            st.write("**Permisos:** No se pudo verificar")
+
+        st.write(f"**Casos cargados:** {len(casos)}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

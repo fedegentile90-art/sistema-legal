@@ -8,9 +8,9 @@ import streamlit as st
 import pandas as pd
 from typing import List
 
-from config import RUTA_BASE
+from config import RUTA_BASE, RUTA_BASE_AUTO_CREATE, get_ruta_base_info
 from domain import Caso
-from fs_repo import GestorCasos
+from repo import GestorCasos, is_db_mode, get_backend_info
 from ui import configurar_pagina, barra_lateral_config
 from nav import get_route
 from views import (
@@ -67,6 +67,32 @@ def render_header(casos_total: int):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# DIAGNOSTICO DE RUTA BASE
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _show_ruta_error(mensaje: str):
+    """Muestra error de ruta base con información de diagnóstico."""
+    info = get_ruta_base_info()
+    st.error(f"**Error de configuración:** {mensaje}")
+    with st.expander("Diagnóstico técnico", expanded=True):
+        st.code(f"""
+RUTA_BASE:        {info['ruta_base']}
+Existe:           {info['exists']}
+Es directorio:    {info['is_dir']}
+Auto-creatable:   {info['auto_create']}
+En contenedor:    {info['is_container']}
+VG_RUTA_BASE:     {info['env_VG_RUTA_BASE']}
+CWD:              {info['cwd']}
+""".strip())
+        st.info("""
+**Soluciones posibles:**
+- En local: Verificar que la carpeta de datos existe
+- En Docker/Render: Setear `VG_RUTA_BASE=/app/data` o montar volumen
+- Fallback: Se usará `./data` si ninguna otra ruta está disponible
+""")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # APP SHELL (FUNCION PRINCIPAL)
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -75,15 +101,32 @@ def main():
     configurar_pagina()
     ensure_state()
 
-    # Inicializar gestor
-    gestor = GestorCasos(RUTA_BASE)
+    # ══════════════════════════════════════════════════════════════════════════
+    # INICIALIZACION DE REPOSITORIO (DB o Filesystem)
+    # ══════════════════════════════════════════════════════════════════════════
 
-    if not RUTA_BASE.exists():
-        st.error(f"La ruta base no existe o no es accesible: {RUTA_BASE}")
-        st.stop()
+    if is_db_mode():
+        # Modo base de datos: no necesita validar filesystem
+        gestor = GestorCasos(RUTA_BASE)  # RUTA_BASE se ignora en modo DB
+        spinner_msg = "Conectando a base de datos..."
+    else:
+        # Modo filesystem: validar y crear ruta si es necesario
+        if RUTA_BASE_AUTO_CREATE and not RUTA_BASE.exists():
+            try:
+                RUTA_BASE.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                _show_ruta_error(f"No se pudo crear el directorio: {e}")
+                st.stop()
+
+        if not RUTA_BASE.exists() or not RUTA_BASE.is_dir():
+            _show_ruta_error("La ruta base no existe o no es un directorio.")
+            st.stop()
+
+        gestor = GestorCasos(RUTA_BASE)
+        spinner_msg = "Escaneando sistema de archivos..."
 
     # Cargar casos
-    with st.spinner("Escaneando sistema de archivos..."):
+    with st.spinner(spinner_msg):
         casos = cargar_casos(gestor)
         gestor._cache_casos = casos
 

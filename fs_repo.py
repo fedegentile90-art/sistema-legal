@@ -567,3 +567,41 @@ class GestorCasos:
     def obtener_años_existentes(self) -> List[str]:
         """Obtiene lista de años activos (de la configuración)."""
         return sorted(AÑOS_ACTIVOS, reverse=True)
+
+    def listar_documentos_recientes(self, ruta_caso: Path, n: int = 5) -> List[Dict]:
+        """Retorna los últimos n documentos del caso (subcarpeta 02. ESCRITOS).
+
+        Returns:
+            Lista de dicts con claves:
+            - filename: str - nombre del archivo
+            - updated_at: str - fecha de modificación (dd/mm HH:MM)
+            - open_target: Path | None - Path al archivo para abrir
+        """
+        carpeta = ruta_caso / "02. ESCRITOS"
+        if not carpeta.exists():
+            return []
+
+        files = []
+        for f in carpeta.rglob("*"):
+            if f.is_file():
+                try:
+                    mtime = f.stat().st_mtime
+                    files.append((mtime, f))
+                except Exception:
+                    pass
+
+        files.sort(key=lambda x: x[0], reverse=True)
+
+        result = []
+        for mtime, f in files[:n]:
+            try:
+                fecha_str = datetime.fromtimestamp(mtime).strftime("%d/%m %H:%M")
+            except Exception:
+                fecha_str = ""
+            result.append({
+                "filename": f.name,
+                "updated_at": fecha_str,
+                "open_target": f,
+            })
+
+        return result
