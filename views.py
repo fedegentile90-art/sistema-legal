@@ -110,7 +110,12 @@ def _go_route(route: str, mode: str = "listado", item_id: str | None = None):
 def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
     """Dashboard real: KPIs + acciones rapidas. Sin tablas."""
     total = len(casos)
-    header_meta = [f"{total} caso{'s' if total != 1 else ''}"]
+    status_counts = _contar_status(casos) if casos else {"ok": 0, "legacy_incomplete": 0, "error": 0}
+    header_meta = [
+        f"{total} caso{'s' if total != 1 else ''}",
+        f"{status_counts.get('legacy_incomplete', 0)} advertencias",
+        f"{status_counts.get('error', 0)} errores",
+    ]
     section_header("Dashboard", subtitle="Centro de mando", meta=header_meta)
 
     if not casos:
@@ -119,7 +124,6 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
             _go_route("Gestion")
         return
 
-    status_counts = _contar_status(casos)
     casos_error = status_counts.get("error", 0)
     casos_legacy_warn = status_counts.get("legacy_incomplete", 0)
     casos_validos = max(0, total - casos_error - casos_legacy_warn)
@@ -171,7 +175,7 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
             fecha = c._parsear_fecha(c.fecha_tarea)
             delta_dias = (fecha - hoy).days if fecha else None
             pill_kind = "danger" if delta_dias is not None and delta_dias < 0 else "warn" if delta_dias is not None and delta_dias <= 2 else "default"
-            left, right = st.columns([0.72, 0.28])
+            left, right = st.columns([0.8, 0.2])
             with left:
                 status_icon = c.semaforo or "•"
                 st.markdown(f"{status_icon} **{c.cliente or ''}** — {c.causa or ''}")
@@ -1714,7 +1718,7 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
     section_header("Auditoria", subtitle="Mando de seguridad y calidad de datos")
 
     # Toolbar de acciones
-    card_begin("Acciones", subtitle="Ejecutar, reparar, exportar")
+    card_begin("Acciones", subtitle="Ejecutar, reparar, exportar", variant="tight")
     a1, a2, a3 = st.columns(3)
     with a1:
         run_audit = st.button("Ejecutar auditoria", use_container_width=True, key="audit_run")
@@ -1749,7 +1753,7 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
         infos = int(r.get("info", 0))
         casos_total = int(r.get("casos", 0))
 
-        card_begin("Resumen", subtitle="Estado del sistema")
+        card_begin("Resumen", subtitle="Estado del sistema", variant="tight")
         audit_status_badge(errores, warnings)
         c1, c2, c3 = st.columns(3)
         with c1:
@@ -1792,7 +1796,7 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
     metricas = _cargar_metricas_auditoria(gestor, casos)
     completitud = metricas.get("completitud", {})
 
-    card_begin("Salud de datos", subtitle="Completitud por campo (última auditoría o cálculo rápido)")
+    card_begin("Salud de datos", subtitle="Completitud por campo (última auditoría o cálculo rápido)", variant="tight")
     campos_salud = ["JURISDICCION", "ORGANISMO", "EXPEDIENTE", "CARATULA", "RESPONSABLE", "CONTROL"]
     st.caption("Porcentaje de completitud por campo clave.")
     if completitud:
@@ -1810,7 +1814,7 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
     card_end()
 
     # Exportes
-    card_begin("Exportes")
+    card_begin("Exportes", variant="tight")
     if reporte:
         json_bytes = json.dumps(reporte, ensure_ascii=False, indent=2).encode("utf-8")
         ts_aud_json = _get_export_ts("auditoria_json")

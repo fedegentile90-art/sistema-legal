@@ -83,42 +83,44 @@ def open_path(path: Path, container: "st.container | None" = None) -> bool:
 
 THEMES = {
     "Claro": {
-        "bg": "#f6f7f9",
+        "bg": "#f8f7f6",
         "panel": "#ffffff",
-        "panel2": "#fbfcfe",
-        "text": "#0b1220",
-        "muted": "#5b677a",
-        "line": "#e6e9ef",
-        "brand": "#0f2a4a",
-        "accent": "#b58b00",
-        "danger": "#b42318",
-        "warn": "#b54708",
-        "ok": "#067647",
-        "shadow": "0 10px 30px rgba(15, 23, 42, 0.06)",
-        "input_bg": "#f8f9fb",
-        "input_border": "#d6dae2",
-        "badge_ok_bg": "rgba(6, 118, 71, 0.08)",
-        "badge_warn_bg": "rgba(181, 71, 8, 0.08)",
-        "badge_danger_bg": "rgba(180, 35, 24, 0.08)",
+        "panel2": "#f3f0e8",
+        "text": "#181511",
+        "muted": "#897b61",
+        "line": "#e6e2db",
+        "brand": "#181511",
+        "accent": "#eeab2f",
+        "primary": "#eeab2f",
+        "danger": "#d32f2f",
+        "warn": "#eeab2f",
+        "ok": "#0b8a3c",
+        "shadow": "0 12px 32px rgba(24, 21, 17, 0.08)",
+        "input_bg": "#f5f1e9",
+        "input_border": "#e2ddcf",
+        "badge_ok_bg": "rgba(11, 138, 60, 0.12)",
+        "badge_warn_bg": "rgba(238, 171, 47, 0.18)",
+        "badge_danger_bg": "rgba(211, 47, 47, 0.14)",
     },
     "Oscuro": {
-        "bg": "#0b0f19",
-        "panel": "#121827",
-        "panel2": "#0f172a",
-        "text": "#e5e7eb",
-        "muted": "#9ca3af",
-        "line": "#273244",
-        "brand": "#dbeafe",
-        "accent": "#d4af37",
-        "danger": "#fb7185",
-        "warn": "#fdba74",
-        "ok": "#34d399",
-        "shadow": "0 10px 30px rgba(0, 0, 0, 0.35)",
-        "input_bg": "#1a2235",
-        "input_border": "#334155",
-        "badge_ok_bg": "rgba(52, 211, 153, 0.12)",
-        "badge_warn_bg": "rgba(253, 186, 116, 0.12)",
-        "badge_danger_bg": "rgba(251, 113, 133, 0.12)",
+        "bg": "#101622",
+        "panel": "#1b2334",
+        "panel2": "#0f141f",
+        "text": "#e8ecf5",
+        "muted": "#9da6b9",
+        "line": "#1e2430",
+        "brand": "#d7e6ff",
+        "accent": "#135bec",
+        "primary": "#135bec",
+        "danger": "#ef4444",
+        "warn": "#f59e0b",
+        "ok": "#0bda5e",
+        "shadow": "0 18px 42px rgba(0, 0, 0, 0.45)",
+        "input_bg": "#111827",
+        "input_border": "#2a3242",
+        "badge_ok_bg": "rgba(11, 218, 94, 0.14)",
+        "badge_warn_bg": "rgba(245, 158, 11, 0.18)",
+        "badge_danger_bg": "rgba(239, 68, 68, 0.16)",
     },
 }
 
@@ -285,34 +287,41 @@ def aplicar_tema():
       --line: {t["line"]};
       --brand: {t["brand"]};
       --accent: {t["accent"]};
+      --primary: {t.get("primary", t["accent"])};
       --danger: {t["danger"]};
       --warn: {t["warn"]};
       --ok: {t["ok"]};
-      --radius: 10px;
-      --radius-sm: 6px;
+      --radius: 14px;
+      --radius-sm: 10px;
       --shadow: {t["shadow"]};
       --input-bg: {t["input_bg"]};
       --input-border: {t["input_border"]};
       --badge-ok-bg: {t["badge_ok_bg"]};
       --badge-warn-bg: {t["badge_warn_bg"]};
       --badge-danger-bg: {t["badge_danger_bg"]};
+      --pill-bg: color-mix(in srgb, var(--muted) 8%, transparent);
+      --pill-fg: var(--text);
+      --pill-border: color-mix(in srgb, var(--muted) 26%, transparent);
+      --text-sub: var(--muted);
+      --surface-strong: color-mix(in srgb, var(--panel) 90%, var(--bg) 10%);
+      --surface-soft: color-mix(in srgb, var(--panel) 75%, var(--bg) 25%);
       /* Spacing scale (Sprint 5: 8/12/16/24) */
       --sp-xs: 4px;
       --sp-sm: 8px;
       --sp-md: 12px;
-      --sp-lg: 16px;
+      --sp-lg: 18px;
       --sp-xl: 24px;
       --sp-2xl: 32px;
       /* Layout density */
       --card-pad: var(--sp-lg);
-      --card-pad-tight: 10px;
-      --card-gap: 10px;
-      --section-gap: 14px;
-      --kpi-pad-x: 14px;
-      --kpi-pad-y: 10px;
+      --card-pad-tight: 12px;
+      --card-gap: 12px;
+      --section-gap: 16px;
+      --kpi-pad-x: 18px;
+      --kpi-pad-y: 14px;
       --kpi-gap: 6px;
-      --kpi-min-height: 104px;
-      --shadow-soft: 0 6px 16px -12px rgba(0,0,0,0.22);
+      --kpi-min-height: 118px;
+      --shadow-soft: 0 12px 30px -16px rgba(0,0,0,0.28);
     }}
 
     /* ═══ PLANO 1: Fondo raiz (stApp) ═══ */
@@ -321,8 +330,10 @@ def aplicar_tema():
     }}
 
     html, body, [class*="css"] {{
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      font-family: 'Inter', 'Inter var', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
       color: var(--text);
+      letter-spacing: -0.01em;
+      background: var(--bg);
     }}
 
     .main {{ background: var(--bg) !important; }}
@@ -353,48 +364,56 @@ def aplicar_tema():
 
     /* ═══ Tarjetas reutilizables (Sprint 5: borde suave, menos lineas) ═══ */
     .vg-card {{
-      background: var(--panel);
-      border: 1px solid var(--line);
+      background: var(--surface-strong);
+      border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
       border-radius: var(--radius);
       padding: var(--card-pad);
       box-shadow: var(--shadow-soft, var(--shadow));
       margin-bottom: var(--section-gap);
-      transition: box-shadow 120ms ease, border-color 120ms ease;
+      transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-sm);
+    }}
+    .vg-card:hover {{
+      box-shadow: 0 18px 40px -18px rgba(0,0,0,0.35);
+      border-color: color-mix(in srgb, var(--primary, var(--accent)) 40%, var(--line));
     }}
     .vg-card.tight,
     .vg-card-tight {{
       padding: var(--card-pad-tight);
       margin-bottom: var(--card-gap);
+      gap: var(--sp-xs);
     }}
-    .vg-card h4{{margin:0 0 var(--sp-xs) 0;font-size:16px;font-weight:700;}}
-    .vg-card .subtitle{{color:var(--muted);font-size:13px;margin:0 0 var(--sp-sm) 0;}}
+    .vg-card h4{{margin:0 0 var(--sp-xs) 0;font-size:17px;font-weight:760;letter-spacing:-0.015em;}}
+    .vg-card .subtitle{{color:var(--text-sub);font-size:13px;margin:0 0 var(--sp-sm) 0;}}
     .vg-card.tight h4{{margin-bottom:var(--sp-xs);}}
     .vg-card.tight .subtitle{{margin-bottom:var(--sp-xs);}}
 
     /* KPI card */
     .vg-kpi-card {{
-      background: var(--panel);
-      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--panel) 92%, var(--bg) 8%);
+      border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
       border-radius: var(--radius);
       padding: var(--kpi-pad-y) var(--kpi-pad-x);
       box-shadow: var(--shadow-soft, var(--shadow));
       display: grid;
       gap: var(--kpi-gap);
-      align-content: center;
+      align-content: space-between;
       min-height: var(--kpi-min-height);
     }}
     .vg-kpi-card .kpi-label {{
       font-size: 12px;
-      font-weight: 650;
-      letter-spacing: 0.04em;
+      font-weight: 700;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
-      color: var(--muted);
+      color: var(--text-sub);
       margin: 0;
     }}
     .vg-kpi-card .kpi-value {{
-      font-size: 28px;
+      font-size: 30px;
       font-weight: 850;
-      line-height: 1.1;
+      line-height: 1.05;
       color: var(--text);
       margin: 0;
     }}
@@ -403,8 +422,8 @@ def aplicar_tema():
       align-items: center;
       gap: 6px;
       font-size: 12px;
-      font-weight: 650;
-      color: var(--muted);
+      font-weight: 700;
+      color: var(--text-sub);
       line-height: 1;
     }}
     .vg-kpi-card .kpi-dot {{
@@ -412,17 +431,30 @@ def aplicar_tema():
       height: 9px;
       border-radius: 999px;
       background: var(--muted);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--muted) 18%, transparent);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--muted) 22%, transparent);
     }}
-    .vg-kpi-card.tone-good {{ border-color: color-mix(in srgb, var(--ok) 35%, var(--line)); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--ok) 30%, transparent); }}
+    .vg-kpi-card.tone-good {{
+      border-color: color-mix(in srgb, var(--ok) 38%, var(--line));
+      background: color-mix(in srgb, var(--ok) 8%, var(--panel));
+    }}
     .vg-kpi-card.tone-good .kpi-value, .vg-kpi-card.tone-good .kpi-status {{ color: var(--ok); }}
-    .vg-kpi-card.tone-good .kpi-dot {{ background: var(--ok); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 20%, transparent); }}
-    .vg-kpi-card.tone-warn {{ border-color: color-mix(in srgb, var(--warn) 35%, var(--line)); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--warn) 30%, transparent); }}
+    .vg-kpi-card.tone-good .kpi-dot {{ background: var(--ok); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 25%, transparent); }}
+    .vg-kpi-card.tone-warn {{
+      border-color: color-mix(in srgb, var(--warn) 40%, var(--line));
+      background: color-mix(in srgb, var(--warn) 10%, var(--panel));
+    }}
     .vg-kpi-card.tone-warn .kpi-value, .vg-kpi-card.tone-warn .kpi-status {{ color: var(--warn); }}
-    .vg-kpi-card.tone-warn .kpi-dot {{ background: var(--warn); box-shadow: 0 0 0 2px color-mix(in srgb, var(--warn) 20%, transparent); }}
-    .vg-kpi-card.tone-bad {{ border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--danger) 30%, transparent); }}
+    .vg-kpi-card.tone-warn .kpi-dot {{ background: var(--warn); box-shadow: 0 0 0 2px color-mix(in srgb, var(--warn) 24%, transparent); }}
+    .vg-kpi-card.tone-bad {{
+      border-color: color-mix(in srgb, var(--danger) 40%, var(--line));
+      background: color-mix(in srgb, var(--danger) 12%, var(--panel));
+    }}
     .vg-kpi-card.tone-bad .kpi-value, .vg-kpi-card.tone-bad .kpi-status {{ color: var(--danger); }}
-    .vg-kpi-card.tone-bad .kpi-dot {{ background: var(--danger); box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 20%, transparent); }}
+    .vg-kpi-card.tone-bad .kpi-dot {{ background: var(--danger); box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 24%, transparent); }}
+    .vg-kpi-card.tone-neutral {{
+      border-color: color-mix(in srgb, var(--primary, var(--accent)) 30%, var(--line));
+      background: color-mix(in srgb, var(--primary, var(--accent)) 6%, var(--panel));
+    }}
     .vg-kpi-card.tone-neutral .kpi-value {{ color: var(--text); }}
 
     /* Progress row (Sprint 2) */
@@ -452,6 +484,7 @@ def aplicar_tema():
       height: 100%;
       border-radius: 5px;
       transition: width 0.3s ease;
+      background: var(--muted);
     }}
     .vg-progress-pct {{
       font-size: 13px;
@@ -459,6 +492,12 @@ def aplicar_tema():
       min-width: 50px;
       text-align: right;
     }}
+    .vg-progress-row.good .vg-progress-bar-fill {{ background: var(--ok); }}
+    .vg-progress-row.warn .vg-progress-bar-fill {{ background: var(--warn); }}
+    .vg-progress-row.bad .vg-progress-bar-fill {{ background: var(--danger); }}
+    .vg-progress-row.good .vg-progress-pct {{ color: var(--ok); }}
+    .vg-progress-row.warn .vg-progress-pct {{ color: var(--warn); }}
+    .vg-progress-row.bad .vg-progress-pct {{ color: var(--danger); }}
 
     .vg-kpi {{
       display: grid;
@@ -469,15 +508,22 @@ def aplicar_tema():
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 3px 10px;
+      padding: 4px 11px;
       border-radius: 999px;
-      border: 1px solid var(--line);
-      background: color-mix(in srgb, var(--panel) 85%, white 15%);
-      color: var(--muted);
+      border: 1px solid var(--pill-border);
+      background: var(--pill-bg);
+      color: var(--pill-fg);
       font-size: 11px;
-      font-weight: 650;
-      line-height: 1.2;
+      font-weight: 700;
+      line-height: 1.25;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }}
+    .vg-pill.pill-primary {{ background: color-mix(in srgb, var(--primary) 18%, transparent); color: var(--primary); border-color: color-mix(in srgb, var(--primary) 28%, var(--pill-border)); }}
+    .vg-pill.pill-warn {{ background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 28%, var(--pill-border)); }}
+    .vg-pill.pill-danger {{ background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 28%, var(--pill-border)); }}
+    .vg-pill.pill-success {{ background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); border-color: color-mix(in srgb, var(--ok) 28%, var(--pill-border)); }}
+    .vg-pill.pill-info {{ background: color-mix(in srgb, var(--brand) 16%, transparent); color: var(--brand); border-color: color-mix(in srgb, var(--brand) 26%, var(--pill-border)); }}
     .vg-rule {{
       height: 3px;
       background: var(--accent);
@@ -608,11 +654,11 @@ def aplicar_tema():
     }}
     .stButton > button:hover, .stDownloadButton > button:hover {{
       transform: translateY(-1px);
-      border-color: var(--accent) !important;
+      border-color: var(--primary, var(--accent)) !important;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }}
     .stButton > button:focus, .stDownloadButton > button:focus {{
-      outline: 2px solid rgba(181,139,0,0.25) !important;
+      outline: 2px solid color-mix(in srgb, var(--primary, var(--accent)) 28%, transparent) !important;
     }}
     .stButton > button:active {{
       transform: translateY(0);
@@ -620,9 +666,9 @@ def aplicar_tema():
 
     /* Primary button style */
     .vg-btn-primary button {{
-      background: var(--brand) !important;
+      background: var(--primary, var(--brand)) !important;
       color: #fff !important;
-      border-color: var(--brand) !important;
+      border-color: var(--primary, var(--brand)) !important;
     }}
     .vg-btn-primary button:hover {{
       opacity: 0.9;
@@ -637,8 +683,8 @@ def aplicar_tema():
       font-size: 13px !important;
     }}
     .stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus {{
-      border-color: var(--accent) !important;
-      box-shadow: 0 0 0 2px rgba(181,139,0,0.15) !important;
+      border-color: var(--primary, var(--accent)) !important;
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary, var(--accent)) 20%, transparent) !important;
     }}
     .stTextInput input::placeholder, .stTextArea textarea::placeholder {{
       color: var(--muted) !important;
@@ -1016,16 +1062,10 @@ def card_end():
 
 
 def pill(text: str, kind: str = "default"):
-    palette = {
-        "default": ("var(--color-pill-fg, #111418)", "var(--color-pill-bg, #f3f4f6)"),
-        "primary": ("var(--color-primary, #137fec)", "color-mix(in srgb, var(--color-primary, #137fec) 12%, transparent)"),
-        "warn": ("var(--color-warn, #eeab2f)", "color-mix(in srgb, var(--color-warn, #eeab2f) 15%, transparent)"),
-        "danger": ("var(--color-danger, #d32f2f)", "color-mix(in srgb, var(--color-danger, #d32f2f) 12%, transparent)"),
-        "success": ("var(--color-ok, #0bda5e)", "color-mix(in srgb, var(--color-ok, #0bda5e) 12%, transparent)"),
-    }
-    fg, bg = palette.get(kind, palette["default"])
+    safe_kind = "".join(ch for ch in (kind or "").lower() if ch.isalnum() or ch in ("-", "_"))
+    cls = f" vg-pill pill-{safe_kind}" if safe_kind and safe_kind != "default" else " vg-pill"
     st.markdown(
-        f"<span class='vg-pill' style='color:{fg};background:{bg};border-color:{fg}22;'>{text}</span>",
+        f"<span class='{cls.strip()}'>{html.escape(str(text))}</span>",
         unsafe_allow_html=True,
     )
 
@@ -1071,19 +1111,14 @@ def section_header(title: str, subtitle: str | None = None, meta: list[str] | No
 def progress_row(label: str, pct: float):
     """Barra de progreso horizontal con label y porcentaje (Sprint 2)."""
     pct = max(0, min(100, pct))
-    if pct >= 80:
-        color = "var(--ok)"
-    elif pct >= 50:
-        color = "var(--warn)"
-    else:
-        color = "var(--danger)"
+    tone = "good" if pct >= 80 else "warn" if pct >= 50 else "bad"
     st.markdown(f"""
-    <div class="vg-progress-row">
-      <span class="vg-progress-label">{label}</span>
+    <div class="vg-progress-row {tone}">
+      <span class="vg-progress-label">{html.escape(str(label))}</span>
       <div class="vg-progress-bar-bg">
-        <div class="vg-progress-bar-fill" style="width:{pct:.0f}%;background:{color};"></div>
+        <div class="vg-progress-bar-fill" style="width:{pct:.0f}%"></div>
       </div>
-      <span class="vg-progress-pct" style="color:{color};">{pct:.1f}%</span>
+      <span class="vg-progress-pct">{pct:.1f}%</span>
     </div>
     """, unsafe_allow_html=True)
 
