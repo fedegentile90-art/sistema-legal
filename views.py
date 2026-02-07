@@ -9,29 +9,98 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Dict
 import os
 import shutil
 import json
 
 from config import (
     RUTA_BASE, ESTADOS_DISPONIBLES, FUEROS_DISPONIBLES,
-    CAMPOS_FINANCIEROS, ESTADOS_PAGO, SUBCARPETAS_ESTANDAR,
+    CAMPOS_FICHA, CAMPOS_FINANCIEROS, ESTADOS_PAGO, SUBCARPETAS_ESTANDAR,
     limpiar_nombre_carpeta,
 )
-from domain import Caso
+from domain import Caso, case_status, is_blank
 from repo import GestorCasos, is_db_mode
 from exports import df_to_xlsx_bytes
 from ui import (
     _ensure_bool_state, _ensure_int_step_state, _swap,
     _df_select_kwargs, _ui_toast, help_section,
-    page_header, render_grid, section,
+    page_header, render_grid, section, section_header,
     mode_tabs, empty_state_nav, grid_shell, detail_shell, edit_shell,
-    kpi_card, progress_row, audit_status_badge,
+    kpi_card, progress_row, audit_status_badge, card_begin, card_end,
+    pill,
     ui_centro_ayuda_content, open_path,
 )
 from grids import render_aggrid
 from audit import auditar_app
+
+
+@st.cache_data(show_spinner=False)
+def _csv_bytes(df: pd.DataFrame) -> bytes:
+    return df.to_csv(index=False).encode("utf-8-sig")
+
+
+@st.cache_data(show_spinner=False)
+def _xlsx_bytes(df: pd.DataFrame, sheet_name: str = "Reporte") -> bytes:
+    return df_to_xlsx_bytes(df, sheet_name=sheet_name)
+
+
+def _get_export_ts(name: str) -> str:
+    """Timestamp estable por sesión para file_name de descargas."""
+    key = f"export_ts_{name}"
+    if key not in st.session_state:
+        st.session_state[key] = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return st.session_state[key]
+
+
+def _regen_export_ts(names: List[str]):
+    """Actualiza los timestamps de exportes (botón 'Regenerar')."""
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    for name in names:
+        st.session_state[f"export_ts_{name}"] = ts
+
+
+def _contar_status(casos: List[Caso]) -> Dict[str, int]:
+    """Cuenta casos por estado de datos usando case_status()."""
+    counts = {"ok": 0, "legacy_incomplete": 0, "error": 0}
+    for c in casos:
+        status = case_status(c).get("status", "ok")
+        counts[status] = counts.get(status, 0) + 1
+    return counts
+
+
+def _completitud_basica(casos: List[Caso]) -> Dict[str, Dict[str, float]]:
+    """Calcula completitud por campo usando la misma lógica que auditoría."""
+    total = len(casos)
+    if total == 0:
+        return {}
+
+    metricas = {}
+    for campo in CAMPOS_FICHA:
+        attr = campo.lower()
+        completos = 0
+        for c in casos:
+            val = getattr(c, attr, None) if hasattr(c, attr) else None
+            if not is_blank(val):
+                completos += 1
+        metricas[campo] = {
+            "vacios_o_sd": total - completos,
+            "completos": completos,
+            "pct_completos": round((completos / total) * 100, 1)
+        }
+    return metricas
+
+
+def _go_route(route: str, mode: str = "listado", item_id: str | None = None):
+    """Navegación interna sin depender de nav.navigate_to."""
+    st.session_state["nav_route"] = route
+    st.session_state["route_mode"] = mode
+    if item_id is not None:
+        if route == "Gestion":
+            st.session_state["selected_case_id"] = item_id
+        else:
+            st.session_state["selected_item_id"] = item_id
+    st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -39,71 +108,44 @@ from audit import auditar_app
 # ══════════════════════════════════════════════════════════════════════════════
 
 def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
-    """Dashboard real: KPIs + salud de datos + acciones rapidas. Sin tablas."""
-    page_header("Dashboard", subtitle="Centro de mando")
+    """Dashboard real: KPIs + acciones rapidas. Sin tablas."""
+    total = len(casos)
+    header_meta = [f"{total} caso{'s' if total != 1 else ''}"]
+    section_header("Dashboard", subtitle="Centro de mando", meta=header_meta)
 
     if not casos:
         st.info("No hay casos cargados. Use Gestion para crear el primer caso.")
         if st.button("Ir a Gestion", use_container_width=True):
-            from nav import navigate_to
-            navigate_to("Gestion")
+            _go_route("Gestion")
         return
 
-    # Cargar metricas de auditoria (si hay cache o JSON reciente)
-    metricas = _cargar_metricas_auditoria(gestor, casos)
+    status_counts = _contar_status(casos)
+    casos_error = status_counts.get("error", 0)
+    casos_legacy_warn = status_counts.get("legacy_incomplete", 0)
+    casos_validos = max(0, total - casos_error - casos_legacy_warn)
 
-    # ── Fila 1: KPIs principales ──
-    st.markdown("#### Resumen")
-    k1, k2, k3, k4 = st.columns(4)
+    cols = st.columns(3)
+    with cols[0]:
+        kpi_card("Casos válidos", casos_validos, status="OK", tone="good")
+    with cols[1]:
+        kpi_card("Legacy incompletos", casos_legacy_warn, status="Atención", tone="warn")
+    with cols[2]:
+        kpi_card("Casos con error", casos_error, status="Revisar", tone="bad")
 
-    total = metricas.get("casos_total", len(casos))
-    completitud = metricas.get("completitud", {})
-
-    pct_responsable = completitud.get("RESPONSABLE", {}).get("pct_completos", 0)
-    pct_caratula = completitud.get("CARATULA", {}).get("pct_completos", 0)
-    pct_expediente = completitud.get("EXPEDIENTE", {}).get("pct_completos", 0)
-
-    with k1:
-        kpi_card("Casos Total", total, tone="neutral")
-    with k2:
-        tone = "good" if pct_responsable >= 90 else ("warn" if pct_responsable >= 70 else "bad")
-        kpi_card("Responsable", f"{pct_responsable:.1f}%", tone=tone)
-    with k3:
-        tone = "good" if pct_caratula >= 50 else ("warn" if pct_caratula >= 25 else "bad")
-        kpi_card("Caratula", f"{pct_caratula:.1f}%", delta="Critico" if pct_caratula < 30 else None, tone=tone)
-    with k4:
-        tone = "good" if pct_expediente >= 70 else ("warn" if pct_expediente >= 40 else "bad")
-        kpi_card("Expediente", f"{pct_expediente:.1f}%", tone=tone)
-
-    st.markdown("---")
-
-    # ── Fila 2: Salud de Datos ──
-    st.markdown("#### Salud de Datos")
-    st.caption("Porcentaje de completitud por campo clave")
-
-    campos_salud = ["JURISDICCION", "ORGANISMO", "EXPEDIENTE", "CARATULA", "RESPONSABLE", "CONTROL"]
-    for campo in campos_salud:
-        pct = completitud.get(campo, {}).get("pct_completos", 0)
-        progress_row(campo.capitalize(), pct)
-
-    st.markdown("---")
-
-    # ── Fila 3: Acciones rapidas ──
-    st.markdown("#### Acciones rapidas")
+    # Acciones rápidas
+    card_begin("Acciones rápidas", subtitle="Atajos principales", variant="tight")
     a1, a2, a3 = st.columns(3)
 
     with a1:
-        if st.button("Ir a Gestion (Casos)", use_container_width=True, key="dash_go_gestion"):
-            from nav import navigate_to
-            navigate_to("Gestion")
+        if st.button("Ir a Gestion (Casos)", use_container_width=True, key="dash_go_gestion", type="secondary"):
+            _go_route("Gestion")
 
     with a2:
-        if st.button("Ejecutar Auditoria", use_container_width=True, key="dash_go_audit"):
-            from nav import navigate_to
-            navigate_to("Auditoria")
+        if st.button("Ejecutar Auditoria", use_container_width=True, key="dash_go_audit", type="secondary"):
+            _go_route("Auditoria")
 
     with a3:
-        if st.button("Reparar subcarpetas", use_container_width=True, key="dash_repair"):
+        if st.button("Reparar subcarpetas", use_container_width=True, key="dash_repair", type="secondary"):
             total_creadas = 0
             pb = st.progress(0)
             for i, c in enumerate(casos, start=1):
@@ -111,10 +153,10 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
                 pb.progress(int((i / max(1, len(casos))) * 100))
             st.success(f"Reparacion finalizada. Subcarpetas creadas: {total_creadas}.")
             st.cache_data.clear()
+    card_end()
 
-    # ── Proximos vencimientos (compacto, max 5) ──
-    st.markdown("---")
-    st.markdown("#### Proximos vencimientos (7 dias)")
+    # Actividad / próximos vencimientos (compacto, max 5)
+    card_begin("Actividad", subtitle="Próximos vencimientos (7 días)", variant="tight")
 
     hoy = datetime.now().date()
     tareas_prox = []
@@ -126,49 +168,43 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
 
     if tareas_prox:
         for c in tareas_prox[:5]:
-            st.markdown(f"""
-            <div class="vg-card-tight" style="margin-bottom:6px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span>{c.semaforo} <b>{c.cliente}</b> -- {c.causa}</span>
-                <span class="vg-pill">{c.fecha_tarea}</span>
-              </div>
-              <div style="font-size:12px;color:var(--muted);margin-top:2px;">{c.tarea_pendiente}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            fecha = c._parsear_fecha(c.fecha_tarea)
+            delta_dias = (fecha - hoy).days if fecha else None
+            pill_kind = "danger" if delta_dias is not None and delta_dias < 0 else "warn" if delta_dias is not None and delta_dias <= 2 else "default"
+            left, right = st.columns([0.72, 0.28])
+            with left:
+                status_icon = c.semaforo or "•"
+                st.markdown(f"{status_icon} **{c.cliente or ''}** — {c.causa or ''}")
+                st.caption(c.tarea_pendiente or "Sin tarea registrada")
+            with right:
+                pill(c.fecha_tarea or "s/d", kind=pill_kind)
         if len(tareas_prox) > 5:
             st.caption(f"... y {len(tareas_prox) - 5} mas. Ver en Gestion > Agenda.")
     else:
         st.success("Sin vencimientos en los proximos 7 dias.")
+    card_end()
+
+    # CTA a Auditoría (secundario)
+    card_begin("Control de datos", subtitle="Diagnóstico completo en Auditoría", variant="tight")
+    st.caption("Salud de datos se revisa en Auditoria.")
+    if st.button("Ir a Auditoria de datos", key="go_audit_from_dash", type="secondary", use_container_width=True):
+        _go_route("Auditoria")
+    card_end()
 
 
 def _cargar_metricas_auditoria(gestor: GestorCasos, casos: List[Caso]) -> dict:
     """Carga metricas de auditoria desde session_state o calcula basicas."""
     # Si hay resultado reciente en session_state, usarlo
     if "ultimo_resultado_auditoria" in st.session_state:
-        return st.session_state["ultimo_resultado_auditoria"].get("metricas", {})
+        metricas_cache = st.session_state["ultimo_resultado_auditoria"].get("metricas", {})
+        if metricas_cache:
+            return metricas_cache
 
     # Calcular metricas basicas inline (sin auditoria completa)
     total = len(casos)
     if total == 0:
         return {"casos_total": 0, "completitud": {}}
-
-    campos = ["TIPO_PROCESO", "JURISDICCION", "ORGANISMO", "EXPEDIENTE",
-              "CARATULA", "RESPONSABLE", "CONTROL", "EVENTO", "FECHA_EVENTO",
-              "TAREA_PENDIENTE", "FECHA_TAREA", "OBSERVACIONES"]
-
-    completitud = {}
-    for campo in campos:
-        attr = campo.lower()
-        completos = sum(1 for c in casos
-                        if hasattr(c, attr) and getattr(c, attr)
-                        and str(getattr(c, attr)).strip().upper() not in ("", "S/D"))
-        completitud[campo] = {
-            "vacios_o_sd": total - completos,
-            "completos": completos,
-            "pct_completos": round((completos / total) * 100, 1)
-        }
-
-    return {"casos_total": total, "completitud": completitud}
+    return {"casos_total": total, "completitud": _completitud_basica(casos)}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -247,7 +283,8 @@ def ordenar_por_urgencia(df: pd.DataFrame) -> pd.DataFrame:
     df2 = df2.sort_values(
         by=["_ORD_SEM", "_FECHA_TAREA_DT", "AÑO", "CLIENTE", "FUERO", "CAUSA"],
         ascending=[True, True, False, True, True, True],
-        kind="mergesort"
+        kind="mergesort",
+        na_position="last",
     )
     return df2.drop(columns=["_ORD_SEM", "_FECHA_TAREA_DT"])
 
@@ -479,29 +516,41 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
     # --- Export buttons
     col_csv, col_xlsx, col_spacer = st.columns([2, 2, 6])
     with col_csv:
-        csv = df.to_csv(index=False).encode('utf-8-sig')
+        df_full = st.session_state.get("df_full", df)
+        csv = _csv_bytes(df_full)
+        ts_csv = _get_export_ts("casos_csv")
         st.download_button(
             label="Exportar CSV",
             data=csv,
-            file_name=f"reporte_legal_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+            file_name=f"reporte_legal_{ts_csv}.csv",
             mime="text/csv",
-            use_container_width=True
+            use_container_width=True,
+            key="download_casos_csv",
         )
     with col_xlsx:
         planilla_cols = st.session_state.get("planilla_cols")
+        df_full = st.session_state.get("df_full", df)
         if planilla_cols:
-            cols_export = [c for c in planilla_cols if c in df.columns and not str(c).startswith("_")]
+            cols_export = [c for c in planilla_cols if c in df_full.columns and not str(c).startswith("_")]
         else:
-            cols_export = [c for c in df.columns if not str(c).startswith("_")]
-        df_export = df[cols_export].replace("S/D", "")
-        xlsx_bytes = df_to_xlsx_bytes(df_export)
+            cols_export = [c for c in df_full.columns if not str(c).startswith("_")]
+        df_export = df_full[cols_export].replace("S/D", "")
+        xlsx_bytes = _xlsx_bytes(df_export)
+        ts_xlsx = _get_export_ts("casos_xlsx")
         st.download_button(
             label="Exportar Excel",
             data=xlsx_bytes,
-            file_name=f"reporte_legal_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+            file_name=f"reporte_legal_{ts_xlsx}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
+            use_container_width=True,
+            key="download_casos_xlsx",
         )
+    with col_spacer:
+        if st.button("Regenerar exportes", key="regen_export_casos", use_container_width=True):
+            _regen_export_ts(["casos_csv", "casos_xlsx"])
+            st.cache_data.clear()
+            _ui_toast("Exportes regenerados")
+            st.rerun()
 
     # --- Toolbar
     _ensure_bool_state("planilla_wrap", False)
@@ -545,9 +594,9 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
 
     # --- Presets de columnas
     presets = {
-        "Gestion": ["SEMÁFORO","FECHA TAREA","TAREA PENDIENTE","CLIENTE","FUERO","CAUSA","EXPEDIENTE","RESPONSABLE","ESTADO","AÑO"],
-        "Cliente/Causa": ["CLIENTE","FUERO","CAUSA","CARATULA","EXPEDIENTE","RESPONSABLE","SEMÁFORO","FECHA TAREA","TAREA PENDIENTE"],
-        "Procesal": ["CLIENTE","FUERO","TIPO PROCESO","JURISDICCION","ORGANISMO","EXPEDIENTE","CARATULA","CONTROL","EVENTO","FECHA EVENTO"],
+        "Gestion": ["SEMÁFORO","LEGACY","FECHA TAREA","TAREA PENDIENTE","CLIENTE","FUERO","CAUSA","EXPEDIENTE","RESPONSABLE","ESTADO","AÑO"],
+        "Cliente/Causa": ["CLIENTE","FUERO","CAUSA","CARATULA","EXPEDIENTE","RESPONSABLE","SEMÁFORO","FECHA TAREA","TAREA PENDIENTE","LEGACY"],
+        "Procesal": ["CLIENTE","FUERO","TIPO PROCESO","JURISDICCION","ORGANISMO","EXPEDIENTE","CARATULA","CONTROL","EVENTO","FECHA EVENTO","LEGACY"],
         "Completo": [c for c in df.columns if not str(c).startswith("_")]
     }
 
@@ -556,6 +605,8 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
     if "planilla_cols" not in st.session_state:
         base = presets.get(st.session_state["planilla_preset"], presets["Gestion"])
         st.session_state["planilla_cols"] = [c for c in base if c in df.columns]
+    if "planilla_cols_visible" not in st.session_state:
+        st.session_state["planilla_cols_visible"] = st.session_state["planilla_cols"]
 
     st.caption("Seleccione columnas visibles y ordene con las flechas. Use Vista estandar para restaurar.")
     with st.expander("Columnas (orden y visibilidad)", expanded=False):
@@ -574,7 +625,6 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
             selected = st.multiselect(
                 "Visibilidad",
                 options=all_cols,
-                default=st.session_state["planilla_cols"],
                 key="planilla_cols_visible"
             )
             current = st.session_state["planilla_cols"]
@@ -616,6 +666,7 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
 
     column_config = {
         "SEMÁFORO": st.column_config.TextColumn("", width="small"),
+        "LEGACY": st.column_config.TextColumn("Legacy", width="small"),
         "FECHA TAREA": st.column_config.TextColumn("Fecha", width="small"),
         "TAREA PENDIENTE": st.column_config.TextColumn("Tarea", width="medium"),
         "CLIENTE": st.column_config.TextColumn("Cliente", width="medium"),
@@ -629,7 +680,7 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
     }
 
     selected_ruta = render_aggrid(
-        df_grid, key="planilla_v3", height_px=560,
+        df_grid, key="planilla_v3", height=560,
         column_config=column_config,
     )
 
@@ -657,6 +708,7 @@ def _render_tarjetas(df: pd.DataFrame, gestor: GestorCasos):
         cliente = str(row.get("CLIENTE",""))
         causa = str(row.get("CAUSA",""))
         sem = str(row.get("SEMÁFORO",""))
+        legacy_badge = str(row.get("LEGACY",""))
         vence = str(row.get("FECHA TAREA",""))
         tarea = str(row.get("TAREA PENDIENTE",""))
         fuero = str(row.get("FUERO",""))
@@ -667,6 +719,8 @@ def _render_tarjetas(df: pd.DataFrame, gestor: GestorCasos):
 
         titulo = f"{sem} {cliente} -- {causa}"
         with st.expander(titulo, expanded=False):
+            if legacy_badge:
+                st.markdown(f"<span style='background:rgba(253,186,116,0.25);color:#b54708;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:600;'>{legacy_badge}</span>", unsafe_allow_html=True)
             cA, cB = st.columns([3, 2])
             with cA:
                 st.write(f"**Fuero:** {fuero}")
@@ -988,7 +1042,7 @@ def _render_cliente_listado(casos_cliente: list, cliente_sel: str, gestor: Gesto
     df_cli_grid = df_cli[[c for c in cols_cli if c in df_cli.columns] + (["_RUTA"] if "_RUTA" in df_cli.columns else [])].copy()
     df_cli_grid = df_cli_grid.replace("S/D", "")
 
-    selected_ruta = render_aggrid(df_cli_grid, key="cli_grid_v3", height_px=480)
+    selected_ruta = render_aggrid(df_cli_grid, key="cli_grid_v3", height=480)
 
     if selected_ruta:
         st.session_state["selected_case_id"] = selected_ruta
@@ -1195,18 +1249,29 @@ def _render_agenda_listado(tareas_filtradas: list, tareas_total: list, gestor: G
         "_RUTA": str(t.ruta),
     } for _, t in tareas_filtradas])
 
-    st.download_button(
-        label="Exportar Agenda (Excel)",
-        data=df_to_xlsx_bytes(
-            df_agenda[[c for c in df_agenda.columns if c != "_RUTA"]],
-            sheet_name="Agenda"
-        ),
-        file_name=f"agenda_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
+    agenda_bytes = _xlsx_bytes(
+        df_agenda[[c for c in df_agenda.columns if c != "_RUTA"]],
+        sheet_name="Agenda"
     )
+    ts_agenda = _get_export_ts("agenda_xlsx")
+    col_dl, col_regen = st.columns([3, 1])
+    with col_dl:
+        st.download_button(
+            label="Exportar Agenda (Excel)",
+            data=agenda_bytes,
+            file_name=f"agenda_{ts_agenda}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            key="download_agenda_xlsx",
+        )
+    with col_regen:
+        if st.button("Regenerar export", key="regen_agenda_export", use_container_width=True):
+            _regen_export_ts(["agenda_xlsx"])
+            st.cache_data.clear()
+            _ui_toast("Export agenda regenerada")
+            st.rerun()
 
-    selected_ruta = render_aggrid(df_agenda, key="agenda_grid_v3", height_px=520)
+    selected_ruta = render_aggrid(df_agenda, key="agenda_grid_v3", height=520)
 
     if selected_ruta:
         st.session_state["selected_item_id"] = selected_ruta
@@ -1351,7 +1416,7 @@ def _render_finanzas_listado(df_fin: pd.DataFrame, gestor: GestorCasos):
     else:
         df_fin_f = df_fin.copy()
 
-    selected_ruta = render_aggrid(df_fin_f, key="fin_grid_v3", height_px=480)
+    selected_ruta = render_aggrid(df_fin_f, key="fin_grid_v3", height=480)
 
     # Totales
     def parse_monto(val):
@@ -1646,9 +1711,10 @@ def formulario_editar_caso(ui, gestor: GestorCasos, casos: List[Caso]):
 
 def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
     """Auditoria: pantalla tecnica limpia con estado + detalles colapsados."""
-    page_header("Auditoria y Calidad", subtitle="Estado del sistema")
+    section_header("Auditoria", subtitle="Mando de seguridad y calidad de datos")
 
-    # Botones de accion arriba
+    # Toolbar de acciones
+    card_begin("Acciones", subtitle="Ejecutar, reparar, exportar")
     a1, a2, a3 = st.columns(3)
     with a1:
         run_audit = st.button("Ejecutar auditoria", use_container_width=True, key="audit_run")
@@ -1664,19 +1730,8 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
             st.cache_data.clear()
             _ui_toast("Reparacion masiva aplicada")
     with a3:
-        # Exportar reporte (si hay resultado)
-        if "ultimo_resultado_auditoria" in st.session_state:
-            reporte = st.session_state["ultimo_resultado_auditoria"]
-            json_bytes = json.dumps(reporte, ensure_ascii=False, indent=2).encode("utf-8")
-            st.download_button(
-                "Exportar reporte (JSON)",
-                data=json_bytes,
-                file_name=f"auditoria_vg_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                mime="application/json",
-                use_container_width=True,
-            )
-
-    st.markdown("---")
+        st.caption("Exportes en la sección inferior.")
+    card_end()
 
     # Ejecutar auditoria si se presiono el boton
     if run_audit:
@@ -1684,33 +1739,31 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
             reporte = auditar_app(gestor, casos)
             st.session_state["ultimo_resultado_auditoria"] = reporte
 
+    reporte = st.session_state.get("ultimo_resultado_auditoria")
+
     # Mostrar resultado si existe
-    if "ultimo_resultado_auditoria" in st.session_state:
-        reporte = st.session_state["ultimo_resultado_auditoria"]
+    if reporte:
         r = reporte.get("resumen", {})
         errores = int(r.get("errores", 0))
         warnings = int(r.get("warnings", 0))
         infos = int(r.get("info", 0))
         casos_total = int(r.get("casos", 0))
 
-        # Estado del sistema (badge grande)
-        st.markdown("#### Estado del sistema")
+        card_begin("Resumen", subtitle="Estado del sistema")
         audit_status_badge(errores, warnings)
-
-        # Metricas rapidas
-        c1, c2, c3, c4 = st.columns(4)
+        c1, c2, c3 = st.columns(3)
         with c1:
-            st.metric("Errores", errores)
+            kpi_card("Errores", errores, status="error", tone="bad")
         with c2:
-            st.metric("Advertencias", warnings)
+            kpi_card("Advertencias", warnings, status="warn", tone="warn")
         with c3:
-            st.metric("Info", infos)
-        with c4:
-            st.metric("Casos auditados", casos_total)
+            kpi_card("Info", infos, status="ok", tone="good")
+        st.caption(f"Casos auditados: {casos_total}")
+        card_end()
 
-        # Detalles tecnicos (colapsados por defecto)
         hall = reporte.get("hallazgos", [])
         if hall:
+            card_begin("Hallazgos")
             with st.expander("Ver detalles tecnicos", expanded=False):
                 df_h = pd.DataFrame(hall)
                 orden = {"ERROR": 0, "WARN": 1, "INFO": 2}
@@ -1721,30 +1774,73 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
 
                 st.dataframe(df_h, use_container_width=True, hide_index=True)
 
-                csv_h = df_h.to_csv(index=False).encode("utf-8-sig")
+                csv_h = _csv_bytes(df_h)
+                ts_aud_csv = _get_export_ts("auditoria_csv")
                 st.download_button(
                     "Descargar hallazgos (CSV)",
                     data=csv_h,
-                    file_name=f"auditoria_hallazgos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    file_name=f"auditoria_hallazgos_{ts_aud_csv}.csv",
                     mime="text/csv",
                     use_container_width=True,
+                    key="download_audit_csv",
                 )
-
-        # Completitud (colapsada)
-        m = reporte.get("metricas", {}).get("completitud", {})
-        if m:
-            with st.expander("Completitud de datos (por campo)", expanded=False):
-                df_m = pd.DataFrame([
-                    {"Campo": k, **v} for k, v in m.items()
-                ]).sort_values("pct_completos", ascending=True)
-                st.dataframe(df_m, use_container_width=True, hide_index=True)
+            card_end()
 
     else:
         st.info("Presione 'Ejecutar auditoria' para analizar el sistema.")
 
+    metricas = _cargar_metricas_auditoria(gestor, casos)
+    completitud = metricas.get("completitud", {})
+
+    card_begin("Salud de datos", subtitle="Completitud por campo (última auditoría o cálculo rápido)")
+    campos_salud = ["JURISDICCION", "ORGANISMO", "EXPEDIENTE", "CARATULA", "RESPONSABLE", "CONTROL"]
+    st.caption("Porcentaje de completitud por campo clave.")
+    if completitud:
+        for campo in campos_salud:
+            pct = completitud.get(campo, {}).get("pct_completos", 0)
+            progress_row(campo.capitalize(), pct)
+
+        with st.expander("Tabla completa de completitud (por campo)", expanded=False):
+            df_m = pd.DataFrame([
+                {"Campo": k, **v} for k, v in completitud.items()
+            ]).sort_values("pct_completos", ascending=True)
+            st.dataframe(df_m, use_container_width=True, hide_index=True)
+    else:
+        st.info("No hay datos para calcular completitud.")
+    card_end()
+
+    # Exportes
+    card_begin("Exportes")
+    if reporte:
+        json_bytes = json.dumps(reporte, ensure_ascii=False, indent=2).encode("utf-8")
+        ts_aud_json = _get_export_ts("auditoria_json")
+        st.download_button(
+            "Exportar reporte (JSON)",
+            data=json_bytes,
+            file_name=f"auditoria_vg_{ts_aud_json}.json",
+            mime="application/json",
+            use_container_width=True,
+            key="download_audit_json",
+        )
+        if st.button("Regenerar exportes auditoría", key="regen_audit_exports", use_container_width=True):
+            _regen_export_ts(["auditoria_json", "auditoria_csv"])
+            st.cache_data.clear()
+            _ui_toast("Exportes de auditoría regenerados")
+            st.rerun()
+    else:
+        st.caption("Ejecute auditoría para habilitar exportes.")
+    card_end()
+
     # Diagnostico basico (siempre visible)
     st.markdown("---")
     st.markdown("#### Diagnostico basico")
+
+    conteo_diag = st.session_state.get("conteo_casos_diag")
+    if conteo_diag:
+        delta = conteo_diag.get("delta", 0)
+        st.write(f"**Conteo DB vs listado:** {conteo_diag.get('db_total', 0)} / {conteo_diag.get('listado_total', 0)} (delta {delta})")
+        if delta:
+            st.warning("Diferencia detectada entre count(*) y casos cargados. Revisar filtros/joins.")
 
     if is_db_mode():
         st.write("**Backend:** Base de datos PostgreSQL")

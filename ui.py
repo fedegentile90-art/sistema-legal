@@ -9,6 +9,8 @@ import streamlit as st
 import inspect
 import socket
 import os
+import json
+import html
 from datetime import datetime
 from typing import List
 
@@ -121,6 +123,123 @@ THEMES = {
 }
 
 
+def load_tokens(path: str = "design/stitch_ai/tokens.json") -> dict:
+    """Carga tokens JSON desde disco con fallback a estructura vacía."""
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except Exception:
+        return {"colors": {}, "typography": {}, "radii": {}, "shadows": {}, "spacing": {}, "tailwind_keys": {}}
+
+
+def _slug(var_name: str) -> str:
+    return (
+        var_name.lower()
+        .replace(" ", "-")
+        .replace("_", "-")
+        .replace(".", "-")
+    )
+
+
+def _resolve_mode_colors(colors: dict, mode: str) -> dict:
+    """Prefiere claves -light/-dark según modo; conserva las otras tal cual."""
+    mode = (mode or "light").lower()
+    resolved = {}
+    for key, val in colors.items():
+        if key.endswith("-light") or key.endswith("-dark"):
+            base = key.rsplit("-", 1)[0]
+            if mode == "light" and key.endswith("-light"):
+                resolved[base] = val
+            if mode == "dark" and key.endswith("-dark"):
+                resolved[base] = val
+    for key, val in colors.items():
+        if key.endswith("-light") or key.endswith("-dark"):
+            continue
+        resolved.setdefault(key, val)
+    return resolved
+
+
+def build_css_vars(tokens: dict, mode: str = "light") -> str:
+    """Genera bloque CSS con variables en :root a partir de tokens."""
+    parts = [":root{"]
+    colors = _resolve_mode_colors(tokens.get("colors", {}), mode)
+    for k, v in colors.items():
+        parts.append(f"--color-{_slug(k)}:{v};")
+
+    radii = tokens.get("radii", {})
+    for k, v in radii.items():
+        parts.append(f"--radius-{_slug(k)}:{v};")
+
+    shadows = tokens.get("shadows", {})
+    for k, v in shadows.items():
+        parts.append(f"--shadow-{_slug(k)}:{v};")
+
+    spacing = tokens.get("spacing", {})
+    for k, v in spacing.items():
+        parts.append(f"--space-{_slug(k)}:{v};")
+
+    fonts = tokens.get("typography", {}).get("font_families", [])
+    if fonts:
+        parts.append(f"--font-display:{fonts[0]};")
+
+    parts.append("}")
+    return "\n".join(parts)
+
+
+def inject_theme(tokens: dict):
+    """
+    Inyecta variables CSS basadas en tokens + carga de fuentes.
+    Respeta st.session_state['theme_mode'] (light|dark).
+    """
+    mode = st.session_state.get("theme_mode", "light")
+    css_vars = build_css_vars(tokens, mode=mode)
+    font_link = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    icons_link = "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@0,0..1&display=swap"
+    css = f"""
+    <style>
+    @import url('{font_link}');
+    @import url('{icons_link}');
+    {css_vars}
+    body, .stApp {{
+        font-family: var(--font-display, 'Inter'), -apple-system, 'Segoe UI', sans-serif;
+        background: var(--color-background, var(--color-background-light, #f6f7f8));
+        color: var(--color-text, #111418);
+    }}
+    .vg-card {{
+        background: var(--color-surface, var(--color-card, #ffffff));
+        border: 1px solid var(--color-border, #E3E6EA);
+        border-radius: var(--radius-v2, 12px);
+        box-shadow: var(--shadow-v1, 0 1px 2px 0 rgba(0,0,0,0.05));
+        padding: var(--space-v2, 16px);
+        margin-bottom: var(--space-v2, 16px);
+    }}
+    .vg-card h4{{margin:0 0 4px 0;font-size:16px;font-weight:700;}}
+    .vg-card .subtitle{{color:var(--color-text-sub, #5b677a);font-size:13px;margin-bottom:8px;}}
+    .vg-pill {{
+        display:inline-flex;align-items:center;gap:6px;
+        padding:4px 10px;border-radius:999px;
+        font-size:12px;font-weight:600;
+        background: var(--color-pill-bg, #f3f4f6);
+        color: var(--color-pill-fg, #111418);
+        border: 1px solid var(--color-border, #E3E6EA);
+    }}
+    .vg-kpi {{
+        display:flex;flex-direction:column;gap:4px;
+        padding:12px 14px;border-radius:var(--radius-v2,12px);
+        background: var(--color-surface, #ffffff);
+        box-shadow: var(--shadow-v1,0 1px 2px rgba(0,0,0,0.05));
+        border: 1px solid var(--color-border,#E3E6EA);
+    }}
+    .vg-kpi .label{{font-size:12px;color:var(--color-text-sub,#5b677a);text-transform:uppercase;letter-spacing:0.02em;}}
+    .vg-kpi .value{{font-size:24px;font-weight:700;color:var(--color-text,#111418);}}
+    .vg-kpi .status{{font-size:12px;font-weight:600;color:var(--color-text,#111418);}}
+    .vg-section-header{{margin:8px 0 4px 0;}}
+    .vg-section-header h3{{margin:0;font-size:16px;font-weight:700;color:var(--color-text,#111418);}}
+    .vg-section-header .vg-subtitle{{margin:2px 0 0 0;font-size:13px;color:var(--color-text-sub,#5b677a);}}
+    </style>
+    """
+    st.markdown(css, unsafe_allow_html=True)
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # ESTADO UI
 # ══════════════════════════════════════════════════════════════════════════════
@@ -128,6 +247,8 @@ THEMES = {
 def _ui_init_state():
     if "ui_tema" not in st.session_state:
         st.session_state["ui_tema"] = "Claro"
+    if "theme_mode" not in st.session_state:
+        st.session_state["theme_mode"] = "light"
     if "ui_help_open" not in st.session_state:
         st.session_state["ui_help_open"] = False
     if "ui_onboarding_ok" not in st.session_state:
@@ -182,6 +303,16 @@ def aplicar_tema():
       --sp-lg: 16px;
       --sp-xl: 24px;
       --sp-2xl: 32px;
+      /* Layout density */
+      --card-pad: var(--sp-lg);
+      --card-pad-tight: 10px;
+      --card-gap: 10px;
+      --section-gap: 14px;
+      --kpi-pad-x: 14px;
+      --kpi-pad-y: 10px;
+      --kpi-gap: 6px;
+      --kpi-min-height: 104px;
+      --shadow-soft: 0 6px 16px -12px rgba(0,0,0,0.22);
     }}
 
     /* ═══ PLANO 1: Fondo raiz (stApp) ═══ */
@@ -225,51 +356,74 @@ def aplicar_tema():
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      padding: var(--sp-lg);
-      box-shadow: var(--shadow);
-      margin-bottom: var(--sp-md);
+      padding: var(--card-pad);
+      box-shadow: var(--shadow-soft, var(--shadow));
+      margin-bottom: var(--section-gap);
+      transition: box-shadow 120ms ease, border-color 120ms ease;
     }}
+    .vg-card.tight,
     .vg-card-tight {{
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: var(--sp-md) var(--sp-md);
+      padding: var(--card-pad-tight);
+      margin-bottom: var(--card-gap);
     }}
+    .vg-card h4{{margin:0 0 var(--sp-xs) 0;font-size:16px;font-weight:700;}}
+    .vg-card .subtitle{{color:var(--muted);font-size:13px;margin:0 0 var(--sp-sm) 0;}}
+    .vg-card.tight h4{{margin-bottom:var(--sp-xs);}}
+    .vg-card.tight .subtitle{{margin-bottom:var(--sp-xs);}}
 
-    /* KPI card (Sprint 2) */
+    /* KPI card */
     .vg-kpi-card {{
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      padding: var(--sp-lg) var(--sp-lg);
-      box-shadow: var(--shadow);
-      text-align: center;
-    }}
-    .vg-kpi-card .kpi-value {{
-      font-size: 28px;
-      font-weight: 900;
-      line-height: 1.1;
-      margin-bottom: 4px;
+      padding: var(--kpi-pad-y) var(--kpi-pad-x);
+      box-shadow: var(--shadow-soft, var(--shadow));
+      display: grid;
+      gap: var(--kpi-gap);
+      align-content: center;
+      min-height: var(--kpi-min-height);
     }}
     .vg-kpi-card .kpi-label {{
       font-size: 12px;
-      font-weight: 600;
-      color: var(--muted);
+      font-weight: 650;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin: 0;
     }}
-    .vg-kpi-card .kpi-delta {{
-      font-size: 11px;
-      margin-top: 4px;
+    .vg-kpi-card .kpi-value {{
+      font-size: 28px;
+      font-weight: 850;
+      line-height: 1.1;
+      color: var(--text);
+      margin: 0;
     }}
-    .vg-kpi-card.tone-good {{ border-left: 4px solid var(--ok); }}
-    .vg-kpi-card.tone-good .kpi-value {{ color: var(--ok); }}
-    .vg-kpi-card.tone-warn {{ border-left: 4px solid var(--warn); }}
-    .vg-kpi-card.tone-warn .kpi-value {{ color: var(--warn); }}
-    .vg-kpi-card.tone-bad {{ border-left: 4px solid var(--danger); }}
-    .vg-kpi-card.tone-bad .kpi-value {{ color: var(--danger); }}
-    .vg-kpi-card.tone-neutral {{ border-left: 4px solid var(--accent); }}
-    .vg-kpi-card.tone-neutral .kpi-value {{ color: var(--brand); }}
+    .vg-kpi-card .kpi-status, .vg-kpi-card .kpi-delta {{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 650;
+      color: var(--muted);
+      line-height: 1;
+    }}
+    .vg-kpi-card .kpi-dot {{
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--muted);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--muted) 18%, transparent);
+    }}
+    .vg-kpi-card.tone-good {{ border-color: color-mix(in srgb, var(--ok) 35%, var(--line)); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--ok) 30%, transparent); }}
+    .vg-kpi-card.tone-good .kpi-value, .vg-kpi-card.tone-good .kpi-status {{ color: var(--ok); }}
+    .vg-kpi-card.tone-good .kpi-dot {{ background: var(--ok); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 20%, transparent); }}
+    .vg-kpi-card.tone-warn {{ border-color: color-mix(in srgb, var(--warn) 35%, var(--line)); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--warn) 30%, transparent); }}
+    .vg-kpi-card.tone-warn .kpi-value, .vg-kpi-card.tone-warn .kpi-status {{ color: var(--warn); }}
+    .vg-kpi-card.tone-warn .kpi-dot {{ background: var(--warn); box-shadow: 0 0 0 2px color-mix(in srgb, var(--warn) 20%, transparent); }}
+    .vg-kpi-card.tone-bad {{ border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--danger) 30%, transparent); }}
+    .vg-kpi-card.tone-bad .kpi-value, .vg-kpi-card.tone-bad .kpi-status {{ color: var(--danger); }}
+    .vg-kpi-card.tone-bad .kpi-dot {{ background: var(--danger); box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 20%, transparent); }}
+    .vg-kpi-card.tone-neutral .kpi-value {{ color: var(--text); }}
 
     /* Progress row (Sprint 2) */
     .vg-progress-row {{
@@ -307,18 +461,22 @@ def aplicar_tema():
     }}
 
     .vg-kpi {{
-      display: flex; align-items: center; justify-content: space-between;
-      gap: var(--sp-md);
+      display: grid;
+      gap: var(--kpi-gap);
+      align-content: start;
     }}
     .vg-pill {{
-      display: inline-block;
-      padding: 2px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
       border-radius: 999px;
       border: 1px solid var(--line);
-      background: var(--panel2);
+      background: color-mix(in srgb, var(--panel) 85%, white 15%);
       color: var(--muted);
       font-size: 11px;
       font-weight: 650;
+      line-height: 1.2;
     }}
     .vg-rule {{
       height: 3px;
@@ -379,18 +537,38 @@ def aplicar_tema():
     /* Section header (Sprint 5: menos lineas, mas espaciado) */
     .vg-section-header {{
       display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      padding-bottom: var(--sp-sm);
-      margin-bottom: var(--sp-md);
+      flex-direction: column;
+      gap: var(--sp-xs);
+      padding: 0;
+      margin-bottom: var(--sp-sm);
     }}
     .vg-section-header h3 {{
       margin: 0 !important;
       padding: 0 !important;
+      font-size: 18px;
+      font-weight: 750;
+      letter-spacing: -0.01em;
+    }}
+    .vg-section-header h2,
+    .vg-section-header h3 {{
+      margin: 0;
+      display: block !important;
+      visibility: visible !important;
     }}
     .vg-section-header .vg-subtitle {{
       color: var(--muted);
-      font-size: 12px;
+      font-size: 13px;
+      line-height: 1.3;
+    }}
+    .vg-section-meta {{
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: var(--sp-sm);
+      margin: 0 0 var(--sp-md) 0;
+    }}
+    .vg-section-meta .vg-pill {{
+      background: color-mix(in srgb, var(--panel) 70%, white 30%);
+      color: var(--muted);
     }}
 
     /* Context bar (caso activo) */
@@ -820,19 +998,74 @@ def apply_layout(max_width: int = 1400):
 # COMPONENTES UI (Sprint 2 + Sprint 5)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def kpi_card(label: str, value, delta: str | None = None,
-             tone: str = "neutral"):
-    """Tarjeta KPI sobria (Sprint 2). tone: neutral|good|warn|bad."""
-    delta_html = ""
-    if delta:
-        delta_html = f'<div class="kpi-delta" style="color:var(--muted);">{delta}</div>'
+def card_begin(title: str | None = None, subtitle: str | None = None, variant: str = "default"):
+    """Apertura de tarjeta sencilla con estilos basados en tokens."""
+    classes = ["vg-card"]
+    if variant in {"tight", "compact"}:
+        classes.append("tight")
+    st.markdown(f"<div class='{' '.join(classes)}'>", unsafe_allow_html=True)
+    if title:
+        st.markdown(f"<h4>{title}</h4>", unsafe_allow_html=True)
+    if subtitle:
+        st.markdown(f"<div class='subtitle'>{subtitle}</div>", unsafe_allow_html=True)
+
+
+def card_end():
+    """Cierre de tarjeta abierta con card_begin."""
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def pill(text: str, kind: str = "default"):
+    palette = {
+        "default": ("var(--color-pill-fg, #111418)", "var(--color-pill-bg, #f3f4f6)"),
+        "primary": ("var(--color-primary, #137fec)", "color-mix(in srgb, var(--color-primary, #137fec) 12%, transparent)"),
+        "warn": ("var(--color-warn, #eeab2f)", "color-mix(in srgb, var(--color-warn, #eeab2f) 15%, transparent)"),
+        "danger": ("var(--color-danger, #d32f2f)", "color-mix(in srgb, var(--color-danger, #d32f2f) 12%, transparent)"),
+        "success": ("var(--color-ok, #0bda5e)", "color-mix(in srgb, var(--color-ok, #0bda5e) 12%, transparent)"),
+    }
+    fg, bg = palette.get(kind, palette["default"])
+    st.markdown(
+        f"<span class='vg-pill' style='color:{fg};background:{bg};border-color:{fg}22;'>{text}</span>",
+        unsafe_allow_html=True,
+    )
+
+
+def kpi_card(label: str, value, status: str | None = None,
+             tone: str = "neutral", delta: str | None = None):
+    """
+    Tarjeta KPI compacta con estado visual. tone: neutral|good|warn|bad.
+    """
+    tone_alias = {"ok": "good", "error": "bad"}
+    tone_key = tone_alias.get(tone or "neutral", tone or "neutral")
+    tone_class = f"tone-{tone_key}"
+    status_text = status or delta or ""
+    status_html = (
+        f"<div class='kpi-status'><span class='kpi-dot'></span><span>{html.escape(str(status_text))}</span></div>"
+        if status_text else ""
+    )
     st.markdown(f"""
-    <div class="vg-kpi-card tone-{tone}">
-      <div class="kpi-value">{value}</div>
-      <div class="kpi-label">{label}</div>
-      {delta_html}
+    <div class="vg-kpi-card {tone_class}">
+      <div class="kpi-label">{html.escape(str(label))}</div>
+      <div class="kpi-value">{html.escape(str(value))}</div>
+      {status_html}
     </div>
     """, unsafe_allow_html=True)
+
+
+def section_header(title: str, subtitle: str | None = None, meta: list[str] | None = None):
+    """Header de sección compacto con fila meta opcional."""
+    sub = f"<div class='vg-subtitle'>{html.escape(subtitle)}</div>" if subtitle else ""
+    st.markdown(f"""
+    <div class="vg-section-header">
+      <div class="vg-section-text">
+        <h3>{html.escape(title)}</h3>
+        {sub}
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+    if meta:
+        chips = "".join(f"<span class='vg-pill'>{html.escape(str(item))}</span>" for item in meta)
+        st.markdown(f"<div class='vg-section-meta'>{chips}</div>", unsafe_allow_html=True)
 
 
 def progress_row(label: str, pct: float):
@@ -873,27 +1106,16 @@ def audit_status_badge(errores: int, warnings: int):
 
 def ui_header_principal(casos_total: int | None = None):
     """Header principal de la app (Sprint 0: sin sandwich pattern)."""
-    right = ""
-    if casos_total is not None:
-        right = f'<span class="vg-pill">Casos: {casos_total}</span>'
-    st.markdown(f"""
-    <div class="vg-card">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;">
-        <div>
-          <div style="font-size:28px;font-weight:900;letter-spacing:.2px;color:var(--brand);line-height:1.1;">
-            VACA &amp; GENTILE
-          </div>
-          <div style="margin-top:6px;font-size:13px;color:var(--muted);">
-            Sistema interno de gesti&oacute;n de causas &bull; ERP v1.0
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          {right}
-        </div>
-      </div>
-      <div class="vg-rule"></div>
-    </div>
-    """, unsafe_allow_html=True)
+    container = st.container()
+    with container:
+        left, right = st.columns([0.75, 0.25])
+        with left:
+            st.markdown("### VACA & GENTILE")
+            st.caption("Sistema interno de gestión de causas • ERP v1.0")
+        with right:
+            if casos_total is not None:
+                st.markdown(f"**Casos:** {casos_total}")
+        st.divider()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -904,32 +1126,23 @@ def page_header(title: str, subtitle: str | None = None,
                 right_actions: list | None = None,
                 context_badges: list | None = None):
     """Header de pagina reutilizable con titulo, subtitulo, badges y acciones."""
-    sub_html = ""
-    if subtitle:
-        sub_html = f'<span class="vg-pill" style="margin-left:10px;">{subtitle}</span>'
+    right_actions = right_actions or []
+    context_badges = context_badges or []
 
-    badges_html = ""
-    if context_badges:
-        badges_html = " ".join(context_badges)
-
-    actions_html = ""
-    if right_actions:
-        actions_html = " ".join(right_actions)
-
-    st.markdown(f"""
-    <div class="vg-card" style="margin-bottom:var(--sp-md);">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <h2 style="margin:0;font-size:22px;font-weight:800;color:var(--brand);">{title}</h2>
-          {sub_html}
-          {badges_html}
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          {actions_html}
-        </div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+    header = st.container()
+    with header:
+        left, right = st.columns([0.75, 0.25])
+        with left:
+            st.markdown(f"## {title}")
+            if subtitle:
+                st.caption(subtitle)
+            for badge in context_badges:
+                # Permitir badges HTML existentes, pero sin exponer tags sueltos
+                st.markdown(badge, unsafe_allow_html=True) if "<" in badge else st.caption(badge)
+        with right:
+            if right_actions:
+                for action in right_actions:
+                    st.markdown(action, unsafe_allow_html=True) if isinstance(action, str) else st.write(action)
 
 
 def section(title: str, help_text: str | None = None):
@@ -958,7 +1171,7 @@ def render_grid(df, *, key: str, height_vh: int = 65, editable: bool = False,
                 selection_mode: str | None = None, column_config: dict | None = None,
                 hide_index: bool = True):
     """Grilla unificada con altura fija, scroll, y boton de pantalla completa."""
-    height_px = _vh_to_px(height_vh)
+    height_pixels = _vh_to_px(height_vh)
 
     # Boton ampliar
     col_grid, col_fs = st.columns([11, 1])
@@ -970,7 +1183,7 @@ def render_grid(df, *, key: str, height_vh: int = 65, editable: bool = False,
     kw = {
         "use_container_width": True,
         "hide_index": hide_index,
-        "height": height_px,
+        "height": height_pixels,
     }
     if column_config:
         kw["column_config"] = column_config
