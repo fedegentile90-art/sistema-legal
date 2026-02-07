@@ -313,15 +313,16 @@ class GestorCasos:
                                 organismo=datos_ficha['ORGANISMO'],
                                 expediente=datos_ficha['EXPEDIENTE'],
                                 caratula=datos_ficha['CARATULA'],
-                                responsable=datos_ficha['RESPONSABLE'],
-                                control=datos_ficha['CONTROL'],
-                                evento=datos_ficha['EVENTO'],
-                                fecha_evento=datos_ficha['FECHA_EVENTO'],
-                                tarea_pendiente=datos_ficha['TAREA_PENDIENTE'],
-                                fecha_tarea=datos_ficha['FECHA_TAREA'],
-                                observaciones=datos_ficha['OBSERVACIONES']
-                            )
-                            casos.append(caso)
+                            responsable=datos_ficha['RESPONSABLE'],
+                            control=datos_ficha['CONTROL'],
+                            evento=datos_ficha['EVENTO'],
+                            fecha_evento=datos_ficha['FECHA_EVENTO'],
+                            tarea_pendiente=datos_ficha['TAREA_PENDIENTE'],
+                            fecha_tarea=datos_ficha['FECHA_TAREA'],
+                            observaciones=datos_ficha['OBSERVACIONES'],
+                            is_legacy=False
+                        )
+                        casos.append(caso)
 
         # ── Fallback: buscar ficha.json fuera del patrón jerárquico ──
         rutas_ya = {str(c.ruta) for c in casos}
@@ -363,7 +364,8 @@ class GestorCasos:
                     fecha_evento=datos_ficha['FECHA_EVENTO'],
                     tarea_pendiente=datos_ficha['TAREA_PENDIENTE'],
                     fecha_tarea=datos_ficha['FECHA_TAREA'],
-                    observaciones=datos_ficha['OBSERVACIONES']
+                    observaciones=datos_ficha['OBSERVACIONES'],
+                    is_legacy=False
                 )
                 casos.append(caso)
                 rutas_ya.add(str(ruta_caso))
@@ -373,6 +375,16 @@ class GestorCasos:
         casos.sort(key=lambda c: (c.año, c.estado, c.cliente))
         self._cache_casos = casos
         return casos
+
+    def listar_casos(self) -> List[Caso]:
+        """Alias para compatibilidad con API anterior."""
+        return self.escanear_casos()
+
+    def verificar_conteo_casos(self, casos: Optional[List[Caso]] = None) -> Dict[str, int]:
+        """Compatibilidad con modo DB: retorna conteo del listado actual."""
+        listado = casos if casos is not None else self._cache_casos
+        total = len(listado)
+        return {"db_total": total, "listado_total": total, "delta": 0}
 
     def crear_caso(self, año: str, estado: str, cliente: str, fuero: str, nombre_caso: str) -> Tuple[bool, str]:
         """Crea la estructura física exacta."""

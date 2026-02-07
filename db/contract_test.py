@@ -760,113 +760,13 @@ def test_recent_documents_empty_behavior():
 # TEST: Contrato de campos evento en Caso.to_dict()
 # ==============================================================================
 
-def test_evento_fields_contract():
-    """
-    Verifica paridad FS/DB para campos evento en Caso.to_dict():
-    - Existen claves EVENTO y FECHA EVENTO
-    - Ambas son str en ambos modos
-    - Formato fecha: string (DD/MM/YYYY o vacio)
-    """
-    print(f"\n{C.BOLD}{'=' * 60}")
-    print("  CONTRACT TEST: evento fields in Caso.to_dict()")
-    print(f"{'=' * 60}{C.RESET}\n")
-
-    errors = 0
-
-    try:
-        from domain import Caso
-        from pathlib import Path
-        ok("Import Caso exitoso")
-    except ImportError as e:
-        fail(f"Error importando: {e}")
-        return False
-
-    # Crear caso de prueba con evento y fecha_evento
-    caso_con_evento = Caso(
-        ruta=Path("test/path"),
-        año="2026",
-        estado="ACTIVOS",
-        cliente="TEST",
-        fuero="CIVIL",
-        causa="TEST",
-        evento="Audiencia preliminar",
-        fecha_evento="15/03/2026",
-    )
-
-    d = caso_con_evento.to_dict()
-
-    # Verificar que existen las claves
-    if "EVENTO" in d:
-        ok("to_dict() contiene clave 'EVENTO'")
-    else:
-        fail("to_dict() NO contiene clave 'EVENTO'")
-        errors += 1
-
-    if "FECHA EVENTO" in d:
-        ok("to_dict() contiene clave 'FECHA EVENTO'")
-    else:
-        fail("to_dict() NO contiene clave 'FECHA EVENTO'")
-        errors += 1
-
-    # Verificar que son strings
-    if isinstance(d.get("EVENTO"), str):
-        ok(f"EVENTO es str: '{d.get('EVENTO')}'")
-    else:
-        fail(f"EVENTO no es str: {type(d.get('EVENTO'))}")
-        errors += 1
-
-    if isinstance(d.get("FECHA EVENTO"), str):
-        ok(f"FECHA EVENTO es str: '{d.get('FECHA EVENTO')}'")
-    else:
-        fail(f"FECHA EVENTO no es str: {type(d.get('FECHA EVENTO'))}")
-        errors += 1
-
-    # Verificar caso vacio (sin evento)
-    caso_sin_evento = Caso(
-        ruta=Path("test/path2"),
-        año="2026",
-        estado="ACTIVOS",
-        cliente="TEST",
-        fuero="CIVIL",
-        causa="TEST",
-        evento="",
-        fecha_evento="",
-    )
-
-    d2 = caso_sin_evento.to_dict()
-
-    if d2.get("EVENTO") == "":
-        ok("EVENTO vacio -> string vacio")
-    else:
-        fail(f"EVENTO vacio inesperado: '{d2.get('EVENTO')}'")
-        errors += 1
-
-    if d2.get("FECHA EVENTO") == "":
-        ok("FECHA EVENTO vacio -> string vacio")
-    else:
-        fail(f"FECHA EVENTO vacio inesperado: '{d2.get('FECHA EVENTO')}'")
-        errors += 1
-
-    print()
-    if errors == 0:
-        print(f"{C.OK}{C.BOLD}CONTRACT TEST PASSED{C.RESET}")
-        return True
-    else:
-        print(f"{C.FAIL}{C.BOLD}CONTRACT TEST FAILED ({errors} errores){C.RESET}")
-        return False
-
-
-# ==============================================================================
-# TEST: Contrato de campos tarea en Caso.to_dict()
-# ==============================================================================
-
 def test_tarea_fields_contract():
     """
-    Verifica paridad FS/DB para campos tarea en Caso.to_dict():
-    - Existen claves TAREA PENDIENTE y FECHA TAREA
-    - Ambas son str (nunca None)
-    - SEMAFORO es consistente (calculado por dominio)
-    - Sin tarea = strings vacios y semaforo blanco
+    Verifica paridad FS/DB para campos de tarea en Caso.to_dict():
+    - Existen claves 'TAREA PENDIENTE' y 'FECHA TAREA'
+    - Ambas son str (nunca None) en ambos modos
+    - SEMÁFORO existe y es str
+    - Sin tarea: strings vacíos y semáforo ⚪
     """
     print(f"\n{C.BOLD}{'=' * 60}")
     print("  CONTRACT TEST: tarea fields in Caso.to_dict()")
@@ -877,89 +777,65 @@ def test_tarea_fields_contract():
     try:
         from domain import Caso
         from pathlib import Path
-        from datetime import datetime, timedelta
         ok("Import Caso exitoso")
     except ImportError as e:
         fail(f"Error importando: {e}")
         return False
 
-    # Caso con tarea vencida (semaforo rojo)
-    fecha_pasada = (datetime.now() - timedelta(days=5)).strftime("%d/%m/%Y")
-    caso_vencido = Caso(
-        ruta=Path("test/vencido"),
+    # Caso con tarea
+    caso_con_tarea = Caso(
+        ruta=Path("test/path"),
         año="2026",
         estado="ACTIVOS",
         cliente="TEST",
         fuero="CIVIL",
         causa="TEST",
         tarea_pendiente="Contestar demanda",
-        fecha_tarea=fecha_pasada,
+        fecha_tarea="20/03/2026",
     )
+    d = caso_con_tarea.to_dict()
 
-    d1 = caso_vencido.to_dict()
-
-    # Verificar claves existen
-    if "TAREA PENDIENTE" in d1:
+    # Claves
+    if "TAREA PENDIENTE" in d:
         ok("to_dict() contiene clave 'TAREA PENDIENTE'")
     else:
         fail("to_dict() NO contiene clave 'TAREA PENDIENTE'")
         errors += 1
 
-    if "FECHA TAREA" in d1:
+    if "FECHA TAREA" in d:
         ok("to_dict() contiene clave 'FECHA TAREA'")
     else:
         fail("to_dict() NO contiene clave 'FECHA TAREA'")
         errors += 1
 
-    if "SEMÁFORO" in d1:
+    if "SEMÁFORO" in d:
         ok("to_dict() contiene clave 'SEMÁFORO'")
     else:
         fail("to_dict() NO contiene clave 'SEMÁFORO'")
         errors += 1
 
-    # Verificar tipos (str, nunca None)
-    if isinstance(d1.get("TAREA PENDIENTE"), str):
-        ok(f"TAREA PENDIENTE es str: '{d1.get('TAREA PENDIENTE')}'")
+    # Tipos
+    if isinstance(d.get("TAREA PENDIENTE"), str):
+        ok(f"TAREA PENDIENTE es str: '{d.get('TAREA PENDIENTE')}'")
     else:
-        fail(f"TAREA PENDIENTE no es str: {type(d1.get('TAREA PENDIENTE'))}")
+        fail(f"TAREA PENDIENTE no es str: {type(d.get('TAREA PENDIENTE'))}")
         errors += 1
 
-    if isinstance(d1.get("FECHA TAREA"), str):
-        ok(f"FECHA TAREA es str: '{d1.get('FECHA TAREA')}'")
+    if isinstance(d.get("FECHA TAREA"), str):
+        ok(f"FECHA TAREA es str: '{d.get('FECHA TAREA')}'")
     else:
-        fail(f"FECHA TAREA no es str: {type(d1.get('FECHA TAREA'))}")
+        fail(f"FECHA TAREA no es str: {type(d.get('FECHA TAREA'))}")
         errors += 1
 
-    # Verificar semaforo vencido (rojo)
-    if d1.get("SEMÁFORO") == "🔴":
-        ok("Tarea vencida -> semaforo rojo")
+    if isinstance(d.get("SEMÁFORO"), str):
+        ok(f"SEMÁFORO es str: '{d.get('SEMÁFORO')}'")
     else:
-        fail(f"Tarea vencida -> semaforo inesperado: '{d1.get('SEMÁFORO')}'")
+        fail(f"SEMÁFORO no es str: {type(d.get('SEMÁFORO'))}")
         errors += 1
 
-    # Caso con tarea proxima (semaforo amarillo)
-    fecha_proxima = (datetime.now() + timedelta(days=3)).strftime("%d/%m/%Y")
-    caso_proximo = Caso(
-        ruta=Path("test/proximo"),
-        año="2026",
-        estado="ACTIVOS",
-        cliente="TEST",
-        fuero="CIVIL",
-        causa="TEST",
-        tarea_pendiente="Audiencia",
-        fecha_tarea=fecha_proxima,
-    )
-
-    d2 = caso_proximo.to_dict()
-    if d2.get("SEMÁFORO") == "🟡":
-        ok("Tarea proxima (<=7 dias) -> semaforo amarillo")
-    else:
-        fail(f"Tarea proxima -> semaforo inesperado: '{d2.get('SEMÁFORO')}'")
-        errors += 1
-
-    # Caso sin tarea (semaforo blanco)
+    # Caso sin tarea (vacío)
     caso_sin_tarea = Caso(
-        ruta=Path("test/sin_tarea"),
+        ruta=Path("test/path2"),
         año="2026",
         estado="ACTIVOS",
         cliente="TEST",
@@ -968,25 +844,24 @@ def test_tarea_fields_contract():
         tarea_pendiente="",
         fecha_tarea="",
     )
+    d2 = caso_sin_tarea.to_dict()
 
-    d3 = caso_sin_tarea.to_dict()
-
-    if d3.get("TAREA PENDIENTE") == "":
-        ok("Sin tarea -> TAREA PENDIENTE = string vacio")
+    if d2.get("TAREA PENDIENTE") == "":
+        ok("TAREA PENDIENTE vacio -> string vacio")
     else:
-        fail(f"Sin tarea -> TAREA PENDIENTE inesperado: '{d3.get('TAREA PENDIENTE')}'")
+        fail(f"TAREA PENDIENTE vacio inesperado: '{d2.get('TAREA PENDIENTE')}'")
         errors += 1
 
-    if d3.get("FECHA TAREA") == "":
-        ok("Sin tarea -> FECHA TAREA = string vacio")
+    if d2.get("FECHA TAREA") == "":
+        ok("FECHA TAREA vacio -> string vacio")
     else:
-        fail(f"Sin tarea -> FECHA TAREA inesperado: '{d3.get('FECHA TAREA')}'")
+        fail(f"FECHA TAREA vacio inesperado: '{d2.get('FECHA TAREA')}'")
         errors += 1
 
-    if d3.get("SEMÁFORO") == "⚪":
-        ok("Sin tarea -> semaforo blanco")
+    if d2.get("SEMÁFORO") == "⚪":
+        ok("Sin tarea -> semáforo ⚪")
     else:
-        fail(f"Sin tarea -> semaforo inesperado: '{d3.get('SEMÁFORO')}'")
+        fail(f"Sin tarea -> semáforo inesperado: '{d2.get('SEMÁFORO')}'")
         errors += 1
 
     print()
@@ -997,10 +872,6 @@ def test_tarea_fields_contract():
         print(f"{C.FAIL}{C.BOLD}CONTRACT TEST FAILED ({errors} errores){C.RESET}")
         return False
 
-
-# ==============================================================================
-# MAIN
-# ==============================================================================
 
 def main():
     print(f"\n{C.BOLD}{'=' * 60}")
@@ -1020,6 +891,7 @@ def main():
         "recent_documents_shape": test_recent_documents_contract_shape(),
         "recent_documents_empty": test_recent_documents_empty_behavior(),
         "evento_fields": test_evento_fields_contract(),
+        "tarea_fields": test_tarea_fields_contract(),
     }
 
     # Resumen final

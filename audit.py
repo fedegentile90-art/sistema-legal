@@ -14,8 +14,9 @@ from config import (
     AÑOS_ACTIVOS, CAMPOS_FICHA, CAMPOS_FINANCIEROS,
     FICHA_JSON, FICHA_TXT, SUBCARPETAS_ESTANDAR, RE_INVALID_WIN,
 )
-from domain import Caso
+from domain import Caso, case_status, is_blank
 from fs_repo import GestorCasos
+from repo import is_db_mode, is_db_path
 
 
 @dataclass
@@ -25,13 +26,6 @@ class Hallazgo:
     mensaje: str
     ruta: str = ""
     sugerencia: str = ""
-
-
-def _is_blank(v: str) -> bool:
-    if v is None:
-        return True
-    s = str(v).strip()
-    return s == "" or s.upper() == "S/D"
 
 
 def _safe_len_path(p: Path) -> int:
@@ -58,8 +52,8 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
         sugerencia="—"
     ))
 
-    # --- Test 1: ruta base accesible
-    if not gestor.ruta_base.exists():
+    # --- Test 1: ruta base accesible (solo filesystem)
+    if not is_db_mode() and not gestor.ruta_base.exists():
         hallazgos.append(Hallazgo(
             nivel="ERROR",
             codigo="FS-001",
@@ -74,17 +68,18 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
             "metricas": {}
         }
 
-    # --- Test 2: años activos existen
-    for año in AÑOS_ACTIVOS:
-        ra = gestor.ruta_base / año
-        if not ra.exists():
-            hallazgos.append(Hallazgo(
-                nivel="WARN",
-                codigo="FS-010",
-                mensaje=f"Año activo configurado pero carpeta inexistente: {año}",
-                ruta=str(ra),
-                sugerencia="Si el año no se usa, retirarlo de AÑOS_ACTIVOS; si se usa, crear la carpeta."
-            ))
+    # --- Test 2: años activos existen (solo filesystem)
+    if not is_db_mode():
+        for año in AÑOS_ACTIVOS:
+            ra = gestor.ruta_base / año
+            if not ra.exists():
+                hallazgos.append(Hallazgo(
+                    nivel="WARN",
+                    codigo="FS-010",
+                    mensaje=f"Año activo configurado pero carpeta inexistente: {año}",
+                    ruta=str(ra),
+                    sugerencia="Si el año no se usa, retirarlo de AÑOS_ACTIVOS; si se usa, crear la carpeta."
+                ))
 
     # --- Índices para duplicados lógicos y consistencia
     keys = set()
@@ -99,8 +94,13 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
 
     # --- Test 3+: por caso
     for c in casos:
+        status_info = case_status(c)
+        is_legacy = status_info["is_legacy"]
+        ruta_es_db = is_db_path(c.ruta)
+        ficha_txt = None
+
         # 3.1 Ruta existe
-        if not c.ruta.exists():
+        if not ruta_es_db and not c.ruta.exists():
             hallazgos.append(Hallazgo(
                 nivel="ERROR",
                 codigo="FS-020",
@@ -110,52 +110,53 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
             ))
             continue
 
-        # 3.2 Longitud de ruta (riesgo Windows)
-        lp = _safe_len_path(c.ruta)
-        if lp >= 240:
-            hallazgos.append(Hallazgo(
-                nivel="WARN",
-                codigo="FS-030",
-                mensaje=f"Ruta muy larga ({lp} chars). Riesgo real de errores de lectura/escritura en Windows.",
-                ruta=str(c.ruta),
-                sugerencia="Acortar nombres de cliente/causa o habilitar rutas largas en Windows (política del sistema)."
-            ))
+        if not ruta_es_db:
+            # 3.2 Longitud de ruta (riesgo Windows)
+            lp = _safe_len_path(c.ruta)
+            if lp >= 240:
+                hallazgos.append(Hallazgo(
+                    nivel="WARN",
+                    codigo="FS-030",
+                    mensaje=f"Ruta muy larga ({lp} chars). Riesgo real de errores de lectura/escritura en Windows.",
+                    ruta=str(c.ruta),
+                    sugerencia="Acortar nombres de cliente/causa o habilitar rutas largas en Windows (política del sistema)."
+                ))
 
-        # 3.3 Nombres inválidos (Windows)
-        if RE_INVALID_WIN.search(c.ruta.name):
-            hallazgos.append(Hallazgo(
-                nivel="ERROR",
-                codigo="FS-040",
-                mensaje="Nombre de carpeta del caso contiene caracteres inválidos para Windows.",
-                ruta=str(c.ruta),
-                sugerencia="Renombrar eliminando caracteres: <>:\"/\\|?* o control chars."
-            ))
+            # 3.3 Nombres inválidos (Windows)
+            if RE_INVALID_WIN.search(c.ruta.name):
+                hallazgos.append(Hallazgo(
+                    nivel="ERROR",
+                    codigo="FS-040",
+                    mensaje="Nombre de carpeta del caso contiene caracteres inválidos para Windows.",
+                    ruta=str(c.ruta),
+                    sugerencia="Renombrar eliminando caracteres: <>:\"/\\|?* o control chars."
+                ))
 
-        # 3.4 Subcarpetas estándar
-        faltantes = []
-        for sub in SUBCARPETAS_ESTANDAR:
-            if not (c.ruta / sub).exists():
-                faltantes.append(sub)
-        if faltantes:
-            hallazgos.append(Hallazgo(
-                nivel="WARN",
-                codigo="FS-050",
-                mensaje=f"Faltan subcarpetas estándar: {', '.join(faltantes)}",
-                ruta=str(c.ruta),
-                sugerencia="Usar 'Reparar subcarpetas' en Auditoría o activar 'Auto-crear subcarpetas' en la barra lateral."
-            ))
+            # 3.4 Subcarpetas estándar
+            faltantes = []
+            for sub in SUBCARPETAS_ESTANDAR:
+                if not (c.ruta / sub).exists():
+                    faltantes.append(sub)
+            if faltantes:
+                hallazgos.append(Hallazgo(
+                    nivel="WARN",
+                    codigo="FS-050",
+                    mensaje=f"Faltan subcarpetas estándar: {', '.join(faltantes)}",
+                    ruta=str(c.ruta),
+                    sugerencia="Usar 'Reparar subcarpetas' en Auditoría o activar 'Auto-crear subcarpetas' en la barra lateral."
+                ))
 
-        # 3.5 Ficha presente
-        ficha_txt = c.ruta / "ficha.txt"
-        ficha_json = c.ruta / "ficha.json"
-        if not ficha_txt.exists() and not ficha_json.exists():
-            hallazgos.append(Hallazgo(
-                nivel="WARN",
-                codigo="DATA-010",
-                mensaje="No existe ficha.txt ni ficha.json en el caso.",
-                ruta=str(c.ruta),
-                sugerencia="Crear ficha para evitar 'casos mudos' (sin metadatos) y mejorar búsqueda."
-            ))
+            # 3.5 Ficha presente
+            ficha_txt = c.ruta / "ficha.txt"
+            ficha_json = c.ruta / "ficha.json"
+            if not ficha_txt.exists() and not ficha_json.exists():
+                hallazgos.append(Hallazgo(
+                    nivel="WARN",
+                    codigo="DATA-010",
+                    mensaje="No existe ficha.txt ni ficha.json en el caso.",
+                    ruta=str(c.ruta),
+                    sugerencia="Crear ficha para evitar 'casos mudos' (sin metadatos) y mejorar búsqueda."
+                ))
 
         # 3.6 Duplicados lógicos
         k = (c.año.strip(), c.estado.strip(), c.cliente.strip(), c.fuero.strip(), c.causa.strip())
@@ -184,7 +185,7 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
             rutas_lower.add(rl)
 
         # 3.8 Fechas válidas
-        if c.fecha_tarea and not _is_blank(c.fecha_tarea):
+        if c.fecha_tarea and not is_blank(c.fecha_tarea):
             if c._parsear_fecha(c.fecha_tarea) is None:
                 hallazgos.append(Hallazgo(
                     nivel="WARN",
@@ -193,7 +194,7 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
                     ruta=str(c.ruta),
                     sugerencia="Usar DD/MM/YYYY o YYYY-MM-DD; evitar texto libre."
                 ))
-        if c.fecha_evento and not _is_blank(c.fecha_evento):
+        if c.fecha_evento and not is_blank(c.fecha_evento):
             if c._parsear_fecha(c.fecha_evento) is None:
                 hallazgos.append(Hallazgo(
                     nivel="WARN",
@@ -204,25 +205,49 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
                 ))
 
         # 3.9 Señales típicas de encoding roto
-        try:
-            if ficha_txt.exists():
-                raw = gestor._leer_contenido_ficha(ficha_txt)
-                if "�" in raw:
-                    hallazgos.append(Hallazgo(
-                        nivel="WARN",
-                        codigo="DATA-040",
-                        mensaje="Posible corrupción de encoding detectada (carácter de reemplazo '�').",
-                        ruta=str(ficha_txt),
-                        sugerencia="Reguardar contenido y reescribir en UTF-8 desde el formulario del ERP."
-                    ))
-        except Exception:
-            pass
+        if ficha_txt:
+            try:
+                if ficha_txt.exists():
+                    raw = gestor._leer_contenido_ficha(ficha_txt)
+                    if "�" in raw:
+                        hallazgos.append(Hallazgo(
+                            nivel="WARN",
+                            codigo="DATA-040",
+                            mensaje="Posible corrupción de encoding detectada (carácter de reemplazo '�').",
+                            ruta=str(ficha_txt),
+                            sugerencia="Reguardar contenido y reescribir en UTF-8 desde el formulario del ERP."
+                        ))
+            except Exception:
+                pass
 
-        # 3.10 Completitud
+        # 3.10 Completitud y campos obligatorios (AUDITORÍA FLEXIBLE)
         for key_m in campos_metricas.keys():
-            val = getattr(c, key_m.lower(), None) if hasattr(c, key_m.lower()) else None
-            if _is_blank(val):
+            attr = key_m.lower()
+            # Compatibilidad dict / objeto
+            val = getattr(c, attr, None) if hasattr(c, attr) else c.get(key_m, None) if isinstance(c, dict) else None
+            if is_blank(val):
                 campos_metricas[key_m] += 1
+
+        missing_minimum = status_info["missing_minimum"]
+        missing_quality = status_info["missing_quality"]
+
+        if missing_minimum:
+            hallazgos.append(Hallazgo(
+                nivel="ERROR",
+                codigo="DATA-050",
+                mensaje=f"Campos mínimos faltantes: {', '.join(sorted(set(missing_minimum)))}",
+                ruta=str(c.ruta),
+                sugerencia="Completar mínimos desde la app para habilitar operación (agenda/control)."
+            ))
+
+        elif status_info["status"] == "legacy_incomplete" and missing_quality:
+            hallazgos.append(Hallazgo(
+                nivel="WARN",
+                codigo="DATA-051",
+                mensaje=f"Campos de calidad faltantes (legacy): {', '.join(sorted(set(missing_quality)))}",
+                ruta=str(c.ruta),
+                sugerencia="Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+            ))
 
     # --- Resumen + métricas
     errores = sum(1 for h in hallazgos if h.nivel == "ERROR")

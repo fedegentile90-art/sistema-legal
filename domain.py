@@ -5,7 +5,9 @@ Modelo de datos: Caso juridico (unidad atomica del sistema).
 from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Optional, Dict, List
+
+from config import CAMPOS_FICHA
 
 
 @dataclass
@@ -32,6 +34,10 @@ class Caso:
     tarea_pendiente: str = "S/D"
     fecha_tarea: str = ""
     observaciones: str = ""
+    # Ruta original en filesystem cuando el caso fue importado (DB: cases.fs_path)
+    fs_path: str = ""
+    # Flag explícito de caso legacy importado
+    is_legacy: bool = False
 
     @property
     def semaforo(self) -> str:
@@ -71,24 +77,122 @@ class Caso:
 
     def to_dict(self) -> Dict:
         """Convierte el caso a diccionario para DataFrame."""
+        status_info = case_status(self)
+
+        estado_calidad_map = {
+            "error": "ERROR",
+            "legacy_incomplete": "LEGACY",
+            "ok": "OK",
+        }
+        estado_calidad = estado_calidad_map.get(status_info["status"], "OK")
+
+        def _norm(v):
+            return "" if v is None else v
+
         return {
             "AÑO": self.año,
             "ESTADO": self.estado,
             "CLIENTE": self.cliente,
             "FUERO": self.fuero,
             "CAUSA": self.causa,
-            "TIPO PROCESO": self.tipo_proceso,
-            "JURISDICCION": self.jurisdiccion,
-            "ORGANISMO": self.organismo,
-            "EXPEDIENTE": self.expediente,
-            "CARATULA": self.caratula,
-            "RESPONSABLE": self.responsable,
-            "CONTROL": self.control,
-            "EVENTO": self.evento,
-            "FECHA EVENTO": self.fecha_evento,
-            "TAREA PENDIENTE": self.tarea_pendiente,
-            "FECHA TAREA": self.fecha_tarea,
-            "OBSERVACIONES": self.observaciones,
+            "TIPO PROCESO": _norm(self.tipo_proceso),
+            "JURISDICCION": _norm(self.jurisdiccion),
+            "ORGANISMO": _norm(self.organismo),
+            "EXPEDIENTE": _norm(self.expediente),
+            "CARATULA": _norm(self.caratula),
+            "RESPONSABLE": _norm(self.responsable),
+            "CONTROL": _norm(self.control),
+            "EVENTO": _norm(self.evento),
+            "FECHA EVENTO": _norm(self.fecha_evento),
+            "TAREA PENDIENTE": _norm(self.tarea_pendiente),
+            "FECHA TAREA": _norm(self.fecha_tarea),
+            "OBSERVACIONES": _norm(self.observaciones),
             "SEMÁFORO": self.semaforo,
+            "LEGACY": "LEGACY - incompleto" if status_info["is_legacy"] else "",
+            "is_legacy": status_info["is_legacy"],
+            "ESTADO DATOS": estado_calidad,
+            "estado_calidad": estado_calidad,
+            "_LEGACY": status_info["is_legacy"],
+            "_STATUS": status_info["status"],
+            "_MISSING_MIN": "; ".join(status_info["missing_minimum"]),
+            "_MISSING_QUALITY": "; ".join(status_info["missing_quality"]),
             "_RUTA": str(self.ruta)  # Columna oculta para referencia
         }
+
+
+def is_blank(value) -> bool:
+    """
+    Considera vacío/nulo cualquier valor None, string vacía o "S/D".
+    Se usa para validar completitud de campos de manera consistente.
+    """
+    if value is None:
+        return True
+    s = str(value).strip()
+    return s == "" or s.upper() == "S/D"
+
+
+def _get_campo(caso, campo: str):
+    """
+    Obtiene un campo desde objeto Caso o diccionario usando los nombres de CAMPOS_FICHA.
+    """
+    attr = campo.lower()
+    if hasattr(caso, attr):
+        return getattr(caso, attr)
+    if isinstance(caso, dict):
+        return caso.get(campo) or caso.get(attr) or caso.get(campo.lower())
+    return None
+
+
+def case_status(caso) -> Dict[str, object]:
+    """
+    Fuente de verdad única para el estado de un caso.
+
+    Returns:
+        dict con:
+            - is_legacy: bool
+            - missing_minimum: list[str]
+            - missing_quality: list[str]
+            - has_minimum: bool
+            - status: "ok" | "legacy_incomplete" | "error"
+    """
+    # Indicador robusto de legacy: flag explícito o fs_path poblado
+    try:
+        is_legacy = bool(getattr(caso, "is_legacy", False))
+    except Exception:
+        is_legacy = False
+    try:
+        fs_path_val = getattr(caso, "fs_path", None) if not isinstance(caso, dict) else caso.get("fs_path")
+        is_legacy = is_legacy or bool(fs_path_val)
+    except Exception:
+        pass
+
+    min_fields = {"RESPONSABLE"}
+    quality_fields = [c for c in CAMPOS_FICHA if c not in min_fields]
+
+    missing_minimum: List[str] = []
+    missing_quality: List[str] = []
+
+    for campo in CAMPOS_FICHA:
+        val = _get_campo(caso, campo)
+        if is_blank(val):
+            if campo in min_fields:
+                missing_minimum.append(campo)
+            elif campo in quality_fields:
+                missing_quality.append(campo)
+
+    has_minimum = len(missing_minimum) == 0
+
+    if missing_minimum:
+        status = "error"
+    elif is_legacy and missing_quality:
+        status = "legacy_incomplete"
+    else:
+        status = "ok"
+
+    return {
+        "is_legacy": is_legacy,
+        "missing_minimum": missing_minimum,
+        "missing_quality": missing_quality,
+        "has_minimum": has_minimum,
+        "status": status,
+    }

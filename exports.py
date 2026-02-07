@@ -3,6 +3,7 @@ Funciones de exportacion (Excel/XLSX).
 """
 
 import pandas as pd
+import streamlit as st
 from datetime import datetime as dt
 from io import BytesIO
 from openpyxl import Workbook
@@ -10,6 +11,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
 
+@st.cache_data(show_spinner=False)
 def df_to_xlsx_bytes(df: pd.DataFrame, sheet_name: str = "Reporte") -> bytes:
     wb = Workbook()
     ws = wb.active

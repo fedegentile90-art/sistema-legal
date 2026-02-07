@@ -9,6 +9,7 @@ import uuid
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 from contextlib import contextmanager
+from urllib.parse import urlparse
 
 from config import CAMPOS_FICHA, CAMPOS_FINANCIEROS, AÑOS_ACTIVOS
 from domain import Caso
@@ -20,11 +21,29 @@ from domain import Caso
 _DB_URL = os.environ.get("DATABASE_URL", "")
 
 
+def _mask_db_url(u: str) -> str:
+    if not u:
+        return ""
+    try:
+        p = urlparse(u)
+        # Oculta password si está presente
+        netloc = p.netloc
+        if "@" in netloc and ":" in netloc.split("@")[0]:
+            userpass, host = netloc.split("@", 1)
+            user = userpass.split(":", 1)[0]
+            netloc = f"{user}:***@{host}"
+        return p._replace(netloc=netloc).geturl()
+    except Exception:
+        return "<unparseable>"
+
+
 def _get_connection():
     """Obtiene conexion a PostgreSQL usando DATABASE_URL."""
     import psycopg2
 
-    url = _DB_URL
+    url = os.environ.get("DATABASE_URL", "")
+    if os.environ.get("VG_DEBUG") == "1":
+        print("[repo_db] DATABASE_URL =", _mask_db_url(url))
     # Render usa postgres:// pero psycopg2 requiere postgresql://
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
@@ -77,6 +96,8 @@ class GestorCasosDB:
         # Pseudo-path usando ID del caso
         case_id = str(row.get("id", ""))
         pseudo_ruta = self._db_path(case_id)
+        fs_path = row.get("fs_path") or ""
+        is_legacy = bool(fs_path)
 
         return Caso(
             ruta=pseudo_ruta,
@@ -97,6 +118,8 @@ class GestorCasosDB:
             tarea_pendiente=extra.get("TAREA_PENDIENTE", row.get("tarea_pendiente", "") or ""),
             fecha_tarea=extra.get("FECHA_TAREA", "") or (str(row.get("fecha_tarea", "")) if row.get("fecha_tarea") else ""),
             observaciones=extra.get("OBSERVACIONES", row.get("observaciones", "") or ""),
+            fs_path=fs_path,
+            is_legacy=is_legacy,
         )
 
     def escanear_casos(self) -> List[Caso]:
@@ -109,8 +132,8 @@ class GestorCasosDB:
                 c.tipo_proceso, c.jurisdiccion, c.organismo, c.expediente,
                 c.caratula, c.responsable, c.control, c.evento,
                 c.fecha_evento, c.tarea_pendiente, c.fecha_tarea,
-                c.observaciones, c.extra,
-                COALESCE(cl.name, 'SIN_CLIENTE') AS client_name
+                c.observaciones, c.fs_path, c.extra,
+                COALESCE(cl.name, 'S/D') AS client_name
             FROM cases c
             LEFT JOIN clients cl ON c.client_id = cl.id
             ORDER BY c.year DESC, c.status, client_name, c.causa
@@ -127,6 +150,35 @@ class GestorCasosDB:
 
         self._cache_casos = casos
         return casos
+
+    def listar_casos(self) -> List[Caso]:
+        """Alias para compatibilidad con API anterior."""
+        return self.escanear_casos()
+
+    def verificar_conteo_casos(self, casos: Optional[List[Caso]] = None) -> Dict[str, int]:
+        """
+        Verifica rapidamente la cantidad de casos reales en DB vs los listados en memoria.
+        Loguea discrepancias (para detectar filtrados involuntarios o joins excluyentes).
+        """
+        listado = casos if casos is not None else self._cache_casos
+        listado_total = len(listado)
+
+        db_total = listado_total
+        try:
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT count(*) FROM cases")
+                    row = cur.fetchone()
+                    if row and row[0] is not None:
+                        db_total = int(row[0])
+        except Exception:
+            pass
+
+        delta = db_total - listado_total
+        if delta != 0 or os.environ.get("VG_DEBUG") == "1":
+            print(f"[repo_db] Conteo casos: db={db_total} listado={listado_total} delta={delta}")
+
+        return {"db_total": db_total, "listado_total": listado_total, "delta": delta}
 
     def _get_case_id_from_path(self, ruta: Path) -> Optional[str]:
         """Extrae el UUID del caso desde el pseudo-path db://cases/<uuid>."""

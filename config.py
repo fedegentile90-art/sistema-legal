@@ -147,3 +147,30 @@ def limpiar_nombre_carpeta(nombre: str) -> str:
     if not n or n in {".", ".."}:
         raise ValueError("Nombre inválido.")
     return n
+
+
+# =============================================================================
+# Compatibilidad con UI (app.py) en modo DB-first
+# =============================================================================
+RUTA_BASE_AUTO_CREATE = False
+
+
+def get_ruta_base_info() -> dict:
+    """
+    Compatibilidad: la UI antigua esperaba información de carpeta base.
+    En DB-first devolvemos un shape estable.
+    """
+    return {
+        "mode": "database",
+        "ruta_base": "N/A (DB mode)",
+        "auto_create": "no",
+        "exists": "N/A",
+    }
+
+
+def _is_container_env() -> bool:
+    """
+    Compatibilidad legacy para UI.
+    En DB-first local/desktop asumimos NO container por defecto.
+    """
+    return False

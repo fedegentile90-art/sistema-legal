@@ -130,10 +130,14 @@ def main():
         casos = cargar_casos(gestor)
         gestor._cache_casos = casos
 
+    if hasattr(gestor, "verificar_conteo_casos"):
+        st.session_state["conteo_casos_diag"] = gestor.verificar_conteo_casos(casos)
+
     # Preparar DataFrame global
     df = None
     if casos:
         df = pd.DataFrame([caso.to_dict() for caso in casos])
+        st.session_state["df_full"] = df.copy()
         cols_search = [c for c in df.columns if not str(c).startswith("_")]
         df["_SEARCH"] = df[cols_search].astype(str).agg(" ".join, axis=1).str.lower()
 
