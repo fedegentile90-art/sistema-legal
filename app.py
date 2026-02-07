@@ -11,7 +11,7 @@ from typing import List
 from config import RUTA_BASE, RUTA_BASE_AUTO_CREATE, get_ruta_base_info
 from domain import Caso
 from repo import GestorCasos, is_db_mode, get_backend_info
-from ui import configurar_pagina, barra_lateral_config
+from ui import configurar_pagina, barra_lateral_config, aplicar_estilos_stitch
 from nav import get_route
 from views import (
     render_dashboard,
@@ -99,6 +99,7 @@ CWD:              {info['cwd']}
 def main():
     """Punto de entrada principal - App Shell con navegacion MPA logica."""
     configurar_pagina()
+    aplicar_estilos_stitch()
     ensure_state()
 
     # ══════════════════════════════════════════════════════════════════════════
