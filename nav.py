@@ -1,14 +1,29 @@
 """
-Navegacion primaria: sidebar unico con 4 secciones.
+Navegacion primaria: sidebar unico con secciones operativas.
 Compatible con Streamlit viejo (st.sidebar.radio).
 """
 
 import streamlit as st
+import re
 
-ROUTES = ["Dashboard", "Gestion", "Auditoria", "Configuracion"]
+ROUTES = ["Dashboard", "Gestion", "Agenda", "Finanzas", "Auditoria", "Configuracion"]
 
 # Sub-tabs dentro de Gestion
-GESTION_TABS = ["Casos", "Cliente", "Agenda", "Finanzas"]
+GESTION_TABS = ["Casos", "Clientes"]
+_DB_CASE_RE = re.compile(r"db[:/\\\\]+cases[:/\\\\]+([0-9a-fA-F-]{36})", re.IGNORECASE)
+_UUID_RE = re.compile(r"^[0-9a-fA-F-]{36}$")
+
+
+def _canonical_case_id(value: str) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    m = _DB_CASE_RE.search(raw)
+    if m:
+        return f"db://cases/{m.group(1).lower()}"
+    if _UUID_RE.fullmatch(raw):
+        return f"db://cases/{raw.lower()}"
+    return raw
 
 
 def get_route() -> str:
@@ -45,8 +60,8 @@ def navigate_to(route: str, mode: str = "listado", item_id: str | None = None):
     st.session_state["nav_route"] = route
     st.session_state["route_mode"] = mode
     if item_id is not None:
-        if route == "Gestion":
-            st.session_state["selected_case_id"] = item_id
+        if route in {"Gestion", "Agenda", "Finanzas"}:
+            st.session_state["selected_case_id"] = _canonical_case_id(item_id)
         else:
             st.session_state["selected_item_id"] = item_id
     st.rerun()

@@ -1,0 +1,14 @@
+2026-02-11 02:54:50.013 No ASGI app assignments found in C:\Users\Pc\Desktop\SistemaLegal\app.py
+2026-02-11 02:54:50.034 No singleton. Registering one.
+2026-02-11 02:54:50.038 Watcher created for C:\Users\Pc\Desktop\SistemaLegal\.streamlit\config.toml
+2026-02-11 02:54:50.220 Filtered 63 packages down to 2 candidates for component scanning
+2026-02-11 02:54:50.222 Scanning 2 candidate packages for component manifests using 2 worker threads
+2026-02-11 02:54:50.298 Found 0 component manifests total
+2026-02-11 02:54:50.300 No asset roots to watch
+2026-02-11 02:54:50.302 File watching not started
+2026-02-11 02:54:50.305 Starting new event loop for server
+2026-02-11 02:54:50.306 Starting server...
+2026-02-11 02:54:50.308 Serving static content from C:\Users\Pc\AppData\Local\Programs\Python\Python314\Lib\site-packages\streamlit\static
+2026-02-11 02:54:50.312 Server started on port 8505
+2026-02-11 02:54:50.312 Runtime state: RuntimeState.INITIAL -> RuntimeState.NO_SESSIONS_CONNECTED
+2026-02-11 02:54:50.360 Setting up signal handler

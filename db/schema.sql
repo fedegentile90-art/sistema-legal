@@ -1,9 +1,9 @@
 -- ============================================================================
 -- VACA & GENTILE ERP - Schema PostgreSQL v1.0
 -- ============================================================================
--- Este schema es la base para migrar de filesystem a base de datos.
--- Por ahora NO se usa en produccion; la app sigue usando fs_repo.py.
--- Se activara cuando exista la variable de entorno DATABASE_URL.
+-- Schema operativo para backend PostgreSQL DB-first.
+-- La app usa `repo.py -> repo_db.py` como backend principal.
+-- `DATABASE_URL` debe estar configurada para operacion y suites DB.
 --
 -- COMPATIBILIDAD: PostgreSQL 12+, Supabase, Render Postgres, Railway
 -- EJECUCION: psql -d nombre_db -f schema.sql

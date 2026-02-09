@@ -6,19 +6,63 @@ Se activa automaticamente cuando DATABASE_URL esta configurada.
 import os
 import json
 import uuid
+import re
+import logging
+import ipaddress
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any, TypedDict
 from contextlib import contextmanager
 from urllib.parse import urlparse
 
 from config import CAMPOS_FICHA, CAMPOS_FINANCIEROS, AÑOS_ACTIVOS
 from domain import Caso
+from db.health import parse_database_url
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CONEXION A BASE DE DATOS
 # ══════════════════════════════════════════════════════════════════════════════
 
 _DB_URL = os.environ.get("DATABASE_URL", "")
+_CASE_URI_RE = re.compile(r"db[:/\\\\]+cases[:/\\\\]+([0-9a-fA-F-]{36})")
+AUDIT_WRITE_STRICT_ENV = "VG_AUDIT_WRITE_STRICT"
+CASE_DUPLICATE_POLICY_ENV = "VG_CASE_DUPLICATE_POLICY"
+
+logger = logging.getLogger(__name__)
+
+
+class ActorContext(TypedDict, total=False):
+    user_id: str
+    user_name: str
+    role: str
+    ip: str
+    ip_address: str
+    user_agent: str
+    request_id: str
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = str(os.environ.get(name, "")).strip().lower()
+    if not raw:
+        return bool(default)
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    return bool(default)
+
+
+def _normalize_db_text(value: str) -> str:
+    return str(value or "").strip().lower()
+
+
+def _sanitize_ip(ip_raw: str) -> Optional[str]:
+    candidate = str(ip_raw or "").strip()
+    if not candidate:
+        return None
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        return None
 
 
 def _mask_db_url(u: str) -> str:
@@ -41,14 +85,11 @@ def _get_connection():
     """Obtiene conexion a PostgreSQL usando DATABASE_URL."""
     import psycopg2
 
-    url = os.environ.get("DATABASE_URL", "")
+    url = parse_database_url(os.environ.get("DATABASE_URL", ""))
     if os.environ.get("VG_DEBUG") == "1":
         print("[repo_db] DATABASE_URL =", _mask_db_url(url))
-    # Render usa postgres:// pero psycopg2 requiere postgresql://
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
 
-    return psycopg2.connect(url)
+    return psycopg2.connect(url, connect_timeout=3)
 
 
 @contextmanager
@@ -79,6 +120,96 @@ class GestorCasosDB:
         """
         self.ruta_base = ruta_base  # No usado, solo compatibilidad
         self._cache_casos: List[Caso] = []
+
+    def _resolve_actor_ctx(self, actor_ctx: Optional[ActorContext]) -> ActorContext:
+        actor = dict(actor_ctx or {})
+        actor.setdefault("user_id", str(os.environ.get("VG_ACTOR_USER_ID", "system")))
+        actor.setdefault("user_name", str(os.environ.get("VG_ACTOR_USER_NAME", "system")))
+        actor.setdefault("role", str(os.environ.get("VG_ACTOR_ROLE", "system")))
+        actor.setdefault("request_id", str(os.environ.get("VG_RUN_ID", "")))
+        actor_ip = str(actor.get("ip", "")).strip() or str(actor.get("ip_address", "")).strip()
+        if not actor_ip:
+            actor_ip = str(os.environ.get("VG_ACTOR_IP", "")).strip()
+        actor["ip"] = actor_ip
+        actor["ip_address"] = actor_ip
+        actor.setdefault("user_agent", str(actor.get("user_agent", "")))
+        return actor  # type: ignore[return-value]
+
+    def _write_audit_log(
+        self,
+        cur: Any,
+        *,
+        entity_type: str,
+        entity_id: str,
+        action: str,
+        changes: Dict[str, Any],
+        actor_ctx: Optional[ActorContext],
+    ) -> None:
+        actor = self._resolve_actor_ctx(actor_ctx)
+        payload = {
+            "changes": changes,
+            "meta": {
+                "role": actor.get("role", ""),
+                "request_id": actor.get("request_id", ""),
+            },
+        }
+        safe_ip = _sanitize_ip(str(actor.get("ip", "")) or str(actor.get("ip_address", "")))
+        cur.execute(
+            """
+            INSERT INTO audit_log (
+                entity_type,
+                entity_id,
+                action,
+                changes,
+                user_id,
+                user_name,
+                ip_address,
+                user_agent
+            ) VALUES (%s, %s, %s, %s::jsonb, %s, %s, %s, %s)
+            """,
+            (
+                str(entity_type).strip() or "case",
+                entity_id,
+                str(action).strip() or "update",
+                json.dumps(payload, ensure_ascii=False, default=str),
+                str(actor.get("user_id", ""))[:100],
+                str(actor.get("user_name", ""))[:255],
+                safe_ip,
+                str(actor.get("user_agent", "")),
+            ),
+        )
+
+    def _try_write_audit_log(
+        self,
+        cur: Any,
+        *,
+        entity_type: str,
+        entity_id: str,
+        action: str,
+        changes: Dict[str, Any],
+        actor_ctx: Optional[ActorContext],
+    ) -> None:
+        strict = _env_bool(AUDIT_WRITE_STRICT_ENV, default=False)
+        try:
+            self._write_audit_log(
+                cur,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                action=action,
+                changes=changes,
+                actor_ctx=actor_ctx,
+            )
+        except Exception as exc:
+            logger.warning(
+                "audit_log write failed entity_type=%s action=%s entity_id=%s strict=%s err=%s",
+                entity_type,
+                action,
+                entity_id,
+                strict,
+                exc,
+            )
+            if strict:
+                raise
 
     def _db_path(self, case_id: str) -> Path:
         """Genera pseudo-path para casos en DB (para compatibilidad con UI)."""
@@ -171,8 +302,8 @@ class GestorCasosDB:
                     row = cur.fetchone()
                     if row and row[0] is not None:
                         db_total = int(row[0])
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("verificar_conteo_casos failed: %s", exc)
 
         delta = db_total - listado_total
         if delta != 0 or os.environ.get("VG_DEBUG") == "1":
@@ -182,19 +313,24 @@ class GestorCasosDB:
 
     def _get_case_id_from_path(self, ruta: Path) -> Optional[str]:
         """Extrae el UUID del caso desde el pseudo-path db://cases/<uuid>."""
-        path_str = str(ruta)
-        # Compatibilidad Windows: Path normaliza a backslash
-        if path_str.startswith("db://cases/"):
-            return path_str.replace("db://cases/", "")
-        if path_str.startswith("db:\\cases\\"):
-            return path_str.replace("db:\\cases\\", "")
+        if ruta is None:
+            return None
+        path_str = str(ruta).strip()
+        match = _CASE_URI_RE.search(path_str)
+        if match:
+            return match.group(1)
         return None
+
+    def _require_case_id(self, ruta_caso: Path) -> str:
+        """Valida y retorna el UUID del caso; falla con mensaje claro si es invalido."""
+        case_id = self._get_case_id_from_path(ruta_caso)
+        if not case_id:
+            raise ValueError(f"Ruta DB de caso invalida: {ruta_caso!r}")
+        return case_id
 
     def _leer_ficha(self, ruta_caso: Path) -> Dict[str, str]:
         """Lee datos de ficha desde la DB."""
-        case_id = self._get_case_id_from_path(ruta_caso)
-        if not case_id:
-            return {campo: "" for campo in CAMPOS_FICHA}
+        case_id = self._require_case_id(ruta_caso)
 
         query = """
             SELECT tipo_proceso, jurisdiccion, organismo, expediente,
@@ -263,11 +399,14 @@ class GestorCasosDB:
             lineas.append(f"{campo}: {valor}")
         return "\n".join(lineas)
 
-    def actualizar_campos_ficha(self, ruta_caso: Path, cambios: Dict[str, str]) -> bool:
+    def actualizar_campos_ficha(
+        self,
+        ruta_caso: Path,
+        cambios: Dict[str, str],
+        actor_ctx: Optional[ActorContext] = None,
+    ) -> bool:
         """Actualiza solo los campos indicados (merge JSONB)."""
-        case_id = self._get_case_id_from_path(ruta_caso)
-        if not case_id:
-            return False
+        case_id = self._require_case_id(ruta_caso)
 
         # Leer extra actual
         with get_conn() as conn:
@@ -329,6 +468,14 @@ class GestorCasosDB:
 
                 query = f"UPDATE cases SET {', '.join(col_updates)} WHERE id = %s"
                 cur.execute(query, params)
+                self._try_write_audit_log(
+                    cur,
+                    entity_type="case",
+                    entity_id=case_id,
+                    action="update_fields",
+                    changes={"fields": list(cambios.keys()), "values": dict(cambios)},
+                    actor_ctx=actor_ctx,
+                )
 
         return True
 
@@ -347,7 +494,12 @@ class GestorCasosDB:
                 continue
         return None
 
-    def actualizar_caso(self, ruta_caso: Path, datos: Dict[str, str]) -> bool:
+    def actualizar_caso(
+        self,
+        ruta_caso: Path,
+        datos: Dict[str, str],
+        actor_ctx: Optional[ActorContext] = None,
+    ) -> bool:
         """Reemplaza datos completos del caso (sobrescribe extra JSONB)."""
         case_id = self._get_case_id_from_path(ruta_caso)
         if not case_id:
@@ -438,11 +590,14 @@ class GestorCasosDB:
 
         return out
 
-    def guardar_datos_financieros(self, ruta_caso: Path, datos_fin: Dict[str, str]) -> bool:
+    def guardar_datos_financieros(
+        self,
+        ruta_caso: Path,
+        datos_fin: Dict[str, str],
+        actor_ctx: Optional[ActorContext] = None,
+    ) -> bool:
         """Guarda campos financieros en columnas directas + extra JSONB."""
-        case_id = self._get_case_id_from_path(ruta_caso)
-        if not case_id:
-            return False
+        case_id = self._require_case_id(ruta_caso)
 
         with get_conn() as conn:
             with conn.cursor() as cur:
@@ -495,6 +650,22 @@ class GestorCasosDB:
                     json.dumps(extra, ensure_ascii=False),
                     case_id,
                 ))
+                self._try_write_audit_log(
+                    cur,
+                    entity_type="case",
+                    entity_id=case_id,
+                    action="replace_case",
+                    changes={"fields": sorted(list(datos.keys()))},
+                    actor_ctx=actor_ctx,
+                )
+                self._try_write_audit_log(
+                    cur,
+                    entity_type="case",
+                    entity_id=case_id,
+                    action="update_financials",
+                    changes={"financials": dict(datos_fin)},
+                    actor_ctx=actor_ctx,
+                )
 
         return True
 
@@ -522,11 +693,48 @@ class GestorCasosDB:
         """Devuelve años activos (igual que FS - desde config)."""
         return sorted(AÑOS_ACTIVOS, reverse=True)
 
-    def crear_caso(self, año: str, estado: str, cliente: str, fuero: str, nombre_caso: str) -> Tuple[bool, str]:
+    def crear_caso(
+        self,
+        año: str,
+        estado: str,
+        cliente: str,
+        fuero: str,
+        nombre_caso: str,
+        actor_ctx: Optional[ActorContext] = None,
+    ) -> Tuple[bool, str]:
         """Crea un nuevo caso en la base de datos."""
         try:
             with get_conn() as conn:
                 with conn.cursor() as cur:
+                    duplicate_policy = str(
+                        os.environ.get(CASE_DUPLICATE_POLICY_ENV, "block")
+                    ).strip().lower()
+                    if duplicate_policy not in {"block", "allow"}:
+                        duplicate_policy = "block"
+
+                    cur.execute(
+                        """
+                        SELECT c.id
+                        FROM cases c
+                        JOIN clients cl ON cl.id = c.client_id
+                        WHERE lower(trim(cl.name)) = lower(trim(%s))
+                          AND lower(trim(c.causa)) = lower(trim(%s))
+                          AND c.year = %s
+                          AND c.status = %s
+                          AND c.fuero = %s
+                        LIMIT 1
+                        """,
+                        (cliente, nombre_caso, año, estado, fuero),
+                    )
+                    dup_row = cur.fetchone()
+                    if dup_row and duplicate_policy == "block":
+                        dup_id = str(dup_row[0] or "")
+                        return (
+                            False,
+                            f"Caso duplicado detectado (ID: {dup_id[:8]}...). "
+                            f"Puede permitir duplicados con {CASE_DUPLICATE_POLICY_ENV}=allow.",
+                        )
+
                     # Buscar o crear cliente
                     cur.execute("SELECT id FROM clients WHERE name = %s", (cliente,))
                     row = cur.fetchone()
@@ -557,13 +765,36 @@ class GestorCasosDB:
                         "A asignar",
                         json.dumps({"CASE_ID": case_id}, ensure_ascii=False),
                     ))
+                    self._try_write_audit_log(
+                        cur,
+                        entity_type="case",
+                        entity_id=case_id,
+                        action="create_case",
+                        changes={
+                            "year": año,
+                            "status": estado,
+                            "fuero": fuero,
+                            "causa": nombre_caso,
+                            "cliente": cliente,
+                        },
+                        actor_ctx=actor_ctx,
+                    )
 
             return True, f"Caso creado exitosamente: {nombre_caso} (ID: {case_id[:8]}...)"
         except Exception as e:
+            logger.warning("crear_caso failed cliente=%s causa=%s err=%s", cliente, nombre_caso, e)
             return False, f"Error al crear caso: {str(e)}"
 
-    def mover_carpeta_fisica(self, caso_actual: Caso, nuevo_año: str, nuevo_estado: str,
-                            nuevo_cliente: str, nuevo_fuero: str, nueva_causa: str) -> Tuple[bool, Path]:
+    def mover_carpeta_fisica(
+        self,
+        caso_actual: Caso,
+        nuevo_año: str,
+        nuevo_estado: str,
+        nuevo_cliente: str,
+        nuevo_fuero: str,
+        nueva_causa: str,
+        actor_ctx: Optional[ActorContext] = None,
+    ) -> Tuple[bool, Path]:
         """
         En modo DB: actualiza atributos de clasificacion (no hay carpeta fisica).
         Retorna pseudo-path actualizado.
@@ -597,17 +828,41 @@ class GestorCasosDB:
                             causa = %s
                         WHERE id = %s
                     """, (client_id, nuevo_año, nuevo_estado, nuevo_fuero, nueva_causa, case_id))
+                    self._try_write_audit_log(
+                        cur,
+                        entity_type="case",
+                        entity_id=case_id,
+                        action="reclassify_case",
+                        changes={
+                            "year": nuevo_año,
+                            "status": nuevo_estado,
+                            "fuero": nuevo_fuero,
+                            "causa": nueva_causa,
+                            "cliente": nuevo_cliente,
+                        },
+                        actor_ctx=actor_ctx,
+                    )
 
             # Retornar mismo pseudo-path (el ID no cambia)
             return True, caso_actual.ruta
         except Exception as e:
+            logger.warning(
+                "mover_carpeta_fisica failed case_id=%s err=%s",
+                case_id,
+                e,
+            )
             return False, caso_actual.ruta
 
     def ensure_case_structure(self, ruta_caso: Path) -> int:
         """En modo DB no hay subcarpetas. Retorna 0 (no aplica)."""
         return 0
 
-    def sincronizar_ruta_fisica(self, caso_actual: Caso, nuevos_datos: Dict) -> Tuple[bool, str, Optional[Path]]:
+    def sincronizar_ruta_fisica(
+        self,
+        caso_actual: Caso,
+        nuevos_datos: Dict,
+        actor_ctx: Optional[ActorContext] = None,
+    ) -> Tuple[bool, str, Optional[Path]]:
         """En modo DB, actualiza clasificacion sin mover carpetas."""
         def g(k, default):
             return nuevos_datos.get(k, nuevos_datos.get(k.upper(), default))
@@ -618,13 +873,69 @@ class GestorCasosDB:
         fuero_n = g("fuero", caso_actual.fuero)
 
         ok, new_path = self.mover_carpeta_fisica(
-            caso_actual, año_n, estado_n, cliente_n, fuero_n, caso_actual.causa
+            caso_actual,
+            año_n,
+            estado_n,
+            cliente_n,
+            fuero_n,
+            caso_actual.causa,
+            actor_ctx=actor_ctx,
         )
 
         if ok:
             return True, "Clasificacion actualizada en DB.", new_path
         else:
             return False, "Error actualizando clasificacion.", None
+
+    def leer_datos_financieros_batch(self, rutas: List[Path]) -> Dict[str, Dict[str, str]]:
+        """Lee datos financieros de varios casos en una sola consulta."""
+        out: Dict[str, Dict[str, str]] = {}
+        case_ids: List[str] = []
+        case_to_ref: Dict[str, str] = {}
+        for ruta in rutas:
+            ref = str(ruta)
+            out[ref] = {campo: "" for campo in CAMPOS_FINANCIEROS}
+            case_id = self._get_case_id_from_path(ruta)
+            if not case_id:
+                continue
+            case_ids.append(case_id)
+            case_to_ref[case_id] = ref
+
+        if not case_ids:
+            return out
+
+        placeholders = ", ".join(["%s"] * len(case_ids))
+        query = f"""
+            SELECT id, monto_demandado, honorarios_pactados, estado_pago, extra
+            FROM cases
+            WHERE id IN ({placeholders})
+        """
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, tuple(case_ids))
+                for row in cur.fetchall():
+                    case_id, monto, honorarios, estado_pago, extra = row
+                    ref = case_to_ref.get(str(case_id), "")
+                    if not ref:
+                        continue
+                    vals = out.get(ref, {campo: "" for campo in CAMPOS_FINANCIEROS})
+                    if monto is not None:
+                        vals["MONTO_DEMANDADO"] = str(monto)
+                    if honorarios is not None:
+                        vals["HONORARIOS_PACTADOS"] = str(honorarios)
+                    if estado_pago:
+                        vals["ESTADO_PAGO"] = str(estado_pago)
+                    if isinstance(extra, str):
+                        try:
+                            extra = json.loads(extra)
+                        except Exception:
+                            extra = {}
+                    extra = extra or {}
+                    for campo in CAMPOS_FINANCIEROS:
+                        if not vals.get(campo) and campo in extra:
+                            vals[campo] = str(extra.get(campo) or "")
+                    out[ref] = vals
+        return out
 
     def listar_documentos_recientes(self, ruta_caso: Path, n: int = 5) -> List[Dict]:
         """Retorna los últimos n documentos del caso desde la tabla documents.
@@ -665,7 +976,7 @@ class GestorCasosDB:
                             "updated_at": fecha_str,
                             "open_target": storage_path if storage_path else None,
                         })
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("listar_documentos_recientes failed case_id=%s err=%s", case_id, exc)
 
         return result

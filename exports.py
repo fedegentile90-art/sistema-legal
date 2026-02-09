@@ -4,6 +4,7 @@ Funciones de exportacion (Excel/XLSX).
 
 import pandas as pd
 import streamlit as st
+import json
 from datetime import datetime as dt
 from io import BytesIO
 from openpyxl import Workbook
@@ -107,3 +108,8 @@ def df_to_xlsx_bytes(df: pd.DataFrame, sheet_name: str = "Reporte") -> bytes:
     bio = BytesIO()
     wb.save(bio)
     return bio.getvalue()
+
+
+def payload_to_json_bytes(payload: object, indent: int = 2) -> bytes:
+    """Serializa payload JSON en UTF-8 para exportacion."""
+    return json.dumps(payload, ensure_ascii=False, indent=int(max(0, indent))).encode("utf-8")
