@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-02-13T17:20:39.882960Z",
+  "casos_total": 43,
+  "kpis": {
+    "FECHA_TAREA": {
+      "completed": 3,
+      "total": 43,
+      "pct": 7.0,
+      "target_pct": 60.0,
+      "goal_met": false,
+      "gap_pct": -53.0
+    },
+    "EXPEDIENTE": {
+      "completed": 4,
+      "total": 43,
+      "pct": 9.3,
+      "target_pct": 70.0,
+      "goal_met": false,
+      "gap_pct": -60.7
+    },
+    "EVENTO_FECHA_EVENTO": {
+      "completed": 1,
+      "total": 43,
+      "pct": 2.3,
+      "target_pct": 40.0,
+      "goal_met": false,
+      "gap_pct": -37.7
+    },
+    "COBERTURA_FINANCIERA": {
+      "completed": 1,
+      "total": 43,
+      "pct": 2.3,
+      "target_pct": 70.0,
+      "goal_met": false,
+      "gap_pct": -67.7
+    }
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "generated_at": "2026-02-14T00:54:03.170053Z",
+  "date": "2026-02-14",
+  "source": "nightly_cli",
+  "backend_mode": "database",
+  "audit_report": {
+    "ok": true,
+    "resumen": {
+      "errores": 0,
+      "warnings": 0,
+      "info": 1,
+      "casos": 0
+    },
+    "hallazgos": [
+      {
+        "nivel": "INFO",
+        "codigo": "CTX-001",
+        "mensaje": "Entorno: Windows 10 | Python: 3.14.2",
+        "ruta": "None",
+        "sugerencia": "—"
+      }
+    ],
+    "metricas": {
+      "casos_total": 0,
+      "tiempo_auditoria_seg": 0.0,
+      "completitud": {
+        "TIPO_PROCESO": {
+          "vacios_o_sd": 0,
+          "completos": 1,
+          "pct_completos": 100.0
+        },
+        "JURISDICCION": {
+          "vacios_o_sd": 0,
+          "completos": 1,
+          "pct_completos": 100.0
+        },
+        "ORGANISMO": {
+          "vacios_o_sd": 0,
+          "completos": 1,
+          "pct_completos": 100.0
+        },
+        "EXPEDIENTE": {
+          "vacios_o_sd": 0,
+          "completos": 1,
+          "pct_completos": 100.0
+        },
+        "CARATULA": {
+          "vacios_o_sd": 0,
+          "completos": 1,
+          "pct_completos": 100.0
+        },
+        "RESPONSABLE": {
+          "vacios_o_sd": 0,
+          "completos": 1,
+          "pct_completos": 100.0
+        },
+        "CONTROL": {
+          "vacios_o_sd": 0,
+          "completos": 1,
+          "pct_completos": 100.0
+        },
+        "EVENTO": {
+          "vacios_o_sd": 0,
+          "completos": 1,
+          "pct_completos": 100.0
+        },
+        "FECHA_EVENTO": {
+          "vacios_o_sd": 0,
+          "completos": 1,
+          "pct_completos": 100.0
+        },
+        "TAREA_PENDIENTE": {
+          "vacios_o_sd": 0,
+          "completos": 1,
+          "pct_completos": 100.0
+        },
+        "FECHA_TAREA": {
+          "vacios_o_sd": 0,
+          "completos": 1,
+          "pct_completos": 100.0
+        },
+        "OBSERVACIONES": {
+          "vacios_o_sd": 0,
+          "completos": 1,
+          "pct_completos": 100.0
+        }
+      }
+    }
+  },
+  "kpi_snapshot": {
+    "generated_at": "2026-02-14T00:54:03.170053Z",
+    "casos_total": 0,
+    "kpis": {
+      "FECHA_TAREA": {
+        "completed": 0,
+        "total": 0,
+        "pct": 0.0,
+        "target_pct": 60.0,
+        "goal_met": false,
+        "gap_pct": -60.0
+      },
+      "EXPEDIENTE": {
+        "completed": 0,
+        "total": 0,
+        "pct": 0.0,
+        "target_pct": 70.0,
+        "goal_met": false,
+        "gap_pct": -70.0
+      },
+      "EVENTO_FECHA_EVENTO": {
+        "completed": 0,
+        "total": 0,
+        "pct": 0.0,
+        "target_pct": 40.0,
+        "goal_met": false,
+        "gap_pct": -40.0
+      },
+      "COBERTURA_FINANCIERA": {
+        "completed": 0,
+        "total": 0,
+        "pct": 0.0,
+        "target_pct": 70.0,
+        "goal_met": false,
+        "gap_pct": -70.0
+      }
+    }
+  },
+  "trend_point": {
+    "generated_at": "2026-02-14T00:54:03.170053Z",
+    "date": "2026-02-14",
+    "source": "nightly_cli",
+    "audit_ok": true,
+    "errores": 0,
+    "warnings": 0,
+    "info": 1,
+    "casos": 0,
+    "kpi_fecha_tarea_pct": 0.0,
+    "kpi_expediente_pct": 0.0,
+    "kpi_evento_fecha_evento_pct": 0.0,
+    "kpi_cobertura_financiera_pct": 0.0
+  }
+}

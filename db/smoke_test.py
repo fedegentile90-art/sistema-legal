@@ -3,15 +3,16 @@
 Smoke Test - Backend PostgreSQL para VACA & GENTILE ERP.
 
 Valida:
-  a) DATABASE_URL configurada
-  b) Conexion y SELECT 1
-  c) Existencia de tablas minimas (clients, cases, documents, tasks)
-  d) CRUD basico: insertar client + case de prueba
-  e) Funciones de repo.py: escanear_casos, _leer_ficha, actualizar_campos_ficha, etc.
-  f) Cleanup de registros de prueba
+  a) contrato de DB de pruebas (VG_TEST_DATABASE_URL) valido
+  b) contrato de entorno reproducible (db/env_contract.py)
+  c) Conexion y SELECT 1
+  d) Existencia de tablas minimas (clients, cases, documents, tasks)
+  e) CRUD basico: insertar client + case de prueba
+  f) Funciones de repo.py: escanear_casos, _leer_ficha, actualizar_campos_ficha, etc.
+  g) Cleanup de registros de prueba
 
 Uso:
-  set DATABASE_URL=postgresql://user:pass@host:5432/dbname
+  set VG_TEST_DATABASE_URL=postgresql://user:pass@host:5432/sistemalegal_test
   python db/smoke_test.py
 """
 
@@ -20,6 +21,7 @@ import sys
 import io
 import uuid
 import json
+import subprocess
 from pathlib import Path
 
 # Forzar UTF-8 en stdout para Windows
@@ -30,6 +32,12 @@ if sys.platform == "win32":
 # Agregar raiz al path para imports
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+
+from db.test_env import (  # noqa: E402
+    TEST_DATABASE_URL_ENV,
+    mask_dsn,
+    require_isolated_test_database_env,
+)
 
 
 # ==============================================================================
@@ -64,32 +72,21 @@ def section(title: str):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TEST: Verificar DATABASE_URL
+# TEST: Verificar contrato de DB de pruebas
 # ══════════════════════════════════════════════════════════════════════════════
 
-def test_database_url() -> bool:
-    section("1. Verificando DATABASE_URL")
+def test_isolated_test_database_contract() -> bool:
+    section(f"1. Verificando {TEST_DATABASE_URL_ENV}")
 
-    db_url = os.environ.get("DATABASE_URL", "")
-
-    if not db_url:
-        fail("DATABASE_URL no esta configurada.")
-        info("Configura la variable de entorno:")
-        info("  Windows: set DATABASE_URL=postgresql://user:pass@host:5432/db")
-        info("  Linux:   export DATABASE_URL=postgresql://user:pass@host:5432/db")
+    ok_env, value_or_reason = require_isolated_test_database_env(sync_database_url=True)
+    if not ok_env:
+        fail(value_or_reason)
+        info("Configura una DB de pruebas dedicada:")
+        info(f"  Windows: set {TEST_DATABASE_URL_ENV}=postgresql://user:pass@host:5432/sistemalegal_test")
+        info(f"  Linux:   export {TEST_DATABASE_URL_ENV}=postgresql://user:pass@host:5432/sistemalegal_test")
         return False
 
-    # Ocultar password en output
-    safe_url = db_url
-    if "@" in db_url:
-        parts = db_url.split("@")
-        pre_at = parts[0]
-        if ":" in pre_at:
-            # postgresql://user:PASSWORD@host
-            idx = pre_at.rfind(":")
-            safe_url = pre_at[:idx+1] + "****@" + "@".join(parts[1:])
-
-    ok(f"DATABASE_URL configurada: {safe_url[:60]}...")
+    ok(f"{TEST_DATABASE_URL_ENV} validada: {mask_dsn(value_or_reason)}")
     return True
 
 
@@ -170,13 +167,249 @@ def test_tables_exist() -> bool:
 # TEST: CRUD basico (insert client + case)
 # ══════════════════════════════════════════════════════════════════════════════
 
-# IDs de prueba (constantes para cleanup)
-TEST_CLIENT_ID = "00000000-test-smok-e000-000000000001"
-TEST_CASE_ID = "00000000-test-smok-e000-000000000002"
+# TEST: Nightly Audit operacional en modo no-save
+
+def test_nightly_audit_operational_no_save() -> bool:
+    section("4. Nightly audit operacional (--no-save)")
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, "db/nightly_audit.py", "--no-save"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=180,
+        )
+    except Exception as e:
+        fail(f"No se pudo ejecutar nightly_audit --no-save: {e}")
+        return False
+
+    output = f"{proc.stdout}\n{proc.stderr}"
+    if proc.returncode != 0:
+        fail(f"nightly_audit --no-save retorno {proc.returncode}")
+        info(output[-1200:])
+        return False
+
+    if "Preflight DB: OK" not in output:
+        fail("nightly_audit --no-save no reporto preflight DB OK")
+        info(output[-1200:])
+        return False
+
+    ok("nightly_audit --no-save retorno 0 con preflight DB OK")
+    return True
+
+
+# TEST: Gate bloqueado sin VG_TEST_DATABASE_URL
+
+def test_ops_behavior_suite_runs() -> bool:
+    section("9. Ops behavior suite (P4-01)")
+
+    env = os.environ.copy()
+    if not str(env.get("DATABASE_URL", "")).strip():
+        fail("DATABASE_URL no esta disponible para ops_behavior_test")
+        return False
+
+    # Forzar modo no destructivo para corrida de comportamiento operativo.
+    env["VG_RELEASE_GATE_MODE"] = "read_only"
+    env.pop(TEST_DATABASE_URL_ENV, None)
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, "db/ops_behavior_test.py"],
+            cwd=str(ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=1200,
+        )
+    except Exception as e:
+        fail(f"No se pudo ejecutar ops_behavior_test: {e}")
+        return False
+
+    output = f"{proc.stdout}\n{proc.stderr}"
+    if proc.returncode != 0:
+        fail(f"ops_behavior_test retorno {proc.returncode} (esperado=0)")
+        info(output[-2600:])
+        return False
+
+    if "OPS BEHAVIOR TEST PASS" not in output:
+        fail("ops_behavior_test no reporto PASS")
+        info(output[-2600:])
+        return False
+
+    ok("ops_behavior_test PASS")
+    return True
+
+
+def test_env_contract_daily_ops_blocked_without_runtime_dsn() -> bool:
+    section("5. Env contract daily_ops bloqueado sin DATABASE_URL")
+
+    env = os.environ.copy()
+    env.pop("DATABASE_URL", None)
+    env.pop("VG_RUNTIME_DATABASE_URL", None)
+    env.pop("VG_TEST_DATABASE_URL", None)
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, "db/env_contract.py", "--profile", "daily_ops"],
+            cwd=str(ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
+        )
+    except Exception as e:
+        fail(f"No se pudo ejecutar env_contract daily_ops sin DATABASE_URL: {e}")
+        return False
+
+    output = f"{proc.stdout}\n{proc.stderr}"
+    if proc.returncode != 2:
+        fail(f"env_contract daily_ops sin DATABASE_URL retorno {proc.returncode} (esperado=2)")
+        info(output[-1600:])
+        return False
+
+    if "DATABASE_URL" not in output:
+        fail("env_contract daily_ops no reporto DATABASE_URL faltante")
+        info(output[-1600:])
+        return False
+
+    ok("env_contract daily_ops bloquea sin DATABASE_URL (retorno=2)")
+    return True
+
+
+def test_env_contract_daily_ops_read_only_without_test_dsn() -> bool:
+    section(f"6. Env contract daily_ops read_only sin {TEST_DATABASE_URL_ENV}")
+
+    env = os.environ.copy()
+    if not str(env.get("DATABASE_URL", "")).strip():
+        fail("DATABASE_URL no esta disponible en entorno para test read_only")
+        return False
+    env["VG_RELEASE_GATE_MODE"] = "read_only"
+    env.pop(TEST_DATABASE_URL_ENV, None)
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, "db/env_contract.py", "--profile", "daily_ops"],
+            cwd=str(ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
+        )
+    except Exception as e:
+        fail(f"No se pudo ejecutar env_contract daily_ops read_only sin {TEST_DATABASE_URL_ENV}: {e}")
+        return False
+
+    output = f"{proc.stdout}\n{proc.stderr}"
+    if proc.returncode != 0:
+        fail(
+            f"env_contract daily_ops read_only sin {TEST_DATABASE_URL_ENV} "
+            f"retorno {proc.returncode} (esperado=0)"
+        )
+        info(output[-1600:])
+        return False
+
+    if "ENV CONTRACT: PASS" not in output:
+        fail("env_contract daily_ops read_only no reporto PASS")
+        info(output[-1600:])
+        return False
+
+    ok(f"env_contract daily_ops read_only pasa sin {TEST_DATABASE_URL_ENV}")
+    return True
+
+
+def test_release_gate_blocked_without_test_database_url() -> bool:
+    section(f"8. Release gate bloqueado sin {TEST_DATABASE_URL_ENV}")
+
+    env = os.environ.copy()
+    env.pop("DATABASE_URL", None)
+    env.pop(TEST_DATABASE_URL_ENV, None)
+    env.pop("VG_RUNTIME_DATABASE_URL", None)
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, "db/release_gate.py"],
+            cwd=str(ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=240,
+        )
+    except Exception as e:
+        fail(f"No se pudo ejecutar release_gate sin {TEST_DATABASE_URL_ENV}: {e}")
+        return False
+
+    output = f"{proc.stdout}\n{proc.stderr}"
+    if proc.returncode != 2:
+        fail(f"release_gate sin {TEST_DATABASE_URL_ENV} retorno {proc.returncode} (esperado=2)")
+        info(output[-1600:])
+        return False
+
+    if "BLOCKED" not in output or TEST_DATABASE_URL_ENV not in output:
+        fail(f"release_gate no mostro bloqueo esperado por {TEST_DATABASE_URL_ENV} ausente")
+        info(output[-1600:])
+        return False
+
+    ok(f"release_gate sin {TEST_DATABASE_URL_ENV} retorna 2 y bloquea suites DB")
+    return True
+
+
+def test_release_gate_read_only_without_test_database_url() -> bool:
+    section(f"9. Release gate read_only sin {TEST_DATABASE_URL_ENV}")
+
+    env = os.environ.copy()
+    env.pop("DATABASE_URL", None)
+    env.pop(TEST_DATABASE_URL_ENV, None)
+    env.pop("VG_RUNTIME_DATABASE_URL", None)
+    env.pop("VG_RELEASE_GATE_MODE", None)
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, "db/release_gate.py", "--mode", "read_only"],
+            cwd=str(ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=240,
+        )
+    except Exception as e:
+        fail(f"No se pudo ejecutar release_gate read_only sin {TEST_DATABASE_URL_ENV}: {e}")
+        return False
+
+    output = f"{proc.stdout}\n{proc.stderr}"
+    if proc.returncode != 0:
+        fail(f"release_gate read_only sin {TEST_DATABASE_URL_ENV} retorno {proc.returncode} (esperado=0)")
+        info(output[-1600:])
+        return False
+
+    if "SKIPPED" not in output or "read_only" not in output:
+        fail("release_gate read_only no reporto SKIPPED para suites DB")
+        info(output[-1600:])
+        return False
+
+    ok(f"release_gate read_only sin {TEST_DATABASE_URL_ENV} retorna 0 y salta suites DB")
+    return True
+
+
+# IDs de prueba (UUID validos y estables para cleanup idempotente)
+TEST_CLIENT_ID = "11111111-1111-4111-8111-111111111111"
+TEST_CASE_ID = "22222222-2222-4222-8222-222222222222"
 
 
 def test_insert_test_data() -> bool:
-    section("4. Insertando datos de prueba")
+    section("10. Insertando datos de prueba")
 
     try:
         from repo_db import get_conn
@@ -272,7 +505,7 @@ def test_insert_test_data() -> bool:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def test_repo_functions() -> bool:
-    section("5. Probando funciones de repo.py")
+    section("11. Probando funciones de repo.py")
 
     all_ok = True
 
@@ -401,7 +634,7 @@ def test_repo_functions() -> bool:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def cleanup_test_data() -> bool:
-    section("6. Limpieza de datos de prueba")
+    section("12. Limpieza de datos de prueba")
 
     try:
         from repo_db import get_conn
@@ -436,10 +669,10 @@ def main():
 
     results = {}
 
-    # 1. DATABASE_URL
-    results["database_url"] = test_database_url()
-    if not results["database_url"]:
-        print(f"\n{Colors.FAIL}ABORTADO: DATABASE_URL no configurada{Colors.RESET}")
+    # 1. Contrato de DB de pruebas
+    results["test_db_contract"] = test_isolated_test_database_contract()
+    if not results["test_db_contract"]:
+        print(f"\n{Colors.FAIL}ABORTADO: contrato de DB de pruebas invalido{Colors.RESET}")
         sys.exit(1)
 
     # 2. Conexion
@@ -454,16 +687,66 @@ def main():
         print(f"\n{Colors.FAIL}ABORTADO: Faltan tablas requeridas{Colors.RESET}")
         sys.exit(1)
 
-    # 4. Insert datos de prueba
+    # 4. Nightly no-save (operacional)
+    results["nightly_no_save"] = test_nightly_audit_operational_no_save()
+    if not results["nightly_no_save"]:
+        print(f"\n{Colors.FAIL}ABORTADO: nightly_audit --no-save fallo{Colors.RESET}")
+        sys.exit(1)
+
+    # 5. Env contract daily_ops sin DATABASE_URL (fallo controlado)
+    results["env_contract_daily_ops_missing_runtime_dsn"] = test_env_contract_daily_ops_blocked_without_runtime_dsn()
+    if not results["env_contract_daily_ops_missing_runtime_dsn"]:
+        print(
+            f"\n{Colors.FAIL}ABORTADO: env_contract daily_ops sin DATABASE_URL "
+            f"no cumplio politica FAIL{Colors.RESET}"
+        )
+        sys.exit(1)
+
+    # 6. Env contract daily_ops read_only sin VG_TEST_DATABASE_URL (fallo controlado -> PASS)
+    results["env_contract_daily_ops_read_only_missing_test_dsn"] = test_env_contract_daily_ops_read_only_without_test_dsn()
+    if not results["env_contract_daily_ops_read_only_missing_test_dsn"]:
+        print(
+            f"\n{Colors.FAIL}ABORTADO: env_contract daily_ops read_only sin {TEST_DATABASE_URL_ENV} "
+            f"no cumplio politica PASS{Colors.RESET}"
+        )
+        sys.exit(1)
+
+    # 7. Ops behavior suite (P4-01)
+    results["ops_behavior_suite"] = test_ops_behavior_suite_runs()
+    if not results["ops_behavior_suite"]:
+        print(
+            f"\n{Colors.FAIL}ABORTADO: ops_behavior_test no cumplio contrato operacional{Colors.RESET}"
+        )
+        sys.exit(1)
+
+    # 8. Gate bloqueado sin VG_TEST_DATABASE_URL (fallo controlado)
+    results["release_gate_blocked_missing_test_dsn"] = test_release_gate_blocked_without_test_database_url()
+    if not results["release_gate_blocked_missing_test_dsn"]:
+        print(
+            f"\n{Colors.FAIL}ABORTADO: release_gate sin {TEST_DATABASE_URL_ENV} "
+            f"no cumplio politica BLOCKED{Colors.RESET}"
+        )
+        sys.exit(1)
+
+    # 9. Gate read_only sin VG_TEST_DATABASE_URL (fallo controlado -> PASS)
+    results["release_gate_read_only_missing_test_dsn"] = test_release_gate_read_only_without_test_database_url()
+    if not results["release_gate_read_only_missing_test_dsn"]:
+        print(
+            f"\n{Colors.FAIL}ABORTADO: release_gate read_only sin {TEST_DATABASE_URL_ENV} "
+            f"no cumplio politica SKIPPED{Colors.RESET}"
+        )
+        sys.exit(1)
+
+    # 10. Insert datos de prueba
     results["insert"] = test_insert_test_data()
 
-    # 5. Funciones de repo.py
+    # 11. Funciones de repo.py
     if results["insert"]:
         results["repo_functions"] = test_repo_functions()
     else:
         results["repo_functions"] = False
 
-    # 6. Cleanup (siempre intentar)
+    # 12. Cleanup (siempre intentar)
     results["cleanup"] = cleanup_test_data()
 
     # ═══════════════════════════════════════════════════════════════════════════

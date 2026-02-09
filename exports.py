@@ -2,13 +2,20 @@
 Funciones de exportacion (Excel/XLSX).
 """
 
+import hashlib
+import json
+import logging
+from datetime import datetime as dt
+from datetime import timezone
+from io import BytesIO
+
 import pandas as pd
 import streamlit as st
-from datetime import datetime as dt
-from io import BytesIO
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
+
+logger = logging.getLogger(__name__)
 
 
 @st.cache_data(show_spinner=False)
@@ -16,6 +23,9 @@ def df_to_xlsx_bytes(df: pd.DataFrame, sheet_name: str = "Reporte") -> bytes:
     wb = Workbook()
     ws = wb.active
     ws.title = sheet_name[:31]
+    # Forzar metadatos estables para exportes reproducibles.
+    wb.properties.created = dt(2000, 1, 1, 0, 0, 0)
+    wb.properties.modified = dt(2000, 1, 1, 0, 0, 0)
 
     # --- Estilos ---
     header_fill = PatternFill("solid", fgColor="0F2A4A")
@@ -68,8 +78,8 @@ def df_to_xlsx_bytes(df: pd.DataFrame, sheet_name: str = "Reporte") -> bytes:
                     val = str(cell.value).replace("$", "").replace(".", "").replace(",", ".").strip()
                     cell.value = float(val)
                     cell.number_format = '#,##0.00'
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as exc:
+                    logger.debug("No se pudo parsear moneda col=%s value=%r err=%s", col_name, cell.value, exc)
 
             # Formato fecha
             if col_name in date_cols and cell.value:
@@ -81,8 +91,8 @@ def df_to_xlsx_bytes(df: pd.DataFrame, sheet_name: str = "Reporte") -> bytes:
                             break
                         except ValueError:
                             continue
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("No se pudo parsear fecha col=%s value=%r err=%s", col_name, cell.value, exc)
 
     # --- Freeze + filter ---
     ws.freeze_panes = "A2"
@@ -107,3 +117,25 @@ def df_to_xlsx_bytes(df: pd.DataFrame, sheet_name: str = "Reporte") -> bytes:
     bio = BytesIO()
     wb.save(bio)
     return bio.getvalue()
+
+
+def payload_to_json_bytes(payload: object, indent: int = 2) -> bytes:
+    """Serializa payload JSON en UTF-8 para exportacion."""
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        indent=int(max(0, indent)),
+        sort_keys=True,
+        default=str,
+    ).encode("utf-8")
+
+
+def build_export_metadata(export_name: str, payload_bytes: bytes) -> dict:
+    """Metadatos trazables para validar integridad de exportes."""
+    content = payload_bytes or b""
+    return {
+        "export_name": str(export_name or "export"),
+        "generated_at_utc": dt.now(timezone.utc).isoformat(),
+        "size_bytes": len(content),
+        "sha256": hashlib.sha256(content).hexdigest(),
+    }

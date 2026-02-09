@@ -386,7 +386,15 @@ class GestorCasos:
         total = len(listado)
         return {"db_total": total, "listado_total": total, "delta": 0}
 
-    def crear_caso(self, año: str, estado: str, cliente: str, fuero: str, nombre_caso: str) -> Tuple[bool, str]:
+    def crear_caso(
+        self,
+        año: str,
+        estado: str,
+        cliente: str,
+        fuero: str,
+        nombre_caso: str,
+        actor_ctx: Optional[Dict[str, str]] = None,
+    ) -> Tuple[bool, str]:
         """Crea la estructura física exacta."""
         try:
             cliente = limpiar_nombre_carpeta(cliente)
@@ -418,7 +426,12 @@ class GestorCasos:
         except Exception as e:
             return False, f"❌ Error físico al crear carpetas: {str(e)}"
 
-    def actualizar_caso(self, ruta_caso: Path, datos: Dict[str, str]) -> bool:
+    def actualizar_caso(
+        self,
+        ruta_caso: Path,
+        datos: Dict[str, str],
+        actor_ctx: Optional[Dict[str, str]] = None,
+    ) -> bool:
         """Actualiza la ficha de un caso existente."""
         ok = self._escribir_ficha(ruta_caso, datos)
         if ok:
@@ -440,7 +453,12 @@ class GestorCasos:
             self._append_log(ruta_caso, f"Estructura normalizada: {creadas} subcarpetas creadas")
         return creadas
 
-    def actualizar_campos_ficha(self, ruta_caso: Path, cambios: Dict[str, str]) -> bool:
+    def actualizar_campos_ficha(
+        self,
+        ruta_caso: Path,
+        cambios: Dict[str, str],
+        actor_ctx: Optional[Dict[str, str]] = None,
+    ) -> bool:
         """Actualiza solo los campos indicados sin pisar el resto de la ficha."""
         datos = self._leer_ficha(ruta_caso)
         for k, v in cambios.items():
@@ -467,7 +485,12 @@ class GestorCasos:
             pass
         return out
 
-    def guardar_datos_financieros(self, ruta_caso: Path, datos_fin: Dict[str, str]) -> bool:
+    def guardar_datos_financieros(
+        self,
+        ruta_caso: Path,
+        datos_fin: Dict[str, str],
+        actor_ctx: Optional[Dict[str, str]] = None,
+    ) -> bool:
         """Guarda campos financieros en ficha.json sin pisar los campos estándar."""
         p = ruta_caso / FICHA_JSON
         try:
@@ -486,8 +509,16 @@ class GestorCasos:
             st.error(f"Error guardando datos financieros: {e}")
             return False
 
-    def mover_carpeta_fisica(self, caso_actual: Caso, nuevo_año: str, nuevo_estado: str,
-                            nuevo_cliente: str, nuevo_fuero: str, nueva_causa: str) -> Tuple[bool, Path]:
+    def mover_carpeta_fisica(
+        self,
+        caso_actual: Caso,
+        nuevo_año: str,
+        nuevo_estado: str,
+        nuevo_cliente: str,
+        nuevo_fuero: str,
+        nueva_causa: str,
+        actor_ctx: Optional[Dict[str, str]] = None,
+    ) -> Tuple[bool, Path]:
         """Mueve la carpeta física del caso si cambian datos jerárquicos."""
         try:
             nuevo_cliente = limpiar_nombre_carpeta(nuevo_cliente)

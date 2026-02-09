@@ -1,0 +1,436 @@
+{
+  "generated_at": "2026-02-13T22:02:16.666906Z",
+  "date": "2026-02-13",
+  "source": "nightly_cli",
+  "backend_mode": "database",
+  "audit_report": {
+    "ok": false,
+    "resumen": {
+      "errores": 1,
+      "warnings": 41,
+      "info": 1,
+      "casos": 43
+    },
+    "hallazgos": [
+      {
+        "nivel": "INFO",
+        "codigo": "CTX-001",
+        "mensaje": "Entorno: Windows 10 | Python: 3.14.2",
+        "ruta": "None",
+        "sugerencia": "—"
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TIPO_PROCESO",
+        "ruta": "db:\\cases\\a9ead650-c996-4ce0-9a03-3de1a6925e60",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, FECHA_EVENTO, FECHA_TAREA, OBSERVACIONES, TAREA_PENDIENTE",
+        "ruta": "db:\\cases\\2f5bb15a-0383-4b7a-9bfd-536ba64203b4",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE",
+        "ruta": "db:\\cases\\9b867159-0318-42e6-8ce2-b5fad02fdfbc",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TIPO_PROCESO",
+        "ruta": "db:\\cases\\2a37cae9-e172-4888-b26b-1f69aaacdb56",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CONTROL, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\38dad4a2-a519-4b4e-a444-2686b35998ba",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\11878a24-a8be-4a62-9315-5240802c6bd8",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EXPEDIENTE, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TIPO_PROCESO",
+        "ruta": "db:\\cases\\15d5727f-9358-4912-9cb2-48988aa1c90a",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "ERROR",
+        "codigo": "DATA-050",
+        "mensaje": "Campos mínimos faltantes: RESPONSABLE",
+        "ruta": "db:\\cases\\f408c91d-3a44-4bab-9e06-7fd47c4366c6",
+        "sugerencia": "Completar mínimos desde la app para habilitar operación (agenda/control)."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CONTROL, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\d46794dc-06c9-45a1-af2c-adc2861e7a49",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): EVENTO, FECHA_EVENTO, FECHA_TAREA, TAREA_PENDIENTE",
+        "ruta": "db:\\cases\\731c9c0d-13ea-4ceb-bd74-80db1aa65233",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TIPO_PROCESO",
+        "ruta": "db:\\cases\\f72be668-21c3-42a4-a590-93adfba52f60",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TIPO_PROCESO",
+        "ruta": "db:\\cases\\a290f09d-00b7-4e10-9efc-c27162fb6ab1",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TIPO_PROCESO",
+        "ruta": "db:\\cases\\2ffb9021-f220-460e-a015-de273b04c615",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\96f9cd6d-c7ff-4e0d-8191-3ddadf93839f",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\e699e6c7-81a1-4f88-8085-d3256d8bebaf",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\45314ba1-4299-4414-86f9-9d131f3d28cc",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\5a8f6b9b-7751-49b7-8d45-1d7fdf8698d0",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\15e4e3ff-87f8-4958-b68a-cc95e054dd14",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\ac68f599-4bb9-4220-b54e-5ec36211dd05",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TIPO_PROCESO",
+        "ruta": "db:\\cases\\075da4e8-5b55-4a00-bd19-c87e0a26a89c",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\5162645d-2274-4971-958d-e158156db1df",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\23244896-6262-4b1f-b712-56d6a0e3823b",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\350da5da-2d6d-436d-9901-3bfa612322ee",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\64806660-1f9e-4ac5-b5ab-4f5e8ff3fdb0",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\ff9e629b-6216-40b6-a67d-c60a5484ee75",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\c028350e-1c60-4181-8dea-99e629ae91eb",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\4d9f8cf9-36e7-4c50-b34e-c2bad47c831f",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\d8814908-3ae7-4c03-9109-f171c1124e26",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\304b1a8e-5a20-4323-b33d-a99012cd5c52",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TIPO_PROCESO",
+        "ruta": "db:\\cases\\a67210a5-54a4-4033-b4b5-e855a3da9b9a",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, CONTROL, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TIPO_PROCESO",
+        "ruta": "db:\\cases\\44055f0b-122e-496a-a688-5a520c6eb7ec",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, FECHA_EVENTO, OBSERVACIONES, TAREA_PENDIENTE",
+        "ruta": "db:\\cases\\de064377-8e94-442a-99d5-d8196c5f9c2d",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CONTROL, EVENTO, EXPEDIENTE, FECHA_EVENTO, JURISDICCION, OBSERVACIONES",
+        "ruta": "db:\\cases\\07f6f709-a7cf-4e46-a83b-3b026c9152f1",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, OBSERVACIONES, TAREA_PENDIENTE",
+        "ruta": "db:\\cases\\99e3b57d-5343-4b84-82b6-1ea7c19b4240",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, OBSERVACIONES, TAREA_PENDIENTE",
+        "ruta": "db:\\cases\\12884134-51e7-4e41-b326-2fe666ba24f7",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE",
+        "ruta": "db:\\cases\\81ccf6f3-efc2-4fe9-8a86-528a69da0b47",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\a2a53160-1130-4933-9406-5e555d6afd6c",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TIPO_PROCESO",
+        "ruta": "db:\\cases\\cd0043f1-23e4-4ff4-81fa-c46b91c98798",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\619c2321-ff32-41d5-93e2-16002e6c3c0b",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TIPO_PROCESO",
+        "ruta": "db:\\cases\\f3596f93-ac27-4c3e-9e92-fa22143d9ecc",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TAREA_PENDIENTE, TIPO_PROCESO",
+        "ruta": "db:\\cases\\a846bfb0-9c4f-4ecf-9671-015476884629",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      },
+      {
+        "nivel": "WARN",
+        "codigo": "DATA-051",
+        "mensaje": "Campos de calidad faltantes (legacy): CARATULA, EVENTO, EXPEDIENTE, FECHA_EVENTO, FECHA_TAREA, JURISDICCION, OBSERVACIONES, ORGANISMO, TIPO_PROCESO",
+        "ruta": "db:\\cases\\42109c72-bcbf-4cbe-9260-cdf9a444b647",
+        "sugerencia": "Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+      }
+    ],
+    "metricas": {
+      "casos_total": 43,
+      "tiempo_auditoria_seg": 0.005,
+      "completitud": {
+        "TIPO_PROCESO": {
+          "vacios_o_sd": 34,
+          "completos": 9,
+          "pct_completos": 20.9
+        },
+        "JURISDICCION": {
+          "vacios_o_sd": 37,
+          "completos": 6,
+          "pct_completos": 14.0
+        },
+        "ORGANISMO": {
+          "vacios_o_sd": 36,
+          "completos": 7,
+          "pct_completos": 16.3
+        },
+        "EXPEDIENTE": {
+          "vacios_o_sd": 39,
+          "completos": 4,
+          "pct_completos": 9.3
+        },
+        "CARATULA": {
+          "vacios_o_sd": 38,
+          "completos": 5,
+          "pct_completos": 11.6
+        },
+        "RESPONSABLE": {
+          "vacios_o_sd": 1,
+          "completos": 42,
+          "pct_completos": 97.7
+        },
+        "CONTROL": {
+          "vacios_o_sd": 5,
+          "completos": 38,
+          "pct_completos": 88.4
+        },
+        "EVENTO": {
+          "vacios_o_sd": 42,
+          "completos": 1,
+          "pct_completos": 2.3
+        },
+        "FECHA_EVENTO": {
+          "vacios_o_sd": 42,
+          "completos": 1,
+          "pct_completos": 2.3
+        },
+        "TAREA_PENDIENTE": {
+          "vacios_o_sd": 29,
+          "completos": 14,
+          "pct_completos": 32.6
+        },
+        "FECHA_TAREA": {
+          "vacios_o_sd": 40,
+          "completos": 3,
+          "pct_completos": 7.0
+        },
+        "OBSERVACIONES": {
+          "vacios_o_sd": 41,
+          "completos": 2,
+          "pct_completos": 4.7
+        }
+      }
+    }
+  },
+  "kpi_snapshot": {
+    "generated_at": "2026-02-13T22:02:16.666906Z",
+    "casos_total": 43,
+    "kpis": {
+      "FECHA_TAREA": {
+        "completed": 3,
+        "total": 43,
+        "pct": 7.0,
+        "target_pct": 60.0,
+        "goal_met": false,
+        "gap_pct": -53.0
+      },
+      "EXPEDIENTE": {
+        "completed": 4,
+        "total": 43,
+        "pct": 9.3,
+        "target_pct": 70.0,
+        "goal_met": false,
+        "gap_pct": -60.7
+      },
+      "EVENTO_FECHA_EVENTO": {
+        "completed": 1,
+        "total": 43,
+        "pct": 2.3,
+        "target_pct": 40.0,
+        "goal_met": false,
+        "gap_pct": -37.7
+      },
+      "COBERTURA_FINANCIERA": {
+        "completed": 1,
+        "total": 43,
+        "pct": 2.3,
+        "target_pct": 70.0,
+        "goal_met": false,
+        "gap_pct": -67.7
+      }
+    }
+  },
+  "trend_point": {
+    "generated_at": "2026-02-13T22:02:16.666906Z",
+    "date": "2026-02-13",
+    "source": "nightly_cli",
+    "audit_ok": false,
+    "errores": 1,
+    "warnings": 41,
+    "info": 1,
+    "casos": 43,
+    "kpi_fecha_tarea_pct": 7.0,
+    "kpi_expediente_pct": 9.3,
+    "kpi_evento_fecha_evento_pct": 2.3,
+    "kpi_cobertura_financiera_pct": 2.3
+  }
+}

@@ -1,0 +1,31 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [
+  ".venv",
+  "__pycache__",
+  "logs",
+  "db/snapshots",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E203", "E266", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"views.py" = ["E741"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["security.py", "exports.py", "repo_db.py"]
+ignore_missing_imports = true
+warn_unused_configs = true
+warn_return_any = false
+warn_unused_ignores = false
+check_untyped_defs = false
+disallow_untyped_defs = false
+show_error_codes = true
