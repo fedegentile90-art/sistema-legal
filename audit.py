@@ -5,6 +5,7 @@ Auditoria integral del sistema.
 import csv
 import json
 import logging
+import math
 import platform
 import time
 from dataclasses import asdict, dataclass
@@ -278,7 +279,10 @@ def _safe_int(value: Any, default: int = 0) -> int:
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
     try:
-        return float(value)
+        parsed = float(value)
+        if math.isnan(parsed) or math.isinf(parsed):
+            return float(default)
+        return parsed
     except Exception:
         return float(default)
 

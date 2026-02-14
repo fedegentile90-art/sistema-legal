@@ -63,13 +63,14 @@ def get_route() -> str:
 
     idx = visible_routes.index(current) if current in visible_routes else 0
 
-    route = st.sidebar.radio(
-        "Navegacion principal",
-        visible_routes,
-        index=idx,
-        key="_sidebar_nav",
-        label_visibility="collapsed",
-    )
+    with st.sidebar.expander("Modulos de trabajo", expanded=True):
+        route = st.radio(
+            "Navegacion principal",
+            visible_routes,
+            index=idx,
+            key="_sidebar_nav",
+            label_visibility="collapsed",
+        )
     if route != current:
         st.session_state["nav_route"] = route
         st.session_state["route_mode"] = "listado"

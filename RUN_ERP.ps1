@@ -86,6 +86,21 @@ function Get-PositiveIntEnv([string]$Name, [int]$DefaultValue) {
     return [int]$DefaultValue
 }
 
+function Get-BoolEnv([string]$Name, [bool]$DefaultValue) {
+    $raw = [Environment]::GetEnvironmentVariable($Name, "Process")
+    if ([string]::IsNullOrWhiteSpace($raw)) {
+        return [bool]$DefaultValue
+    }
+    $norm = $raw.Trim().ToLowerInvariant()
+    if ($norm -in @("1", "true", "yes", "on")) {
+        return $true
+    }
+    if ($norm -in @("0", "false", "no", "off")) {
+        return $false
+    }
+    return [bool]$DefaultValue
+}
+
 function Convert-ToCmdArg([string]$Value) {
     if ($null -eq $Value) {
         return '""'
@@ -221,6 +236,65 @@ function Get-FreePort([int]$PreferredPort, [int]$MaxOffset = 20) {
     return -1
 }
 
+function Get-PortOwnerPid([int]$PortNumber) {
+    try {
+        $conn = Get-NetTCPConnection -State Listen -LocalPort $PortNumber -ErrorAction Stop | Select-Object -First 1
+        if ($null -ne $conn) {
+            return [int]$conn.OwningProcess
+        }
+    } catch {
+    }
+
+    try {
+        $pattern = "^\s*TCP\s+\S+:{0}\s+\S+\s+LISTENING\s+(\d+)\s*$" -f $PortNumber
+        $line = netstat -ano -p TCP | Select-String -Pattern $pattern | Select-Object -First 1
+        if ($null -ne $line) {
+            $match = [regex]::Match([string]$line.Line, $pattern)
+            if ($match.Success) {
+            $ownerPid = 0
+            if ([int]::TryParse($match.Groups[1].Value, [ref]$ownerPid)) {
+                return [int]$ownerPid
+            }
+            }
+        }
+    } catch {
+    }
+    return -1
+}
+
+function Stop-StreamlitProcessOnPort([int]$PortNumber) {
+    $ownerPid = Get-PortOwnerPid -PortNumber $PortNumber
+    if ($ownerPid -lt 1) {
+        return $false
+    }
+
+    try {
+        $procInfo = Get-CimInstance Win32_Process -Filter ("ProcessId={0}" -f $ownerPid)
+    } catch {
+        Write-LauncherLog ("No se pudo inspeccionar PID {0} en puerto {1}: {2}" -f $ownerPid, $PortNumber, $_.Exception.Message)
+        return $false
+    }
+    if ($null -eq $procInfo) {
+        return $false
+    }
+
+    $cmd = [string]$procInfo.CommandLine
+    if ($cmd -notmatch "(?i)streamlit\s+run") {
+        Write-LauncherLog ("Puerto {0} ocupado por PID {1} no-streamlit. Se conserva proceso." -f $PortNumber, $ownerPid)
+        return $false
+    }
+
+    try {
+        Stop-Process -Id $ownerPid -Force -ErrorAction Stop
+        Write-LauncherLog ("Proceso streamlit detenido (PID {0}) para refrescar cambios." -f $ownerPid)
+        Start-Sleep -Milliseconds 700
+        return $true
+    } catch {
+        Write-LauncherLog ("No se pudo detener streamlit PID {0}: {1}" -f $ownerPid, $_.Exception.Message)
+        return $false
+    }
+}
+
 function Invoke-PythonStep([string]$StepName, [string[]]$StepArgs, [int]$TimeoutSec, [string]$RunId = "") {
     Write-OpsLog ("[RUN] {0}: {1} {2}" -f $StepName, $Python, ($StepArgs -join " "))
     Write-OpsObs -RunId $RunId -Stage "step_start" -Suite $StepName -Status "RUN" -Detail ("timeout_sec={0}" -f $TimeoutSec)
@@ -340,11 +414,22 @@ function Run-Launcher {
     $preferredPort = Get-PositiveIntEnv -Name "VG_APP_PORT" -DefaultValue $DefaultPort
     $selectedPort = $preferredPort
     $url = "http://localhost:$selectedPort"
+    $forceRestartOnLaunch = Get-BoolEnv -Name "VG_FORCE_RESTART_ON_LAUNCH" -DefaultValue $true
 
     if (Test-StreamlitServer -PortNumber $preferredPort) {
-        Write-LauncherLog ("Server streamlit ya activo en puerto {0}, abriendo browser" -f $preferredPort)
-        Start-Process $url | Out-Null
-        return $EXIT_OK
+        if ($forceRestartOnLaunch) {
+            if (Stop-StreamlitProcessOnPort -PortNumber $preferredPort) {
+                Write-LauncherLog ("VG_FORCE_RESTART_ON_LAUNCH=1: se reinicia server en puerto {0}." -f $preferredPort)
+            } else {
+                Write-LauncherLog ("No se pudo reiniciar server activo en puerto {0}; se abre instancia existente." -f $preferredPort)
+                Start-Process $url | Out-Null
+                return $EXIT_OK
+            }
+        } else {
+            Write-LauncherLog ("Server streamlit ya activo en puerto {0}, abriendo browser" -f $preferredPort)
+            Start-Process $url | Out-Null
+            return $EXIT_OK
+        }
     }
 
     if (Test-Port -PortNumber $preferredPort) {
@@ -364,6 +449,7 @@ function Run-Launcher {
         "-m", "streamlit", "run", "app.py",
         "--server.address=localhost",
         "--server.port=$selectedPort",
+        "--server.runOnSave=true",
         "--logger.level=info"
     )
 

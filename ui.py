@@ -173,6 +173,54 @@ def _persist_ui_preferences_if_possible(theme_mode: str, density_mode: str) -> N
         logger.debug("save user ui preferences unavailable: %s", exc)
 
 
+def _is_login_pending() -> bool:
+    """Indica si la sesion esta en pantalla de login (auth requerida sin usuario autenticado)."""
+    try:
+        from security import current_user, is_auth_required
+
+        if not is_auth_required():
+            return False
+        user = current_user()
+        return not bool(str(getattr(user, "user_id", "")).strip())
+    except Exception:
+        return False
+
+
+def _render_sidebar_appearance_controls(
+    theme_opts: list[str],
+    density_opts: list[str],
+    theme_default_idx: int,
+    density_default_idx: int,
+    theme_by_label: dict[str, str],
+    density_by_label: dict[str, str],
+    revamp_enabled: bool,
+) -> None:
+    """Renderiza controles de apariencia en sidebar agrupados en un desplegable."""
+    with st.sidebar.expander("Apariencia", expanded=True):
+        st.markdown('<div class="vg-theme-toggle">', unsafe_allow_html=True)
+        theme_label = st.radio(
+            "Tema",
+            theme_opts,
+            index=theme_default_idx,
+            key="stitch_theme_selector",
+            label_visibility="collapsed",
+        )
+        st.session_state[SESSION_THEME_KEY] = theme_by_label.get(theme_label, _default_theme_mode())
+        st.markdown("</div>", unsafe_allow_html=True)
+        if revamp_enabled:
+            st.markdown('<div class="vg-density-toggle">', unsafe_allow_html=True)
+            density_label = st.radio(
+                "Densidad",
+                density_opts,
+                index=density_default_idx,
+                key="stitch_density_selector",
+                label_visibility="collapsed",
+                horizontal=True,
+            )
+            st.session_state[SESSION_DENSITY_KEY] = density_by_label.get(density_label, _default_density_mode())
+            st.markdown("</div>", unsafe_allow_html=True)
+
+
 # --- GESTION DE ESTADO Y TEMA ---
 
 
@@ -665,6 +713,7 @@ def aplicar_estilos_stitch():
     """Inyecta CSS global y unifica la experiencia claro/oscuro de toda la app."""
     inicializar_ui()
     revamp_enabled = is_ui_revamp_enabled()
+    login_pending = _is_login_pending()
     theme_by_label = {label: key for key, label in THEME_OPTIONS.items()}
     density_by_label = {label: key for key, label in DENSITY_OPTIONS.items()}
 
@@ -680,29 +729,15 @@ def aplicar_estilos_stitch():
     theme_default_idx = theme_opts.index(THEME_OPTIONS.get(theme_mode, "Oscuro"))
     density_default_idx = density_opts.index(DENSITY_OPTIONS.get(density_mode, "Compacta"))
 
-    with st.sidebar:
-        st.markdown('<div class="vg-theme-toggle">', unsafe_allow_html=True)
-        theme_label = st.radio(
-            "Tema",
-            theme_opts,
-            index=theme_default_idx,
-            key="stitch_theme_selector",
-            label_visibility="collapsed",
-        )
-        st.session_state[SESSION_THEME_KEY] = theme_by_label.get(theme_label, _default_theme_mode())
-        st.markdown("</div>", unsafe_allow_html=True)
-        if revamp_enabled:
-            st.markdown('<div class="vg-density-toggle">', unsafe_allow_html=True)
-            density_label = st.radio(
-                "Densidad",
-                density_opts,
-                index=density_default_idx,
-                key="stitch_density_selector",
-                label_visibility="collapsed",
-                horizontal=True,
-            )
-            st.session_state[SESSION_DENSITY_KEY] = density_by_label.get(density_label, _default_density_mode())
-            st.markdown("</div>", unsafe_allow_html=True)
+    _render_sidebar_appearance_controls(
+        theme_opts=theme_opts,
+        density_opts=density_opts,
+        theme_default_idx=theme_default_idx,
+        density_default_idx=density_default_idx,
+        theme_by_label=theme_by_label,
+        density_by_label=density_by_label,
+        revamp_enabled=revamp_enabled,
+    )
 
     _persist_ui_preferences_if_possible(
         st.session_state.get(SESSION_THEME_KEY, _default_theme_mode()),
@@ -842,6 +877,32 @@ def aplicar_estilos_stitch():
         .stDownloadButton > button * {{
             color: #fff !important;
             fill: #fff !important;
+        }}
+        div[data-testid="stFormSubmitButton"] > button {{
+            width: 100%;
+            min-height: 44px;
+            border-radius: 12px;
+            font-weight: 750;
+            letter-spacing: 0.01em;
+            background: linear-gradient(135deg, var(--vg-primary), var(--vg-primary-strong)) !important;
+            color: #fff !important;
+            border: 1px solid color-mix(in srgb, var(--vg-primary), #fff 30%) !important;
+            box-shadow: 0 10px 20px color-mix(in srgb, var(--vg-primary), transparent 72%);
+        }}
+        div[data-testid="stFormSubmitButton"] > button:hover {{
+            transform: translateY(-1px);
+            box-shadow: var(--vg-shadow-glow);
+        }}
+        div[data-testid="stFormSubmitButton"] > button:disabled {{
+            opacity: 0.62 !important;
+            color: color-mix(in srgb, #fff, var(--vg-text) 22%) !important;
+            border-color: color-mix(in srgb, var(--vg-border), #fff 16%) !important;
+            background: color-mix(in srgb, var(--vg-surface-2), var(--vg-primary) 20%) !important;
+            box-shadow: none !important;
+        }}
+        div[data-testid="stFormSubmitButton"] > button * {{
+            color: inherit !important;
+            fill: inherit !important;
         }}
         section[data-testid="stSidebar"] .stButton > button,
         section[data-testid="stSidebar"] .stDownloadButton > button {{
@@ -999,9 +1060,20 @@ def aplicar_estilos_stitch():
             color: var(--vg-text);
             padding: 8px 10px;
         }}
+        section[data-testid="stSidebar"] [data-testid="stExpander"] {{
+            background: color-mix(in srgb, var(--vg-surface-2), transparent 15%);
+            border-color: color-mix(in srgb, var(--vg-primary), var(--vg-border) 80%);
+            border-radius: 14px;
+            margin: 8px 0;
+        }}
         [data-testid="stExpander"] summary {{
             color: var(--vg-text);
             font-weight: 700;
+        }}
+        section[data-testid="stSidebar"] [data-testid="stExpander"] summary {{
+            font-size: 0.84rem;
+            letter-spacing: .06em;
+            text-transform: uppercase;
         }}
 
         /* Dataframes */
@@ -1164,32 +1236,80 @@ def aplicar_estilos_stitch():
     )
     st.markdown(css, unsafe_allow_html=True)
 
+    if login_pending:
+        st.markdown(
+            """
+            <style>
+            .main .block-container {
+                max-width: 1180px !important;
+                padding-top: 1.25rem !important;
+                padding-bottom: 1.8rem !important;
+            }
+            .vg-login-shell {
+                max-width: 760px !important;
+                margin: 1.1rem auto 0 !important;
+                padding: 22px 22px 14px !important;
+                border-radius: 18px !important;
+            }
+            .vg-login-title {
+                font-size: 2.2rem !important;
+                line-height: 1.02 !important;
+                margin-bottom: 0.45rem !important;
+            }
+            .vg-login-subtitle {
+                margin-bottom: 0.95rem !important;
+            }
+            .vg-login-shell [data-testid="stForm"] {
+                border: 1px solid color-mix(in srgb, var(--vg-primary), var(--vg-border) 78%);
+                border-radius: 14px;
+                background: color-mix(in srgb, var(--vg-surface-2), transparent 16%);
+                padding: 12px 12px 8px;
+            }
+            .vg-login-shell .stTextInput input {
+                min-height: 42px;
+            }
+            .vg-login-shell .stFormSubmitButton > button {
+                margin-top: 0.25rem;
+            }
+            @media (max-width: 980px) {
+                .vg-login-shell {
+                    max-width: 100% !important;
+                    margin-top: 0.8rem !important;
+                    padding: 16px 14px 12px !important;
+                }
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
     if not revamp_enabled:
         return
 
     # Capa de refinamiento visual para ordenar todos los modulos con el mismo shell.
     st.markdown(
-        f"""
+        """
         <style>
         .stApp {
             background-attachment: fixed;
         }
 
         .main .block-container {
-            max-width: {density_cfg['container_max']};
-            padding-top: {density_cfg['pad_top']};
-            padding-bottom: {density_cfg['pad_bottom']};
+            max-width: __VG_CONTAINER_MAX__;
+            padding-top: __VG_PAD_TOP__;
+            padding-bottom: __VG_PAD_BOTTOM__;
         }
         .vg-workspace-shell {
             display: flex;
             flex-direction: column;
-            gap: 0.8rem;
-            margin-bottom: 0.4rem;
+            gap: 1rem;
+            margin-bottom: 0.6rem;
+            animation: vg-fade-in .26s ease-out;
         }
         .vg-module-frame {
             display: flex;
             flex-direction: column;
-            gap: 0.7rem;
+            gap: 0.9rem;
         }
         .vg-module-block {
             display: block;
@@ -1206,6 +1326,16 @@ def aplicar_estilos_stitch():
         .vg-workspace-shell .stMarkdown p {
             line-height: 1.38;
         }
+        @keyframes vg-fade-in {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
         [data-testid="stCaptionContainer"],
         .stCaption {
             font-size: 0.86rem;
@@ -1219,9 +1349,15 @@ def aplicar_estilos_stitch():
                 color-mix(in srgb, var(--vg-sidebar), #000000 8%)
             );
             box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.06);
+            width: 26rem !important;
+            min-width: 26rem !important;
+        }
+        section[data-testid="stSidebar"] > div:first-child {
+            width: 26rem !important;
+            min-width: 26rem !important;
         }
         section[data-testid="stSidebar"] .block-container {
-            padding-top: 0.75rem;
+            padding: 0.95rem 0.95rem 1.4rem;
         }
 
         .stButton > button,
@@ -1255,13 +1391,37 @@ def aplicar_estilos_stitch():
             filter: saturate(0.8);
             cursor: not-allowed !important;
         }
+        div[data-testid="stFormSubmitButton"] > button {
+            min-height: 44px;
+            border-radius: 12px;
+            font-weight: 750;
+            background: linear-gradient(135deg, var(--vg-primary), var(--vg-primary-strong)) !important;
+            color: #fff !important;
+            border: 1px solid color-mix(in srgb, var(--vg-primary), #fff 30%) !important;
+            box-shadow: 0 8px 18px color-mix(in srgb, var(--vg-primary), transparent 72%);
+        }
+        div[data-testid="stFormSubmitButton"] > button:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--vg-shadow-glow);
+        }
+        div[data-testid="stFormSubmitButton"] > button:disabled {
+            opacity: 0.62 !important;
+            color: color-mix(in srgb, #fff, var(--vg-text) 22%) !important;
+            border-color: color-mix(in srgb, var(--vg-border), #fff 16%) !important;
+            background: color-mix(in srgb, var(--vg-surface-2), var(--vg-primary) 20%) !important;
+            box-shadow: none !important;
+        }
+        div[data-testid="stFormSubmitButton"] > button * {
+            color: inherit !important;
+            fill: inherit !important;
+        }
 
         .stTextInput input,
         .stDateInput input,
         .stNumberInput input,
         .stTextArea textarea,
         .stSelectbox div[data-baseweb="select"] > div {
-            min-height: {density_cfg['input_h']};
+            min-height: __VG_INPUT_H__;
             background: color-mix(in srgb, var(--vg-surface-2), transparent 14%) !important;
         }
         .stTextInput input:focus,
@@ -1277,74 +1437,175 @@ def aplicar_estilos_stitch():
             margin: 4px 0 10px;
         }
         .vg-theme-toggle div[role="radiogroup"] > label {
-            min-height: 34px;
-            padding: 0.42rem 1rem;
+            min-height: 36px;
+            padding: 0.48rem 1.05rem;
+            border-radius: 999px;
         }
 
         .vg-sidebar-brand {
-            padding: 12px 10px 8px;
-            border-bottom: 1px solid var(--vg-border);
-            margin-bottom: 4px;
+            position: relative;
+            overflow: hidden;
+            padding: 14px 12px 12px 54px;
+            border: 1px solid color-mix(in srgb, var(--vg-primary), var(--vg-border) 68%);
+            border-radius: var(--vg-radius-lg);
+            background:
+                radial-gradient(260px 120px at 0% 0%, color-mix(in srgb, var(--vg-primary), transparent 80%), transparent 72%),
+                linear-gradient(165deg, color-mix(in srgb, var(--vg-surface), transparent 4%), color-mix(in srgb, var(--vg-surface-2), transparent 10%));
+            margin: 4px 0 10px;
+            box-shadow: 0 10px 28px color-mix(in srgb, var(--vg-primary), transparent 88%);
+        }
+        .vg-sidebar-badge {
+            position: absolute;
+            left: 12px;
+            top: 12px;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            color: #fff;
+            background: linear-gradient(135deg, var(--vg-primary), color-mix(in srgb, var(--vg-primary-strong), #000 8%));
+            border: 1px solid color-mix(in srgb, var(--vg-primary), #fff 42%);
         }
         .vg-sidebar-title {
             margin: 0;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 800;
-            letter-spacing: .02em;
+            letter-spacing: .03em;
             color: var(--vg-text);
+            text-transform: uppercase;
         }
         .vg-sidebar-subtitle {
-            margin: 4px 0 0;
-            font-size: 11px;
+            margin: 5px 0 0;
+            font-size: 12px;
             color: var(--vg-muted);
+        }
+        .vg-sidebar-pill {
+            display: inline-flex;
+            width: 100%;
+            border: 1px solid var(--vg-border);
+            border-radius: var(--vg-radius-full);
+            background: color-mix(in srgb, var(--vg-surface-2), transparent 18%);
+            color: var(--vg-text);
+            padding: 7px 11px;
+            font-size: 12px;
+            font-weight: 650;
+            margin: 2px 0 8px;
+        }
+        .vg-sidebar-kicker {
+            margin: 8px 0 8px;
+            color: var(--vg-muted);
+            font-size: 11px;
+            letter-spacing: .08em;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .vg-sidebar-note {
+            color: color-mix(in srgb, var(--vg-muted), #fff 12%);
+            font-size: 12px;
+            line-height: 1.42;
+            margin: 0 0 8px;
+        }
+        .vg-sidebar-divider {
+            height: 1px;
+            width: 100%;
+            margin: 8px 0;
+            background: linear-gradient(90deg, transparent, var(--vg-border), transparent);
+        }
+        section[data-testid="stSidebar"] [data-testid="stExpander"] {
+            background: color-mix(in srgb, var(--vg-surface-2), transparent 14%);
+            border-color: color-mix(in srgb, var(--vg-primary), var(--vg-border) 80%);
+            border-radius: 14px;
+            margin: 8px 0;
+        }
+        section[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+            font-size: 0.83rem;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+        section[data-testid="stSidebar"] [data-testid="stExpander"] .stMarkdown p {
+            color: var(--vg-muted) !important;
+        }
+        section[data-testid="stSidebar"] .stButton > button {
+            min-height: 42px;
+            border-radius: 12px !important;
+            font-weight: 700;
         }
 
         .vg-shell-header {
-            border: 1px solid var(--vg-border);
-            border-radius: var(--vg-radius-lg);
-            background: linear-gradient(
-                180deg,
-                color-mix(in srgb, var(--vg-surface), transparent 0%),
-                color-mix(in srgb, var(--vg-surface-2), transparent 28%)
-            );
-            box-shadow: var(--vg-shadow-card);
-            padding: 14px 16px;
-            margin-bottom: 8px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid color-mix(in srgb, var(--vg-primary), var(--vg-border) 72%);
+            border-radius: 18px;
+            background:
+                radial-gradient(760px 190px at 0% 0%, color-mix(in srgb, var(--vg-primary), transparent 84%), transparent 70%),
+                linear-gradient(170deg, color-mix(in srgb, var(--vg-surface), transparent 2%), color-mix(in srgb, var(--vg-surface-2), transparent 12%));
+            box-shadow: 0 22px 48px color-mix(in srgb, var(--vg-primary), transparent 90%);
+            padding: 18px 20px;
+            margin-bottom: 10px;
+        }
+        .vg-shell-header::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--vg-primary), #fff 22%), transparent);
         }
         .vg-shell-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 14px;
+            align-items: start;
+        }
+        .vg-shell-kicker {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .09em;
+            color: var(--vg-muted);
+            margin: 0 0 4px;
         }
         .vg-shell-brand {
             color: var(--vg-primary);
-            font-size: 1.16rem;
+            font-size: 1.4rem;
             font-weight: 800;
-            letter-spacing: .01em;
+            letter-spacing: .03em;
+            line-height: 1.1;
+        }
+        .vg-shell-tagline {
+            color: var(--vg-muted);
+            font-size: 0.92rem;
+            margin-top: 2px;
         }
         .vg-shell-version {
             font-size: 11px;
-            color: var(--vg-muted);
+            color: color-mix(in srgb, var(--vg-muted), #fff 10%);
+            text-align: right;
+            line-height: 1.5;
         }
         .vg-shell-meta {
             display: flex;
-            gap: 6px;
+            gap: 8px;
             flex-wrap: wrap;
-            margin-top: 8px;
+            margin-top: 12px;
         }
         .vg-shell-meta-item {
             display: inline-flex;
             align-items: center;
-            border: 1px solid var(--vg-border);
+            border: 1px solid color-mix(in srgb, var(--vg-primary), var(--vg-border) 78%);
             border-radius: var(--vg-radius-full);
-            background: var(--vg-badge);
+            background: color-mix(in srgb, var(--vg-badge), var(--vg-surface) 30%);
             color: var(--vg-text);
             font-size: 12px;
-            font-weight: 650;
-            padding: 5px 10px;
-            letter-spacing: .01em;
+            font-weight: 700;
+            padding: 6px 11px;
+            letter-spacing: .02em;
         }
         .vg-shell-meta-item.ok {
             color: var(--vg-success);
@@ -1354,47 +1615,97 @@ def aplicar_estilos_stitch():
             color: var(--vg-warning);
             border-color: color-mix(in srgb, var(--vg-warning), #fff 42%);
         }
+        .vg-login-shell {
+            max-width: 860px;
+            border: 1px solid color-mix(in srgb, var(--vg-primary), var(--vg-border) 74%);
+            border-radius: 18px;
+            background:
+                radial-gradient(620px 180px at 0% 0%, color-mix(in srgb, var(--vg-primary), transparent 84%), transparent 72%),
+                linear-gradient(172deg, color-mix(in srgb, var(--vg-surface), transparent 2%), color-mix(in srgb, var(--vg-surface-2), transparent 16%));
+            padding: 18px 18px 10px;
+            box-shadow: 0 20px 40px color-mix(in srgb, var(--vg-primary), transparent 92%);
+            margin: 8px 0 14px;
+        }
+        .vg-login-kicker {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .09em;
+            color: var(--vg-muted);
+            margin: 0 0 4px;
+            font-weight: 700;
+        }
+        .vg-login-title {
+            font-size: 2.1rem;
+            letter-spacing: -0.02em;
+            color: var(--vg-text);
+            font-weight: 800;
+            line-height: 1.05;
+            margin: 0 0 6px;
+        }
+        .vg-login-subtitle {
+            color: var(--vg-muted);
+            font-size: 0.92rem;
+            margin: 0 0 10px;
+        }
+        .vg-login-subtitle code {
+            border: 1px solid var(--vg-border);
+            background: color-mix(in srgb, var(--vg-surface-2), transparent 8%);
+            color: var(--vg-text);
+            padding: 2px 6px;
+            border-radius: 8px;
+        }
 
         .vg-workspace-nav {
-            border: 1px solid var(--vg-border);
-            border-radius: var(--vg-radius-lg);
-            background: linear-gradient(
-                180deg,
-                color-mix(in srgb, var(--vg-surface), transparent 0%),
-                color-mix(in srgb, var(--vg-surface-2), transparent 30%)
-            );
-            padding: 10px;
-            margin: 8px 0 12px;
+            border: 1px solid color-mix(in srgb, var(--vg-primary), var(--vg-border) 80%);
+            border-radius: 16px;
+            background:
+                linear-gradient(180deg, color-mix(in srgb, var(--vg-surface), transparent 2%), color-mix(in srgb, var(--vg-surface-2), transparent 22%));
+            padding: 12px 12px 10px;
+            margin: 8px 0 14px;
             position: sticky;
             top: 0.4rem;
             z-index: 4;
             backdrop-filter: blur(8px);
+            box-shadow: 0 14px 30px color-mix(in srgb, var(--vg-primary), transparent 92%);
+        }
+        .vg-workspace-nav .stButton {
+            margin-bottom: 2px;
         }
         .vg-workspace-nav .stButton > button {
-            min-height: 38px;
+            min-height: 44px;
             width: 100%;
-            border-radius: var(--vg-radius-md);
+            border-radius: 12px;
+            font-size: 0.93rem;
+            font-weight: 700;
         }
         .vg-workspace-title {
             font-size: 11px;
             color: var(--vg-muted);
             letter-spacing: .08em;
             text-transform: uppercase;
-            margin: 0 0 8px 4px;
+            margin: 0 0 4px 4px;
+        }
+        .vg-workspace-subtitle {
+            color: var(--vg-muted);
+            font-size: 12px;
+            margin: 0 0 10px 4px;
         }
 
         .vg-card {
             margin-bottom: 14px;
+            border-radius: 16px;
+            border-color: color-mix(in srgb, var(--vg-primary), var(--vg-border) 80%);
+            box-shadow: 0 18px 36px color-mix(in srgb, var(--vg-primary), transparent 92%);
         }
         .vg-card.tight .stButton > button,
         .vg-card.tight .stDownloadButton > button {
-            min-height: 36px;
+            min-height: 38px;
         }
         .vg-section-head {
-            border: 1px solid var(--vg-border);
-            border-radius: var(--vg-radius-md);
-            background: color-mix(in srgb, var(--vg-surface), transparent 8%);
-            padding: 10px 12px;
+            border: 1px solid color-mix(in srgb, var(--vg-primary), var(--vg-border) 82%);
+            border-radius: 14px;
+            background: linear-gradient(180deg, color-mix(in srgb, var(--vg-surface), transparent 1%), color-mix(in srgb, var(--vg-surface-2), transparent 10%));
+            padding: 11px 13px;
             margin-bottom: 12px;
         }
         .vg-section-title {
@@ -1406,6 +1717,36 @@ def aplicar_estilos_stitch():
         .vg-section-head .vg-badges,
         .vg-section-head .vg-section-subtitle {
             color: var(--vg-muted);
+        }
+        [data-testid="stMetric"] {
+            border: 1px solid color-mix(in srgb, var(--vg-primary), var(--vg-border) 82%);
+            border-radius: 14px;
+            background: linear-gradient(175deg, color-mix(in srgb, var(--vg-surface), transparent 2%), color-mix(in srgb, var(--vg-surface-2), transparent 12%));
+            padding: 12px 14px;
+            box-shadow: 0 12px 26px color-mix(in srgb, var(--vg-primary), transparent 93%);
+        }
+        [data-testid="stMetric"]:hover {
+            transform: translateY(-1px);
+            transition: transform .16s ease;
+        }
+        [data-testid="stMetricLabel"] {
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            font-size: .72rem !important;
+            font-weight: 700 !important;
+        }
+        [data-testid="stMetricValue"] {
+            font-size: 2rem !important;
+            letter-spacing: -0.02em;
+        }
+        .stButton > button,
+        .stDownloadButton > button {
+            min-height: 42px;
+            border-radius: 12px;
+            font-weight: 700;
+        }
+        div[data-testid="stDataFrame"], div[data-testid="stDataEditor"] {
+            border-radius: 16px;
         }
 
         @media (max-width: 960px) {
@@ -1419,10 +1760,26 @@ def aplicar_estilos_stitch():
             }
             .vg-shell-version {
                 width: 100%;
+                text-align: left;
+            }
+            .vg-shell-top {
+                grid-template-columns: 1fr;
+            }
+            .vg-sidebar-brand {
+                padding-left: 46px;
+            }
+            section[data-testid="stSidebar"],
+            section[data-testid="stSidebar"] > div:first-child {
+                width: 100% !important;
+                min-width: 100% !important;
             }
         }
         </style>
-        """,
+        """
+        .replace("__VG_CONTAINER_MAX__", density_cfg["container_max"])
+        .replace("__VG_PAD_TOP__", density_cfg["pad_top"])
+        .replace("__VG_PAD_BOTTOM__", density_cfg["pad_bottom"])
+        .replace("__VG_INPUT_H__", density_cfg["input_h"]),
         unsafe_allow_html=True,
     )
 
@@ -1466,7 +1823,7 @@ def container_card_end():
 
 
 def barra_lateral_config(gestor: Any = None):
-    """Sidebar con branding, acciones rápidas y selector de tema."""
+    """Sidebar agrupado por secciones desplegables (sin alterar funcionalidad)."""
     mode = st.session_state.get(SESSION_THEME_KEY, _default_theme_mode())
     density_mode = st.session_state.get(SESSION_DENSITY_KEY, _default_density_mode())
     mode_label = "Oscuro" if mode == "dark" else "Claro"
@@ -1475,6 +1832,7 @@ def barra_lateral_config(gestor: Any = None):
     st.sidebar.markdown(
         """
         <div class="vg-sidebar-brand">
+            <div class="vg-sidebar-badge">VG</div>
             <p class="vg-sidebar-title">VACA &amp; GENTILE</p>
             <p class="vg-sidebar-subtitle">Gestion juridica profesional · v1.0</p>
         </div>
@@ -1482,23 +1840,37 @@ def barra_lateral_config(gestor: Any = None):
         unsafe_allow_html=True,
     )
 
-    st.sidebar.caption(f"Tema activo: {mode_label} · Densidad: {density_label}")
-    st.sidebar.caption("Acciones rapidas")
-    if st.sidebar.button("Abrir carpeta base", key="sidebar.open_base", width="stretch"):
-        try:
-            from config import RUTA_BASE
+    st.sidebar.markdown(
+        f"<div class='vg-sidebar-pill'>Tema: {mode_label} · Densidad: {density_label}</div>",
+        unsafe_allow_html=True,
+    )
 
-            os.startfile(str(RUTA_BASE))
-        except Exception as exc:  # pragma: no cover - UI feedback
-            st.sidebar.error(f"No se pudo abrir la ruta base: {exc}")
+    with st.sidebar.expander("Acciones rapidas", expanded=True):
+        st.markdown("<div class='vg-sidebar-note'>Atajos operativos diarios.</div>", unsafe_allow_html=True)
+        if st.button("Abrir carpeta base", key="sidebar.open_base", width="stretch"):
+            try:
+                from config import RUTA_BASE
 
-    if st.sidebar.button("Recargar datos", key="sidebar.reload", width="stretch"):
-        st.cache_data.clear()
-        st.rerun()
+                os.startfile(str(RUTA_BASE))
+            except Exception as exc:  # pragma: no cover - UI feedback
+                st.error(f"No se pudo abrir la ruta base: {exc}")
 
-    st.sidebar.markdown("---")
-    st.sidebar.caption("Navegacion principal")
-    st.sidebar.caption("Use el selector lateral y el switcher superior para moverse.")
-    st.sidebar.markdown("---")
-    st.sidebar.caption("Operativo")
-    st.sidebar.caption("Dashboard · Gestion · Agenda · Finanzas · Auditoria · Configuracion")
+        if st.button("Recargar datos", key="sidebar.reload", width="stretch"):
+            st.cache_data.clear()
+            st.rerun()
+
+    with st.sidebar.expander("Guia de navegacion", expanded=False):
+        st.markdown(
+            "<div class='vg-sidebar-note'>Use Modulos de trabajo para cambiar seccion y el switcher superior para atajos directos.</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "<div class='vg-sidebar-note'>Orden recomendado: Dashboard -> Gestion -> Agenda -> Finanzas -> Auditoria -> Configuracion.</div>",
+            unsafe_allow_html=True,
+        )
+
+    with st.sidebar.expander("Mapa operativo", expanded=False):
+        st.markdown(
+            "<div class='vg-sidebar-note'>Dashboard · Gestion · Agenda · Finanzas · Auditoria · Configuracion</div>",
+            unsafe_allow_html=True,
+        )

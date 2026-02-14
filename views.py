@@ -21,6 +21,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Dict, List
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -98,6 +99,83 @@ def _csv_bytes(df: pd.DataFrame) -> bytes:
 @st.cache_data(show_spinner=False)
 def _xlsx_bytes(df: pd.DataFrame, sheet_name: str = "Reporte") -> bytes:
     return df_to_xlsx_bytes(df, sheet_name=sheet_name)
+
+
+def _prepare_timeseries_chart_frame(
+    frame: pd.DataFrame,
+    *,
+    x_col: str,
+    y_cols: List[str],
+) -> tuple[pd.DataFrame, List[str]]:
+    """Normaliza series temporales para evitar charts con extent infinito."""
+    if frame is None or frame.empty:
+        return pd.DataFrame(), []
+
+    available_y = [col for col in y_cols if col in frame.columns]
+    if not available_y or x_col not in frame.columns:
+        return pd.DataFrame(), []
+
+    work = frame[[x_col] + available_y].copy()
+    work[x_col] = pd.to_datetime(work[x_col], errors="coerce")
+    work = work.dropna(subset=[x_col])
+
+    for col in available_y:
+        series = pd.to_numeric(work[col], errors="coerce")
+        series = series.where(series.ne(float("inf")) & series.ne(float("-inf")))
+        work[col] = series
+
+    work = work.dropna(subset=available_y, how="all")
+    if work.empty:
+        return pd.DataFrame(), []
+
+    work = work.sort_values(x_col).drop_duplicates(subset=[x_col], keep="last")
+    valid_y = [col for col in available_y if work[col].notna().any()]
+    if not valid_y:
+        return pd.DataFrame(), []
+
+    return work[[x_col] + valid_y], valid_y
+
+
+def _render_timeseries_line_chart(
+    frame: pd.DataFrame,
+    *,
+    x_col: str,
+    y_cols: List[str],
+    y_title: str,
+    value_format: str = ".1f",
+) -> bool:
+    """Renderiza line chart seguro sin warnings de dominios discretos/invalidos."""
+    clean_df, valid_y = _prepare_timeseries_chart_frame(frame, x_col=x_col, y_cols=y_cols)
+    if clean_df.empty or not valid_y:
+        return False
+
+    long_df = clean_df.melt(
+        id_vars=[x_col],
+        value_vars=valid_y,
+        var_name="Serie",
+        value_name="Valor",
+    ).dropna(subset=["Valor"])
+
+    if long_df.empty:
+        return False
+
+    chart = (
+        alt.Chart(long_df)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X(f"{x_col}:T", title="Fecha"),
+            y=alt.Y("Valor:Q", title=y_title),
+            color=alt.Color("Serie:N", title="Serie"),
+            tooltip=[
+                alt.Tooltip(f"{x_col}:T", title="Fecha"),
+                alt.Tooltip("Serie:N", title="Serie"),
+                alt.Tooltip("Valor:Q", title="Valor", format=value_format),
+            ],
+        )
+        .properties(height=260)
+    )
+    st.altair_chart(chart, use_container_width=True)
+    return True
 
 
 def _get_export_ts(name: str) -> str:
@@ -1238,7 +1316,7 @@ def _parse_decimal_strict(raw_value, field_label: str) -> tuple[Decimal | None, 
     else:
         normalized = f"{sign}{re.sub(r'[.,]', '', cleaned)}"
 
-    if not re.fullmatch(r"[+-]\d+(\.\d+)", normalized):
+    if not re.fullmatch(r"[+-]?\d+(?:\.\d+)?", normalized):
         return None, f"{field_label}: '{text}' no es numerico valido."
 
     try:
@@ -1845,8 +1923,16 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
 
     if not weekly_df.empty:
         st.caption("Tendencia semanal (ultimos 7 dias) por KPI de completitud.")
-        chart_df = weekly_df.set_index("Fecha")[["FECHA_TAREA", "EXPEDIENTE", "EVENTO/FECHA_EVENTO", "COBERTURA_FINANCIERA"]]
-        st.line_chart(chart_df, width="stretch")
+        chart_df = weekly_df[["Fecha", "FECHA_TAREA", "EXPEDIENTE", "EVENTO/FECHA_EVENTO", "COBERTURA_FINANCIERA"]]
+        rendered = _render_timeseries_line_chart(
+            chart_df,
+            x_col="Fecha",
+            y_cols=["FECHA_TAREA", "EXPEDIENTE", "EVENTO/FECHA_EVENTO", "COBERTURA_FINANCIERA"],
+            y_title="Completitud (%)",
+            value_format=".1f",
+        )
+        if not rendered:
+            st.info("Sin datos validos para graficar la tendencia semanal.")
 
         with st.expander("Detalle semanal (metas y brechas)", expanded=False):
             st.dataframe(weekly_df, width="stretch", hide_index=True)
@@ -5002,9 +5088,18 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
         df_trend = pd.DataFrame(trend_rows).sort_values("date")
         degradation_alert = build_trend_degradation_alert(df_trend.to_dict("records"), baseline_days=7)
         _render_trend_degradation_alert(degradation_alert)
-        chart_df = df_trend[["date", "errores", "warnings"]].set_index("date")
-        st.line_chart(chart_df, width="stretch")
-        st.caption("Serie diaria agregada por fecha (se conserva la ultima corrida del dia).")
+        chart_df = df_trend[["date", "errores", "warnings"]]
+        rendered = _render_timeseries_line_chart(
+            chart_df,
+            x_col="date",
+            y_cols=["errores", "warnings"],
+            y_title="Cantidad",
+            value_format=".0f",
+        )
+        if rendered:
+            st.caption("Serie diaria agregada por fecha (se conserva la ultima corrida del dia).")
+        else:
+            st.info("Sin datos validos para graficar la tendencia diaria.")
 
         with st.expander("Ver detalle de tendencia", expanded=False):
             cols = [

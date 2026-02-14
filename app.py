@@ -171,14 +171,23 @@ def render_workspace_switcher(current_route: str):
     Navegacion horizontal visible en workspace para mejorar descubribilidad.
     Mantiene rutas deshabilitadas con motivo cuando no estan disponibles.
     """
+    route_icons = {
+        "Dashboard": "Tablero",
+        "Gestion": "Casos",
+        "Agenda": "Plazos",
+        "Finanzas": "Caja",
+        "Auditoria": "Control",
+        "Configuracion": "Ajustes",
+    }
     st.markdown('<div class="vg-workspace-nav">', unsafe_allow_html=True)
-    st.markdown("<div class='vg-workspace-title'>Navegacion de modulos</div>", unsafe_allow_html=True)
+    st.markdown("<div class='vg-workspace-title'>Centro operativo</div>", unsafe_allow_html=True)
+    st.markdown("<div class='vg-workspace-subtitle'>Seleccione modulo principal de trabajo</div>", unsafe_allow_html=True)
     cols = st.columns(len(ROUTES))
     for idx, route in enumerate(ROUTES):
         enabled, reason = workspace_route_access(route)
         with cols[idx]:
             clicked = st.button(
-                route,
+                f"{route_icons.get(route, '')}  {route}",
                 key=f"workspace.nav.{route.lower()}",
                 width="stretch",
                 type="primary" if route == current_route else "secondary",
@@ -218,7 +227,9 @@ def render_header(casos_total: int, route: str):
     <div class="vg-shell-header">
       <div class="vg-shell-top">
         <div>
+          <div class="vg-shell-kicker">Sistema legal profesional</div>
           <div class="vg-shell-brand">VACA &amp; GENTILE</div>
+          <div class="vg-shell-tagline">Operacion diaria · seguimiento procesal · control ejecutivo</div>
           <div class="vg-shell-meta">
             <span class="vg-shell-meta-item">Casos: {casos_total}</span>
             <span class="vg-shell-meta-item">Seccion: {safe_route}</span>

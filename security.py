@@ -524,6 +524,8 @@ def load_user_ui_preferences(user_id: str) -> Dict[str, str]:
     target_user = str(user_id or "").strip()
     if not target_user:
         return {}
+    if target_user.lower() == "system":
+        return {}
     conn = _get_connection()
     if conn is None:
         return {}
@@ -561,6 +563,8 @@ def save_user_ui_preferences(user_id: str, prefs: Dict[str, Any]) -> bool:
     """
     target_user = str(user_id or "").strip()
     if not target_user:
+        return False
+    if target_user.lower() == "system":
         return False
     normalized = _normalize_ui_preferences(dict(prefs or {}))
     if not normalized:
@@ -648,20 +652,35 @@ def render_login_gate() -> bool:
     if user.user_id:
         return True
 
-    st.title("Acceso seguro")
-    st.caption("Autenticación local habilitada por `VG_AUTH_REQUIRED=1`.")
+    st.markdown("<div class='vg-login-shell'>", unsafe_allow_html=True)
+    st.markdown("<div class='vg-login-kicker'>Control de acceso</div>", unsafe_allow_html=True)
+    st.markdown("<div class='vg-login-title'>Acceso seguro</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='vg-login-subtitle'>Ingrese con su usuario para continuar el trabajo diario.</div>",
+        unsafe_allow_html=True,
+    )
     with st.form("auth.login.form", clear_on_submit=False):
         username = st.text_input("Usuario", key="auth.login.username")
-        password = st.text_input("Contraseña", type="password", key="auth.login.password")
-        submitted = st.form_submit_button("Ingresar", width="stretch")
+        password = st.text_input("Contrasena", type="password", key="auth.login.password")
+        submit_kwargs = {"width": "stretch"}
+        try:
+            import inspect
+
+            params = inspect.signature(st.form_submit_button).parameters
+            if "type" in params:
+                submit_kwargs["type"] = "primary"
+        except Exception:
+            pass
+        submitted = st.form_submit_button("Ingresar", **submit_kwargs)
         if submitted:
             identity, reason = authenticate_local_user(username, password)
             if identity is None:
                 st.error(reason or "No se pudo autenticar.")
             else:
                 st.session_state[SESSION_USER_KEY] = identity.to_session()
-                st.success(f"Sesión iniciada: {identity.display_name} ({identity.role})")
+                st.success(f"Sesion iniciada: {identity.display_name} ({identity.role})")
                 st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
     return False
 
 
@@ -669,12 +688,12 @@ def render_sidebar_identity() -> None:
     user = current_user()
     if not user.user_id:
         return
-    st.sidebar.markdown("---")
-    st.sidebar.caption(f"Usuario: {user.display_name} · Rol: {user.role}")
-    if is_auth_required():
-        if st.sidebar.button("Cerrar sesión", key="auth.logout", width="stretch", type="secondary"):
-            logout_current_user()
-            st.rerun()
+    with st.sidebar.expander("Sesion", expanded=True):
+        st.caption(f"Usuario: {user.display_name} - Rol: {user.role}")
+        if is_auth_required():
+            if st.sidebar.button("Cerrar sesion", key="auth.logout", width="stretch", type="secondary"):
+                logout_current_user()
+                st.rerun()
 
 
 def build_actor_context() -> Dict[str, str]:
