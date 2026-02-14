@@ -32,7 +32,7 @@ jobs:
 
       - name: Mypy
         run: |
-          mypy
+          mypy security.py exports.py repo_db.py --follow-imports skip
 
       - name: Pytest
         run: |

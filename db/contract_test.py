@@ -257,7 +257,8 @@ def test_leer_ficha_contract():
 def test_actualizar_campos_ficha_contract():
     """
     Verifica contrato de actualizar_campos_ficha:
-    - Firma: (ruta_caso: Path, cambios: Dict[str, str]) -> bool
+    - Firma base: (ruta_caso: Path, cambios: Dict[str, str]) -> bool
+    - Compatibilidad extendida: actor_ctx opcional
     """
     print(f"\n{C.BOLD}{'=' * 60}")
     print("  CONTRACT TEST: actualizar_campos_ficha")
@@ -286,12 +287,17 @@ def test_actualizar_campos_ficha_contract():
         sig = inspect.signature(cls.actualizar_campos_ficha)
         params = [p for p in sig.parameters.keys() if p != 'self']
 
-        # Debe tener 2 parametros: ruta_caso y cambios
-        if len(params) == 2:
-            ok(f"{name}.actualizar_campos_ficha recibe 2 parametros: {params}")
-        else:
+        if len(params) not in (2, 3):
             fail(f"{name}.actualizar_campos_ficha parametros inesperados: {params}")
             errors += 1
+        elif params[0:2] != ["ruta_caso", "cambios"]:
+            fail(f"{name}.actualizar_campos_ficha firma base inesperada: {params}")
+            errors += 1
+        elif len(params) == 3 and params[2] != "actor_ctx":
+            fail(f"{name}.actualizar_campos_ficha tercer parametro invalido: {params[2]}")
+            errors += 1
+        else:
+            ok(f"{name}.actualizar_campos_ficha firma compatible: {params}")
 
         # Return type debe ser bool
         ret = sig.return_annotation

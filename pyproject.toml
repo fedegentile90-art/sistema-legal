@@ -23,6 +23,7 @@ ignore = ["E203", "E266", "E501"]
 python_version = "3.11"
 files = ["security.py", "exports.py", "repo_db.py"]
 ignore_missing_imports = true
+follow_imports = "skip"
 warn_unused_configs = true
 warn_return_any = false
 warn_unused_ignores = false

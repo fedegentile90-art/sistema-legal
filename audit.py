@@ -1,4 +1,4 @@
-"""
+﻿"""
 Auditoria integral del sistema.
 """
 
@@ -12,16 +12,13 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-from config import (
-    AÑOS_ACTIVOS,
-    CAMPOS_FINANCIEROS,
-    RE_INVALID_WIN,
-    SUBCARPETAS_ESTANDAR,
-)
+import config as _config
+from config import CAMPOS_FINANCIEROS, RE_INVALID_WIN, SUBCARPETAS_ESTANDAR
 from domain import Caso, case_status, is_blank
 from repo import GestorCasos, is_db_mode, is_db_path
 
 logger = logging.getLogger(__name__)
+ANOS_ACTIVOS = getattr(_config, "AÑOS_ACTIVOS", getattr(_config, "AÃ‘OS_ACTIVOS", []))
 
 DEFAULT_INCOMPLETE_FIELDS = (
     "FECHA_TAREA",
@@ -90,7 +87,7 @@ def build_incomplete_case_queue(
     focus_fields: List[str] | None = None,
 ) -> List[Dict[str, object]]:
     """
-    Ranking reusable de casos incompletos para campaña operativa.
+    Ranking reusable de casos incompletos para campaÃ±a operativa.
 
     Output keys por fila:
       - case_ref
@@ -769,8 +766,8 @@ def ensure_daily_audit_snapshot(
 
 def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
     """
-    Auditoría integral: estructura, datos, coherencia y riesgos típicos en Windows/OneDrive.
-    Devuelve dict con resumen + hallazgos + métricas de completitud.
+    AuditorÃ­a integral: estructura, datos, coherencia y riesgos tÃ­picos en Windows/OneDrive.
+    Devuelve dict con resumen + hallazgos + mÃ©tricas de completitud.
     """
     t0 = time.time()
     hallazgos: List[Hallazgo] = []
@@ -781,7 +778,7 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
         codigo="CTX-001",
         mensaje=f"Entorno: {platform.system()} {platform.release()} | Python: {platform.python_version()}",
         ruta=str(gestor.ruta_base),
-        sugerencia="—"
+        sugerencia="â€”"
     ))
 
     # --- Test 1: ruta base accesible (solo filesystem)
@@ -802,7 +799,7 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
 
     # --- Test 2: años activos existen (solo filesystem)
     if not is_db_mode():
-        for año in AÑOS_ACTIVOS:
+        for año in ANOS_ACTIVOS:
             ra = gestor.ruta_base / año
             if not ra.exists():
                 hallazgos.append(Hallazgo(
@@ -810,14 +807,14 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
                     codigo="FS-010",
                     mensaje=f"Año activo configurado pero carpeta inexistente: {año}",
                     ruta=str(ra),
-                    sugerencia="Si el año no se usa, retirarlo de AÑOS_ACTIVOS; si se usa, crear la carpeta."
+                    sugerencia="Si el año no se usa, retirarlo de ANOS_ACTIVOS; si se usa, crear la carpeta."
                 ))
 
-    # --- Índices para duplicados lógicos y consistencia
+    # --- Ãndices para duplicados lÃ³gicos y consistencia
     keys = set()
     rutas_lower = set()
 
-    # --- Métricas de completitud por campo
+    # --- MÃ©tricas de completitud por campo
     campos_metricas = {
         "TIPO_PROCESO": 0, "JURISDICCION": 0, "ORGANISMO": 0, "EXPEDIENTE": 0, "CARATULA": 0,
         "RESPONSABLE": 0, "CONTROL": 0, "EVENTO": 0, "FECHA_EVENTO": 0,
@@ -835,9 +832,9 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
             hallazgos.append(Hallazgo(
                 nivel="ERROR",
                 codigo="FS-020",
-                mensaje="Caso indexado pero la carpeta física no existe (caso 'perdido').",
+                mensaje="Caso indexado pero la carpeta fÃ­sica no existe (caso 'perdido').",
                 ruta=str(c.ruta),
-                sugerencia="Verificar si se movió/renombró manualmente o si hay sincronización pendiente."
+                sugerencia="Verificar si se moviÃ³/renombrÃ³ manualmente o si hay sincronizaciÃ³n pendiente."
             ))
             continue
 
@@ -850,20 +847,20 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
                     codigo="FS-030",
                     mensaje=f"Ruta muy larga ({lp} chars). Riesgo real de errores de lectura/escritura en Windows.",
                     ruta=str(c.ruta),
-                    sugerencia="Acortar nombres de cliente/causa o habilitar rutas largas en Windows (política del sistema)."
+                    sugerencia="Acortar nombres de cliente/causa o habilitar rutas largas en Windows (polÃ­tica del sistema)."
                 ))
 
-            # 3.3 Nombres inválidos (Windows)
+            # 3.3 Nombres invÃ¡lidos (Windows)
             if RE_INVALID_WIN.search(c.ruta.name):
                 hallazgos.append(Hallazgo(
                     nivel="ERROR",
                     codigo="FS-040",
-                    mensaje="Nombre de carpeta del caso contiene caracteres inválidos para Windows.",
+                    mensaje="Nombre de carpeta del caso contiene caracteres invÃ¡lidos para Windows.",
                     ruta=str(c.ruta),
                     sugerencia="Renombrar eliminando caracteres: <>:\"/\\|?* o control chars."
                 ))
 
-            # 3.4 Subcarpetas estándar
+            # 3.4 Subcarpetas estÃ¡ndar
             faltantes = []
             for sub in SUBCARPETAS_ESTANDAR:
                 if not (c.ruta / sub).exists():
@@ -872,9 +869,9 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
                 hallazgos.append(Hallazgo(
                     nivel="WARN",
                     codigo="FS-050",
-                    mensaje=f"Faltan subcarpetas estándar: {', '.join(faltantes)}",
+                    mensaje=f"Faltan subcarpetas estÃ¡ndar: {', '.join(faltantes)}",
                     ruta=str(c.ruta),
-                    sugerencia="Usar 'Reparar subcarpetas' en Auditoría o activar 'Auto-crear subcarpetas' en la barra lateral."
+                    sugerencia="Usar 'Reparar subcarpetas' en AuditorÃ­a o activar 'Auto-crear subcarpetas' en la barra lateral."
                 ))
 
             # 3.5 Ficha presente
@@ -886,18 +883,18 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
                     codigo="DATA-010",
                     mensaje="No existe ficha.txt ni ficha.json en el caso.",
                     ruta=str(c.ruta),
-                    sugerencia="Crear ficha para evitar 'casos mudos' (sin metadatos) y mejorar búsqueda."
+                    sugerencia="Crear ficha para evitar 'casos mudos' (sin metadatos) y mejorar bÃºsqueda."
                 ))
 
-        # 3.6 Duplicados lógicos
+        # 3.6 Duplicados lÃ³gicos
         k = (c.año.strip(), c.estado.strip(), c.cliente.strip(), c.fuero.strip(), c.causa.strip())
         if k in keys:
             hallazgos.append(Hallazgo(
                 nivel="ERROR",
                 codigo="DATA-020",
-                mensaje="Duplicado lógico: existe más de un caso con la misma clave jerárquica.",
+                mensaje="Duplicado lÃ³gico: existe mÃ¡s de un caso con la misma clave jerÃ¡rquica.",
                 ruta=str(c.ruta),
-                sugerencia="Revisar si hay carpetas duplicadas o diferencias mínimas (espacios/puntos)."
+                sugerencia="Revisar si hay carpetas duplicadas o diferencias mÃ­nimas (espacios/puntos)."
             ))
         else:
             keys.add(k)
@@ -910,18 +907,18 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
                 codigo="DATA-025",
                 mensaje="Ruta duplicada detectada (case-insensitive). Riesgo de colisiones.",
                 ruta=str(c.ruta),
-                sugerencia="Normalizar nombres evitando variaciones por mayúsculas/minúsculas."
+                sugerencia="Normalizar nombres evitando variaciones por mayÃºsculas/minÃºsculas."
             ))
         else:
             rutas_lower.add(rl)
 
-        # 3.8 Fechas válidas
+        # 3.8 Fechas vÃ¡lidas
         if c.fecha_tarea and not is_blank(c.fecha_tarea):
             if c._parsear_fecha(c.fecha_tarea) is None:
                 hallazgos.append(Hallazgo(
                     nivel="WARN",
                     codigo="DATA-030",
-                    mensaje=f"FECHA_TAREA inválida (no parseable): {c.fecha_tarea}",
+                    mensaje=f"FECHA_TAREA invÃ¡lida (no parseable): {c.fecha_tarea}",
                     ruta=str(c.ruta),
                     sugerencia="Usar DD/MM/YYYY o YYYY-MM-DD; evitar texto libre."
                 ))
@@ -930,28 +927,28 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
                 hallazgos.append(Hallazgo(
                     nivel="WARN",
                     codigo="DATA-031",
-                    mensaje=f"FECHA_EVENTO inválida (no parseable): {c.fecha_evento}",
+                    mensaje=f"FECHA_EVENTO invÃ¡lida (no parseable): {c.fecha_evento}",
                     ruta=str(c.ruta),
                     sugerencia="Usar DD/MM/YYYY o YYYY-MM-DD; evitar texto libre."
                 ))
 
-        # 3.9 Señales típicas de encoding roto
+        # 3.9 SeÃ±ales tÃ­picas de encoding roto
         if ficha_txt:
             try:
                 if ficha_txt.exists():
                     raw = gestor._leer_contenido_ficha(ficha_txt)
-                    if "�" in raw:
+                    if "ï¿½" in raw:
                         hallazgos.append(Hallazgo(
                             nivel="WARN",
                             codigo="DATA-040",
-                            mensaje="Posible corrupción de encoding detectada (carácter de reemplazo '�').",
+                            mensaje="Posible corrupciÃ³n de encoding detectada (carÃ¡cter de reemplazo 'ï¿½').",
                             ruta=str(ficha_txt),
                             sugerencia="Reguardar contenido y reescribir en UTF-8 desde el formulario del ERP."
                         ))
             except Exception:
                 logger.warning("No se pudo leer ficha_txt para validacion de encoding: %s", ficha_txt)
 
-        # 3.10 Completitud y campos obligatorios (AUDITORÍA FLEXIBLE)
+        # 3.10 Completitud y campos obligatorios (AUDITORÃA FLEXIBLE)
         for key_m in campos_metricas.keys():
             attr = key_m.lower()
             # Compatibilidad dict / objeto
@@ -966,9 +963,9 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
             hallazgos.append(Hallazgo(
                 nivel="ERROR",
                 codigo="DATA-050",
-                mensaje=f"Campos mínimos faltantes: {', '.join(sorted(set(missing_minimum)))}",
+                mensaje=f"Campos mÃ­nimos faltantes: {', '.join(sorted(set(missing_minimum)))}",
                 ruta=str(c.ruta),
-                sugerencia="Completar mínimos desde la app para habilitar operación (agenda/control)."
+                sugerencia="Completar mÃ­nimos desde la app para habilitar operaciÃ³n (agenda/control)."
             ))
 
         elif status_info["status"] == "legacy_incomplete" and missing_quality:
@@ -977,10 +974,10 @@ def auditar_app(gestor: GestorCasos, casos: List[Caso]) -> Dict:
                 codigo="DATA-051",
                 mensaje=f"Campos de calidad faltantes (legacy): {', '.join(sorted(set(missing_quality)))}",
                 ruta=str(c.ruta),
-                sugerencia="Completar progresivamente la ficha desde la app; mejora búsqueda, reportes y auditoría."
+                sugerencia="Completar progresivamente la ficha desde la app; mejora bÃºsqueda, reportes y auditorÃ­a."
             ))
 
-    # --- Resumen + métricas
+    # --- Resumen + mÃ©tricas
     errores = sum(1 for h in hallazgos if h.nivel == "ERROR")
     warns = sum(1 for h in hallazgos if h.nivel == "WARN")
     infos = sum(1 for h in hallazgos if h.nivel == "INFO")
