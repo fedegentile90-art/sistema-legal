@@ -27,6 +27,7 @@ Los dos manuales cubren:
 - Abrir la app:
   - `RUN_ERP.cmd` (Windows)
   - `python -m streamlit run app.py`
+  - UI revamp toggle: `VG_UI_REVAMP_V2=1` (nuevo) / rollback visual inmediato `VG_UI_REVAMP_V2=0`
 - Crear acceso directo en Escritorio (Windows):
   - `CREATE_DESKTOP_SHORTCUT.cmd`
   - `powershell -NoProfile -ExecutionPolicy Bypass -File .\CREATE_DESKTOP_SHORTCUT.ps1 -Force`
@@ -59,6 +60,8 @@ Los dos manuales cubren:
   - `python db/backup_restore_drill.py --backup-only`
 - Suite conductual operativa:
   - `python db/ops_behavior_test.py`
+- Contratos UI (visual/orden/texto/persistencia):
+  - `python -m pytest -q tests/test_ui_theme_contract.py tests/test_ui_visual_order_contract.py tests/test_ui_text_encoding_contract.py tests/test_ui_theme_persistence_db.py`
 - CI DB-first (PostgreSQL efimero):
   - workflow `.github/workflows/ci-db.yml`
   - ejecuta `python db/env_contract.py --profile release_gate_full`

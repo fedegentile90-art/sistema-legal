@@ -18,6 +18,9 @@ Fecha de referencia: 2026-02-13
    - `Auditoria`
 5. Confirmar autoload de `.env` en launcher:
    - `VG_DOTENV_AUTOLOAD=1` en `.env` (default recomendado).
+6. Confirmar experiencia visual:
+   - `VG_UI_REVAMP_V2=1` para rediseño profundo activo.
+   - rollback visual inmediato: `VG_UI_REVAMP_V2=0`.
 
 ## 2) Alta y mantenimiento administrativo (Gestion)
 

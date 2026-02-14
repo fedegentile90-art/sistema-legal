@@ -71,6 +71,10 @@ jobs:
           psql -h localhost -p 5432 -U postgres -d sistemalegal_ci -v ON_ERROR_STOP=1 -f db/schema.sql
           psql -h localhost -p 5432 -U postgres -d sistemalegal_ci_test -v ON_ERROR_STOP=1 -f db/schema.sql
 
+      - name: Run UI contracts
+        run: |
+          python -m pytest -q tests/test_ui_theme_contract.py tests/test_ui_visual_order_contract.py tests/test_ui_text_encoding_contract.py tests/test_ui_theme_persistence_db.py
+
       - name: Validate env contract (release_gate_full)
         run: |
           python db/env_contract.py --profile release_gate_full

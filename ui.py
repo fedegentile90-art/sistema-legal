@@ -560,7 +560,7 @@ def progress_row(label: str, pct: float):
 def audit_status_badge(errores: int, warnings: int):
     """Badge de estado para auditoría."""
     if errores == 0 and warnings == 0:
-        txt = "Ã“ptimo Â· Sin problemas detectados"
+        txt = "Óptimo · Sin problemas detectados"
         variant = "ok"
     elif errores > 0:
         txt = f"Errores: {errores} · Advertencias: {warnings}"
@@ -658,7 +658,7 @@ def configurar_pagina():
     inicializar_ui()
 
 
-# --- INYECCIÃ“N DE CSS (CORE) ---
+# --- INYECCIÓN DE CSS (CORE) ---
 
 
 def aplicar_estilos_stitch():
