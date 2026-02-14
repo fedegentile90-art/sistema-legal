@@ -5,11 +5,19 @@ Fecha de referencia: 2026-02-13
 ## 1) Inicio rapido
 
 1. Abrir la app con `RUN_ERP.cmd` o `python -m streamlit run app.py`.
-2. Verificar acceso a rutas:
+2. (Recomendado) Crear acceso directo en Escritorio:
+   - desde UI: `Configuracion > Operativo > Crear acceso directo en Escritorio`;
+   - o por script: `CREATE_DESKTOP_SHORTCUT.cmd`.
+3. Si se va a ejecutar gate/suites DB en modo `full`, preparar DB de pruebas:
+   - desde UI: `Configuracion > Operativo > Preparar DB de pruebas`;
+   - o por script: `python db/setup_test_db.py --write-dotenv`.
+4. Verificar acceso a rutas:
    - `Gestion`
    - `Agenda`
    - `Finanzas`
    - `Auditoria`
+5. Confirmar autoload de `.env` en launcher:
+   - `VG_DOTENV_AUTOLOAD=1` en `.env` (default recomendado).
 
 ## 2) Alta y mantenimiento administrativo (Gestion)
 
@@ -105,19 +113,22 @@ Fecha de referencia: 2026-02-13
 5. Para gate completo de release, usar:
     - `python db/release_gate.py --mode full`
     - y asegurar `VG_TEST_DATABASE_URL` valida + DB de pruebas disponible.
-6. Politica KPI del gate:
+6. Si `VG_TEST_DATABASE_URL` no existe o no cumple contrato:
+   - correr `python db/setup_test_db.py --write-dotenv`;
+   - volver a validar `python db/env_contract.py --profile daily_ops`.
+7. Politica KPI del gate:
    - modo visible (no bloqueante): `set VG_QUALITY_GATE_KPI_MODE=warn`
    - modo bloqueante: `set VG_QUALITY_GATE_KPI_MODE=enforce`
    - muestra minima para evaluar KPI: `set VG_QUALITY_GATE_KPI_MIN_CASES=1`
    - override por comando: `python db/release_gate.py --mode full --kpi-mode enforce --kpi-min-cases 10`
-7. Politica de seguridad del gate (auth/roles/least privilege):
+8. Politica de seguridad del gate (auth/roles/least privilege):
    - modo visible (no bloqueante): `set VG_SECURITY_GATE_MODE=warn`
    - modo bloqueante: `set VG_SECURITY_GATE_MODE=enforce`
    - rol esperado runtime (opcional): `set VG_DB_APP_ROLE=vg_app`
    - rol esperado test (opcional): `set VG_DB_TEST_ROLE=vg_test`
    - exigir roles runtime/test distintos: `set VG_SECURITY_GATE_REQUIRE_TEST_ROLE_SPLIT=1`
    - override por comando: `python db/release_gate.py --mode full --security-mode enforce`
-8. Politica de performance/capacidad del gate:
+9. Politica de performance/capacidad del gate:
    - modo visible (no bloqueante): `set VG_PERFORMANCE_GATE_MODE=warn`
    - modo bloqueante: `set VG_PERFORMANCE_GATE_MODE=enforce`
    - umbral select_1: `set VG_PERFORMANCE_GATE_MAX_SELECT1_MS=250`
@@ -127,16 +138,16 @@ Fecha de referencia: 2026-02-13
    - umbral docs/caso: `set VG_PERFORMANCE_GATE_MAX_DOCS_PER_CASE=300`
    - umbral audit_log: `set VG_PERFORMANCE_GATE_MAX_AUDIT_ROWS=200000`
    - override por comando: `python db/release_gate.py --mode full --performance-mode enforce`
-9. Confirmar generacion de artefactos:
+10. Confirmar generacion de artefactos:
    - `db/snapshots/audit_daily/audit_snapshot_latest.json`
    - `db/snapshots/audit_history.csv`
-10. Revisar trazabilidad estructurada del run:
+11. Revisar trazabilidad estructurada del run:
    - abrir `logs/ops_YYYYMMDD.log`;
    - ubicar lineas `[OBS]` y tomar `run_id`;
    - seguir `stage`/`suite` hasta detectar primer `status=FAIL|TIMEOUT|BLOCKED`.
-11. Validar que la tendencia en UI refleje el ultimo dia.
-12. Si aparece alerta de degradacion (leve/moderada/critica), priorizar correccion segun sugerencias del panel.
-13. Ejecutar drill de backup/restore al menos semanalmente:
+12. Validar que la tendencia en UI refleje el ultimo dia.
+13. Si aparece alerta de degradacion (leve/moderada/critica), priorizar correccion segun sugerencias del panel.
+14. Ejecutar drill de backup/restore al menos semanalmente:
    - `python db/backup_restore_drill.py`
    - validar cierre con `BACKUP RESTORE DRILL: PASS`.
 

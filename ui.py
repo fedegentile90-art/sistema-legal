@@ -3,8 +3,9 @@ import html
 import inspect
 import logging
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Literal
 
 import streamlit as st
 
@@ -15,70 +16,181 @@ logger = logging.getLogger(__name__)
 TOKENS = {
     "colors": {
         "dark": {
-            "bg_app": "#0B1220",
-            "bg_sidebar": "#0F172A",
-            "bg_card": "#111827",
-            "bg_card_hover": "#1F2937",
-            "border": "rgba(148, 163, 184, 0.28)",
-            "text_main": "#F3F4F6",
-            "text_muted": "#A7B0C3",
-            "primary": "#3B82F6",
-            "primary_hover": "#2563EB",
-            "success": "#10B981",
-            "warning": "#F59E0B",
-            "danger": "#EF4444",
-            "badge_bg": "rgba(255,255,255,0.06)",
+            "bg_app": "#090F1C",
+            "bg_sidebar": "#111A2E",
+            "bg_card": "#141F36",
+            "bg_card_hover": "#1A2845",
+            "border": "rgba(160, 178, 212, 0.30)",
+            "text_main": "#F5F7FF",
+            "text_muted": "#B2BED8",
+            "primary": "#5B8CFF",
+            "primary_hover": "#3F73F0",
+            "success": "#2BCB94",
+            "warning": "#FFB347",
+            "danger": "#FF6B6B",
+            "badge_bg": "rgba(255,255,255,0.09)",
+            "bg_glow_1": "rgba(91, 140, 255, 0.26)",
+            "bg_glow_2": "rgba(43, 203, 148, 0.14)",
         },
         "light": {
-            "bg_app": "#EEF2F7",
-            "bg_sidebar": "#F7F8FC",
+            "bg_app": "#F2F5FB",
+            "bg_sidebar": "#EAF0FB",
             "bg_card": "#FFFFFF",
-            "bg_card_hover": "#F3F5FA",
-            "border": "rgba(15, 23, 42, 0.18)",
-            "text_main": "#0B1220",
-            "text_muted": "#445065",
-            "primary": "#2563EB",
-            "primary_hover": "#1D4ED8",
-            "success": "#059669",
-            "warning": "#D97706",
-            "danger": "#DC2626",
-            "badge_bg": "rgba(0,0,0,0.05)",
+            "bg_card_hover": "#EEF3FB",
+            "border": "rgba(20, 33, 61, 0.24)",
+            "text_main": "#0D1B34",
+            "text_muted": "#3F4F6F",
+            "primary": "#305FD8",
+            "primary_hover": "#234CB9",
+            "success": "#0E9F6E",
+            "warning": "#B7791F",
+            "danger": "#C0392B",
+            "badge_bg": "rgba(13,27,52,0.06)",
+            "bg_glow_1": "rgba(48, 95, 216, 0.18)",
+            "bg_glow_2": "rgba(14, 159, 110, 0.10)",
         },
     },
     "typography": {
-        "font_family": '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        "h1": "1.9rem",
-        "h2": "1.45rem",
-        "body": "1rem",
-        "small": "0.9rem",
+        "font_family": '"Plus Jakarta Sans", "IBM Plex Sans", "Segoe UI", sans-serif',
+        "h1": "2rem",
+        "h2": "1.5rem",
+        "body": "0.98rem",
+        "small": "0.88rem",
     },
-    "spacing": {"xs": "4px", "sm": "8px", "md": "12px", "lg": "16px", "xl": "24px"},
-    "radius": {"sm": "0.35rem", "md": "0.55rem", "lg": "0.9rem", "full": "9999px"},
+    "spacing": {"xs": "4px", "sm": "8px", "md": "12px", "lg": "18px", "xl": "26px"},
+    "radius": {"sm": "0.45rem", "md": "0.75rem", "lg": "1rem", "full": "9999px"},
     "shadows": {
-        "card": "0 12px 30px rgba(0, 0, 0, 0.22)",
-        "glow": "0 0 0 3px rgba(59, 130, 246, 0.35)",
+        "card": "0 10px 28px rgba(15, 25, 50, 0.15)",
+        "glow": "0 0 0 3px rgba(91, 140, 255, 0.28)",
     },
 }
 
-# --- GESTIÃ“N DE ESTADO Y TEMA ---
+# --- ESTADO GLOBAL DE UI ---
+
+UI_REVAMP_FLAG_ENV = "VG_UI_REVAMP_V2"
+UI_THEME_DEFAULT_ENV = "VG_UI_THEME_DEFAULT"
+UI_DENSITY_DEFAULT_ENV = "VG_UI_DENSITY_DEFAULT"
+
+THEME_OPTIONS = {"dark": "Oscuro", "light": "Claro"}
+DENSITY_OPTIONS = {"compact": "Compacta", "balanced": "Balanceada", "wide": "Amplia"}
+
+SESSION_THEME_KEY = "theme_mode"
+SESSION_DENSITY_KEY = "ui_density_mode"
+SESSION_PREFS_USER_KEY = "ui.prefs.user_id"
+SESSION_PREFS_LOADED_KEY = "ui.prefs.loaded"
+SESSION_BLOCK_ORDER_PREFIX = "ui.block_order."
+
+
+@dataclass(frozen=True)
+class UIPreferences:
+    theme_mode: str = "dark"
+    density_mode: str = "compact"
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = str(os.environ.get(name, "")).strip().lower()
+    if not raw:
+        return bool(default)
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    return bool(default)
+
+
+def is_ui_revamp_enabled() -> bool:
+    return _env_bool(UI_REVAMP_FLAG_ENV, default=True)
+
+
+def _default_theme_mode() -> str:
+    raw = str(os.environ.get(UI_THEME_DEFAULT_ENV, "dark")).strip().lower()
+    return raw if raw in THEME_OPTIONS else "dark"
+
+
+def _default_density_mode() -> str:
+    raw = str(os.environ.get(UI_DENSITY_DEFAULT_ENV, "compact")).strip().lower()
+    return raw if raw in DENSITY_OPTIONS else "compact"
+
+
+def _current_user_id() -> str:
+    try:
+        from security import current_user
+
+        user = current_user()
+        return str(user.user_id or "").strip()
+    except Exception:
+        return ""
+
+
+def _load_ui_preferences_for_user(user_id: str) -> UIPreferences:
+    theme = _default_theme_mode()
+    density = _default_density_mode()
+    if not user_id:
+        return UIPreferences(theme_mode=theme, density_mode=density)
+    try:
+        from security import load_user_ui_preferences
+
+        raw = load_user_ui_preferences(user_id)
+        if isinstance(raw, dict):
+            theme_raw = str(raw.get("theme_mode", "")).strip().lower()
+            density_raw = str(raw.get("density_mode", "")).strip().lower()
+            if theme_raw in THEME_OPTIONS:
+                theme = theme_raw
+            if density_raw in DENSITY_OPTIONS:
+                density = density_raw
+    except Exception as exc:
+        logger.debug("load user ui preferences unavailable: %s", exc)
+    return UIPreferences(theme_mode=theme, density_mode=density)
+
+
+def _ensure_ui_preferences_loaded() -> None:
+    user_id = _current_user_id()
+    loaded_user = str(st.session_state.get(SESSION_PREFS_USER_KEY, "")).strip()
+    loaded = bool(st.session_state.get(SESSION_PREFS_LOADED_KEY, False))
+    if loaded and loaded_user == user_id and SESSION_THEME_KEY in st.session_state and SESSION_DENSITY_KEY in st.session_state:
+        return
+    prefs = _load_ui_preferences_for_user(user_id)
+    st.session_state[SESSION_THEME_KEY] = prefs.theme_mode
+    st.session_state[SESSION_DENSITY_KEY] = prefs.density_mode
+    st.session_state[SESSION_PREFS_USER_KEY] = user_id
+    st.session_state[SESSION_PREFS_LOADED_KEY] = True
+
+
+def _persist_ui_preferences_if_possible(theme_mode: str, density_mode: str) -> None:
+    user_id = _current_user_id()
+    if not user_id:
+        return
+    payload = {"theme_mode": theme_mode, "density_mode": density_mode}
+    last_saved = st.session_state.get("ui.prefs.last_saved")
+    if isinstance(last_saved, dict) and last_saved == payload:
+        return
+    try:
+        from security import save_user_ui_preferences
+
+        if save_user_ui_preferences(user_id, payload):
+            st.session_state["ui.prefs.last_saved"] = dict(payload)
+    except Exception as exc:
+        logger.debug("save user ui preferences unavailable: %s", exc)
+
+
+# --- GESTION DE ESTADO Y TEMA ---
 
 
 def inicializar_ui():
-    """Configura variables de sesiÃ³n iniciales para la UI."""
-    if "theme_mode" not in st.session_state:
-        st.session_state.theme_mode = "dark"  # modo Stitch por defecto
+    """Configura variables de sesión iniciales para la UI."""
+    _ensure_ui_preferences_loaded()
 
 
 def get_current_theme():
     """Retorna el diccionario de colores para el tema actual."""
-    mode = st.session_state.get("theme_mode", "dark")
+    mode = st.session_state.get(SESSION_THEME_KEY, _default_theme_mode())
     return TOKENS["colors"].get(mode, TOKENS["colors"]["dark"])
 
 
 def toggle_theme():
     """Alterna entre modo claro y oscuro."""
-    current = st.session_state.get("theme_mode", "dark")
-    st.session_state.theme_mode = "light" if current == "dark" else "dark"
+    current = st.session_state.get(SESSION_THEME_KEY, _default_theme_mode())
+    st.session_state[SESSION_THEME_KEY] = "light" if current == "dark" else "dark"
 
 
 # --- COMPATIBILIDAD (helpers heredados usados por views.py) ---
@@ -215,17 +327,64 @@ def section(title: str, help_text: str | None = None):
 
 
 def section_header(title: str, subtitle: str | None = None, meta: list[str] | None = None):
-    """Header compacto de secciÃ³n."""
+    """Header compacto de sección."""
     st.markdown(
         f"""
 <div class="vg-section-head">
   <div class="vg-section-title">{html.escape(title)}</div>
   {f'<div class="vg-section-subtitle">{html.escape(subtitle)}</div>' if subtitle else ''}
-  {f'<div class="vg-badges">{" â€¢ ".join(html.escape(m) for m in meta)}</div>' if meta else ''}
+  {f'<div class="vg-badges">{" · ".join(html.escape(m) for m in meta)}</div>' if meta else ''}
 </div>
 """,
         unsafe_allow_html=True,
     )
+
+
+def start_ui_block_order(route: str) -> None:
+    route_key = str(route or "").strip().lower() or "unknown"
+    st.session_state[f"{SESSION_BLOCK_ORDER_PREFIX}{route_key}"] = []
+
+
+def mark_ui_block(route: str, block_id: Literal["summary", "actions", "work"]) -> None:
+    route_key = str(route or "").strip().lower() or "unknown"
+    key = f"{SESSION_BLOCK_ORDER_PREFIX}{route_key}"
+    seq = st.session_state.get(key)
+    if not isinstance(seq, list):
+        seq = []
+    seq.append(str(block_id))
+    st.session_state[key] = seq
+
+
+def render_module_frame(
+    route: str,
+    summary: Callable[[], None],
+    actions: Callable[[], None],
+    work: Callable[[], None],
+) -> None:
+    """
+    Contrato estructural estable de módulo:
+    Resumen -> Acciones -> Trabajo.
+    """
+    safe_route = html.escape(str(route or "modulo").strip().lower())
+    start_ui_block_order(route)
+    st.markdown(f"<div class='vg-module-frame vg-module-{safe_route}'>", unsafe_allow_html=True)
+
+    mark_ui_block(route, "summary")
+    st.markdown("<div class='vg-module-block vg-block-summary'>", unsafe_allow_html=True)
+    summary()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    mark_ui_block(route, "actions")
+    st.markdown("<div class='vg-module-block vg-block-actions'>", unsafe_allow_html=True)
+    actions()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    mark_ui_block(route, "work")
+    st.markdown("<div class='vg-module-block vg-block-work'>", unsafe_allow_html=True)
+    work()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 MODE_LABELS = {"listado": "Listado", "detalle": "Detalle", "editar": "Editar"}
@@ -489,7 +648,7 @@ def configurar_pagina():
     try:
         st.set_page_config(
             page_title="VACA & GENTILE ERP v1.0",
-            page_icon="âš–ï¸",
+            page_icon="⚖️",
             layout="wide",
             initial_sidebar_state="expanded",
         )
@@ -503,30 +662,68 @@ def configurar_pagina():
 
 
 def aplicar_estilos_stitch():
-    """Inyecta el CSS global para transformar Streamlit en el diseÃ±o Stitch."""
-    # Toggle de tema: fuente Ãºnica de verdad en session_state["theme_mode"]
-    theme_opts = ["Oscuro (Deep Navy)", "Claro"]
-    current_mode = st.session_state.get("theme_mode", "dark")
-    default_idx = 0 if current_mode == "dark" else 1
+    """Inyecta CSS global y unifica la experiencia claro/oscuro de toda la app."""
+    inicializar_ui()
+    theme_by_label = {label: key for key, label in THEME_OPTIONS.items()}
+    density_by_label = {label: key for key, label in DENSITY_OPTIONS.items()}
+
+    theme_mode = st.session_state.get(SESSION_THEME_KEY, _default_theme_mode())
+    density_mode = st.session_state.get(SESSION_DENSITY_KEY, _default_density_mode())
+    if theme_mode not in THEME_OPTIONS:
+        theme_mode = _default_theme_mode()
+    if density_mode not in DENSITY_OPTIONS:
+        density_mode = _default_density_mode()
+
+    theme_opts = list(theme_by_label.keys())
+    density_opts = list(density_by_label.keys())
+    theme_default_idx = theme_opts.index(THEME_OPTIONS.get(theme_mode, "Oscuro"))
+    density_default_idx = density_opts.index(DENSITY_OPTIONS.get(density_mode, "Compacta"))
+
     with st.sidebar:
         st.markdown('<div class="vg-theme-toggle">', unsafe_allow_html=True)
-        option = st.radio(
+        theme_label = st.radio(
             "Tema",
             theme_opts,
-            index=default_idx,
+            index=theme_default_idx,
             key="stitch_theme_selector",
             label_visibility="collapsed",
         )
-        st.session_state["theme_mode"] = "dark" if option.startswith("Oscuro") else "light"
+        st.session_state[SESSION_THEME_KEY] = theme_by_label.get(theme_label, _default_theme_mode())
         st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown('<div class="vg-density-toggle">', unsafe_allow_html=True)
+        density_label = st.radio(
+            "Densidad",
+            density_opts,
+            index=density_default_idx,
+            key="stitch_density_selector",
+            label_visibility="collapsed",
+            horizontal=True,
+        )
+        st.session_state[SESSION_DENSITY_KEY] = density_by_label.get(density_label, _default_density_mode())
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    _persist_ui_preferences_if_possible(
+        st.session_state.get(SESSION_THEME_KEY, _default_theme_mode()),
+        st.session_state.get(SESSION_DENSITY_KEY, _default_density_mode()),
+    )
 
     t = get_current_theme()
     ty = TOKENS["typography"]
+    density_cfg = {
+        "compact": {"container_max": "1680px", "pad_top": "0.9rem", "pad_bottom": "1.8rem", "input_h": "36px"},
+        "balanced": {"container_max": "1540px", "pad_top": "1.1rem", "pad_bottom": "2.0rem", "input_h": "40px"},
+        "wide": {"container_max": "1460px", "pad_top": "1.3rem", "pad_bottom": "2.2rem", "input_h": "44px"},
+    }.get(st.session_state.get(SESSION_DENSITY_KEY, _default_density_mode()), {
+        "container_max": "1680px",
+        "pad_top": "0.9rem",
+        "pad_bottom": "1.8rem",
+        "input_h": "36px",
+    })
 
     st.markdown(
         """
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
         @import url('https://fonts.googleapis.com/icon?family=Material+Symbols+Rounded');
         </style>
     """,
@@ -540,6 +737,8 @@ def aplicar_estilos_stitch():
             --vg-sidebar: {bg_sidebar};
             --vg-surface: {bg_card};
             --vg-surface-2: {bg_card_hover};
+            --vg-bg-glow-1: {bg_glow_1};
+            --vg-bg-glow-2: {bg_glow_2};
             --vg-border: {border};
             --vg-text: {text_main};
             --vg-muted: {text_muted};
@@ -560,10 +759,14 @@ def aplicar_estilos_stitch():
             --vg-radius-full: {radius_full};
             --vg-shadow-card: {shadow_card};
             --vg-shadow-glow: {shadow_glow};
+            --muted: var(--vg-muted);
         }}
 
         body, .stApp {{
-            background: var(--vg-bg);
+            background:
+                radial-gradient(920px 520px at 6% -6%, var(--vg-bg-glow-1), transparent 60%),
+                radial-gradient(860px 460px at 94% -2%, var(--vg-bg-glow-2), transparent 58%),
+                linear-gradient(180deg, var(--vg-bg), var(--vg-bg));
             color: var(--vg-text);
             font-family: var(--vg-font);
         }}
@@ -572,9 +775,9 @@ def aplicar_estilos_stitch():
         }}
 
         .main .block-container {{
-            padding-top: 1.25rem;
-            padding-bottom: 2rem;
-            max-width: 1600px;
+            padding-top: {container_pad_top};
+            padding-bottom: {container_pad_bottom};
+            max-width: {container_max_width};
         }}
 
         section[data-testid="stSidebar"] {{
@@ -749,6 +952,27 @@ def aplicar_estilos_stitch():
         .vg-theme-toggle div[role="radiogroup"] label > div:first-child {{
             display: none !important;
         }}
+        .vg-density-toggle {{
+            margin: 4px 0 10px;
+        }}
+        .vg-density-toggle div[role="radiogroup"] > label {{
+            background: var(--vg-surface-2);
+            color: var(--vg-text) !important;
+            border: 1px solid var(--vg-border);
+            border-radius: var(--vg-radius-full);
+            padding: 0.35rem 0.9rem;
+            margin-right: 0.3rem;
+            font-weight: 600;
+        }}
+        .vg-density-toggle div[role="radiogroup"] > label[data-checked="true"] {{
+            background: var(--vg-primary);
+            color: #fff !important;
+            border-color: var(--vg-primary-strong);
+            box-shadow: var(--vg-shadow-glow);
+        }}
+        .vg-density-toggle div[role="radiogroup"] label > div:first-child {{
+            display: none !important;
+        }}
         /* Radios/checkbox as pills */
         div[data-baseweb="checkbox"] {{
             background: var(--vg-surface-2);
@@ -919,6 +1143,8 @@ def aplicar_estilos_stitch():
         warning=t["warning"],
         danger=t["danger"],
         badge_bg=t["badge_bg"],
+        bg_glow_1=t["bg_glow_1"],
+        bg_glow_2=t["bg_glow_2"],
         font_family=ty["font_family"],
         h1=ty["h1"],
         h2=ty["h2"],
@@ -930,8 +1156,270 @@ def aplicar_estilos_stitch():
         radius_full=TOKENS["radius"]["full"],
         shadow_card=TOKENS["shadows"]["card"],
         shadow_glow=TOKENS["shadows"]["glow"],
+        container_max_width=density_cfg["container_max"],
+        container_pad_top=density_cfg["pad_top"],
+        container_pad_bottom=density_cfg["pad_bottom"],
     )
     st.markdown(css, unsafe_allow_html=True)
+
+    # Capa de refinamiento visual para ordenar todos los modulos con el mismo shell.
+    st.markdown(
+        f"""
+        <style>
+        .stApp {
+            background-attachment: fixed;
+        }
+
+        .main .block-container {
+            max-width: {density_cfg['container_max']};
+            padding-top: {density_cfg['pad_top']};
+            padding-bottom: {density_cfg['pad_bottom']};
+        }
+        .vg-workspace-shell {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            margin-bottom: 0.4rem;
+        }
+        .vg-module-frame {
+            display: flex;
+            flex-direction: column;
+            gap: 0.7rem;
+        }
+        .vg-module-block {
+            display: block;
+        }
+        .vg-block-summary {
+            order: 1;
+        }
+        .vg-block-actions {
+            order: 2;
+        }
+        .vg-block-work {
+            order: 3;
+        }
+        .vg-workspace-shell .stMarkdown p {
+            line-height: 1.38;
+        }
+        [data-testid="stCaptionContainer"],
+        .stCaption {
+            font-size: 0.86rem;
+            line-height: 1.35;
+        }
+
+        section[data-testid="stSidebar"] {
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--vg-sidebar), #ffffff 0%),
+                color-mix(in srgb, var(--vg-sidebar), #000000 8%)
+            );
+            box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.06);
+        }
+        section[data-testid="stSidebar"] .block-container {
+            padding-top: 0.75rem;
+        }
+
+        .stButton > button,
+        .stDownloadButton > button {
+            border-radius: var(--vg-radius-md);
+            font-weight: 650;
+            letter-spacing: 0.01em;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+        }
+        button[data-testid="baseButton-primary"] {
+            background: linear-gradient(135deg, var(--vg-primary), var(--vg-primary-strong)) !important;
+            color: #ffffff !important;
+            box-shadow: 0 8px 18px color-mix(in srgb, var(--vg-primary), transparent 72%);
+        }
+        button[data-testid="baseButton-primary"]:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--vg-shadow-glow);
+        }
+        button[data-testid="baseButton-secondary"] {
+            background: color-mix(in srgb, var(--vg-surface-2), transparent 10%) !important;
+            border: 1px solid var(--vg-border) !important;
+            color: var(--vg-text) !important;
+        }
+        button[data-testid="baseButton-secondary"]:hover {
+            border-color: color-mix(in srgb, var(--vg-primary), #fff 20%) !important;
+            color: var(--vg-primary) !important;
+        }
+        .stButton > button:disabled,
+        .stDownloadButton > button:disabled {
+            opacity: 0.52 !important;
+            filter: saturate(0.8);
+            cursor: not-allowed !important;
+        }
+
+        .stTextInput input,
+        .stDateInput input,
+        .stNumberInput input,
+        .stTextArea textarea,
+        .stSelectbox div[data-baseweb="select"] > div {
+            min-height: {density_cfg['input_h']};
+            background: color-mix(in srgb, var(--vg-surface-2), transparent 14%) !important;
+        }
+        .stTextInput input:focus,
+        .stDateInput input:focus,
+        .stNumberInput input:focus,
+        .stTextArea textarea:focus,
+        .stSelectbox div[data-baseweb="select"] > div:focus {
+            border-color: color-mix(in srgb, var(--vg-primary), #fff 14%) !important;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--vg-primary), transparent 75%) !important;
+        }
+
+        .vg-theme-toggle {
+            margin: 4px 0 10px;
+        }
+        .vg-theme-toggle div[role="radiogroup"] > label {
+            min-height: 34px;
+            padding: 0.42rem 1rem;
+        }
+
+        .vg-sidebar-brand {
+            padding: 12px 10px 8px;
+            border-bottom: 1px solid var(--vg-border);
+            margin-bottom: 4px;
+        }
+        .vg-sidebar-title {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: .02em;
+            color: var(--vg-text);
+        }
+        .vg-sidebar-subtitle {
+            margin: 4px 0 0;
+            font-size: 11px;
+            color: var(--vg-muted);
+        }
+
+        .vg-shell-header {
+            border: 1px solid var(--vg-border);
+            border-radius: var(--vg-radius-lg);
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--vg-surface), transparent 0%),
+                color-mix(in srgb, var(--vg-surface-2), transparent 28%)
+            );
+            box-shadow: var(--vg-shadow-card);
+            padding: 14px 16px;
+            margin-bottom: 8px;
+        }
+        .vg-shell-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .vg-shell-brand {
+            color: var(--vg-primary);
+            font-size: 1.16rem;
+            font-weight: 800;
+            letter-spacing: .01em;
+        }
+        .vg-shell-version {
+            font-size: 11px;
+            color: var(--vg-muted);
+        }
+        .vg-shell-meta {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .vg-shell-meta-item {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid var(--vg-border);
+            border-radius: var(--vg-radius-full);
+            background: var(--vg-badge);
+            color: var(--vg-text);
+            font-size: 12px;
+            font-weight: 650;
+            padding: 5px 10px;
+            letter-spacing: .01em;
+        }
+        .vg-shell-meta-item.ok {
+            color: var(--vg-success);
+            border-color: color-mix(in srgb, var(--vg-success), #fff 42%);
+        }
+        .vg-shell-meta-item.warn {
+            color: var(--vg-warning);
+            border-color: color-mix(in srgb, var(--vg-warning), #fff 42%);
+        }
+
+        .vg-workspace-nav {
+            border: 1px solid var(--vg-border);
+            border-radius: var(--vg-radius-lg);
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--vg-surface), transparent 0%),
+                color-mix(in srgb, var(--vg-surface-2), transparent 30%)
+            );
+            padding: 10px;
+            margin: 8px 0 12px;
+            position: sticky;
+            top: 0.4rem;
+            z-index: 4;
+            backdrop-filter: blur(8px);
+        }
+        .vg-workspace-nav .stButton > button {
+            min-height: 38px;
+            width: 100%;
+            border-radius: var(--vg-radius-md);
+        }
+        .vg-workspace-title {
+            font-size: 11px;
+            color: var(--vg-muted);
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin: 0 0 8px 4px;
+        }
+
+        .vg-card {
+            margin-bottom: 14px;
+        }
+        .vg-card.tight .stButton > button,
+        .vg-card.tight .stDownloadButton > button {
+            min-height: 36px;
+        }
+        .vg-section-head {
+            border: 1px solid var(--vg-border);
+            border-radius: var(--vg-radius-md);
+            background: color-mix(in srgb, var(--vg-surface), transparent 8%);
+            padding: 10px 12px;
+            margin-bottom: 12px;
+        }
+        .vg-section-title {
+            letter-spacing: -0.01em;
+        }
+        .vg-section-head .vg-badges {
+            margin-top: 8px;
+        }
+        .vg-section-head .vg-badges,
+        .vg-section-head .vg-section-subtitle {
+            color: var(--vg-muted);
+        }
+
+        @media (max-width: 960px) {
+            .main .block-container {
+                padding-top: .8rem;
+                padding-bottom: 1.6rem;
+            }
+            .vg-workspace-nav {
+                position: static;
+                top: auto;
+            }
+            .vg-shell-version {
+                width: 100%;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # --- WRAPPERS LEGACY DE TEMA (compat) ---
@@ -973,17 +1461,23 @@ def container_card_end():
 
 
 def barra_lateral_config(gestor: Any = None):
-    """Sidebar con branding, acciones rÃ¡pidas y selector de tema."""
+    """Sidebar con branding, acciones rápidas y selector de tema."""
+    mode = st.session_state.get(SESSION_THEME_KEY, _default_theme_mode())
+    density_mode = st.session_state.get(SESSION_DENSITY_KEY, _default_density_mode())
+    mode_label = "Oscuro" if mode == "dark" else "Claro"
+    density_label = DENSITY_OPTIONS.get(str(density_mode), "Compacta")
+
     st.sidebar.markdown(
         """
-        <div style="padding:12px 10px 6px 10px;border-bottom:1px solid var(--vg-border);">
-            <p style="font-weight:800;letter-spacing:.3px;color:var(--vg-text);font-size:16px;margin:0;">VACA &amp; GENTILE</p>
-            <p style="color:var(--vg-muted);font-size:12px;margin:4px 0 0 0;">GestiÃ³n jurÃ­dica Â· v1.0</p>
+        <div class="vg-sidebar-brand">
+            <p class="vg-sidebar-title">VACA &amp; GENTILE</p>
+            <p class="vg-sidebar-subtitle">Gestion juridica profesional · v1.0</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
+    st.sidebar.caption(f"Tema activo: {mode_label} · Densidad: {density_label}")
     st.sidebar.caption("Acciones rapidas")
     if st.sidebar.button("Abrir carpeta base", key="sidebar.open_base", width="stretch"):
         try:
@@ -998,7 +1492,8 @@ def barra_lateral_config(gestor: Any = None):
         st.rerun()
 
     st.sidebar.markdown("---")
-    st.sidebar.caption("Navegacion")
-    st.sidebar.caption("Use el selector de rutas y los botones del area principal.")
+    st.sidebar.caption("Navegacion principal")
+    st.sidebar.caption("Use el selector lateral y el switcher superior para moverse.")
     st.sidebar.markdown("---")
-    st.sidebar.caption("UI Â· Stitch Design System")
+    st.sidebar.caption("Operativo")
+    st.sidebar.caption("Dashboard · Gestion · Agenda · Finanzas · Auditoria · Configuracion")

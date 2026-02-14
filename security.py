@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import logging
 import os
 import uuid
@@ -500,6 +501,107 @@ def current_user() -> UserIdentity:
         st.session_state[SESSION_USER_KEY] = identity.to_session()
         return identity
     return UserIdentity("", "", "readonly", "")
+
+
+def _normalize_ui_preferences(raw: Any) -> Dict[str, str]:
+    prefs: Dict[str, str] = {}
+    if not isinstance(raw, dict):
+        return prefs
+    theme_mode = str(raw.get("theme_mode", "")).strip().lower()
+    density_mode = str(raw.get("density_mode", "")).strip().lower()
+    if theme_mode in {"dark", "light"}:
+        prefs["theme_mode"] = theme_mode
+    if density_mode in {"compact", "balanced", "wide"}:
+        prefs["density_mode"] = density_mode
+    return prefs
+
+
+def load_user_ui_preferences(user_id: str) -> Dict[str, str]:
+    """
+    Carga preferencias de UI persistidas por usuario desde users.extra.
+    Formato almacenado: extra.ui_preferences = {theme_mode, density_mode}.
+    """
+    target_user = str(user_id or "").strip()
+    if not target_user:
+        return {}
+    conn = _get_connection()
+    if conn is None:
+        return {}
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT extra FROM users WHERE id = %s LIMIT 1",
+                    (target_user,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return {}
+                extra = row[0]
+                if isinstance(extra, str):
+                    try:
+                        extra = json.loads(extra)
+                    except Exception:
+                        extra = {}
+                if not isinstance(extra, dict):
+                    return {}
+                ui_prefs = extra.get("ui_preferences", {})
+                return _normalize_ui_preferences(ui_prefs)
+    except Exception as exc:
+        logger.warning("load user ui preferences failed user_id=%s err=%s", target_user, exc)
+        return {}
+    finally:
+        conn.close()
+
+
+def save_user_ui_preferences(user_id: str, prefs: Dict[str, Any]) -> bool:
+    """
+    Persiste preferencias de UI por usuario en users.extra.ui_preferences.
+    Retorna True solo cuando la actualización queda escrita.
+    """
+    target_user = str(user_id or "").strip()
+    if not target_user:
+        return False
+    normalized = _normalize_ui_preferences(dict(prefs or {}))
+    if not normalized:
+        return False
+    conn = _get_connection()
+    if conn is None:
+        return False
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT extra FROM users WHERE id = %s LIMIT 1",
+                    (target_user,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return False
+                extra = row[0]
+                if isinstance(extra, str):
+                    try:
+                        extra = json.loads(extra)
+                    except Exception:
+                        extra = {}
+                if not isinstance(extra, dict):
+                    extra = {}
+                current = extra.get("ui_preferences", {})
+                if not isinstance(current, dict):
+                    current = {}
+                current.update(normalized)
+                extra["ui_preferences"] = current
+                payload = json.dumps(extra, ensure_ascii=False)
+                cur.execute(
+                    "UPDATE users SET extra = %s::jsonb, updated_at = NOW() WHERE id = %s",
+                    (payload, target_user),
+                )
+                return cur.rowcount > 0
+    except Exception as exc:
+        logger.warning("save user ui preferences failed user_id=%s err=%s", target_user, exc)
+        return False
+    finally:
+        conn.close()
 
 
 def logout_current_user() -> None:

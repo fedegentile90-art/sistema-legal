@@ -5,7 +5,9 @@ Fecha de referencia: 2026-02-13
 ## 1) Inicio rapido
 
 1. Abrir la app con `RUN_ERP.cmd` o `python -m streamlit run app.py`.
-2. En la barra lateral usar rutas primarias:
+2. Si usas Windows, crear acceso directo desde `Configuracion > Operativo > Crear acceso directo en Escritorio`.
+3. Verificar que el auto-guardado este activo en `Configuracion > Operativo` para edicion diaria.
+4. En la barra lateral usar rutas primarias:
    - `Dashboard`
    - `Gestion`
    - `Agenda`

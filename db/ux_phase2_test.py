@@ -44,6 +44,14 @@ def info(msg: str):
     print(f"{C.INFO}[INFO] {msg}{C.RESET}")
 
 
+def _has_button(at: AppTest, key: str) -> bool:
+    try:
+        at.button(key=key)
+        return True
+    except KeyError:
+        return False
+
+
 def _ensure_case_available() -> dict | None:
     """Crea un caso temporal si la DB no tiene casos para ejecutar el smoke."""
     gestor = GestorCasosDB()
@@ -100,10 +108,38 @@ def _cleanup_temp_case(temp_case: dict | None):
     info("Cleanup: caso temporal eliminado")
 
 
+def _go_primary_route(at: AppTest, route_label: str):
+    route_to_button = {
+        "Dashboard": "workspace.nav.dashboard",
+        "Gestion": "workspace.nav.gestion",
+        "Agenda": "workspace.nav.agenda",
+        "Finanzas": "workspace.nav.finanzas",
+        "Auditoria": "workspace.nav.auditoria",
+        "Configuracion": "workspace.nav.configuracion",
+    }
+    button_key = route_to_button.get(str(route_label), "")
+    if button_key:
+        try:
+            at.button(key=button_key).click()
+            at.run()
+            return
+        except KeyError:
+            pass
+
+    try:
+        at.radio(key="_sidebar_nav").set_value(route_label)
+        at.run()
+        return
+    except KeyError:
+        pass
+
+    at.session_state["nav_route"] = route_label
+    at.run()
+
+
 def _goto_casos_editar(at: AppTest) -> str:
     at.run()
-    at.radio(key="_sidebar_nav").set_value("Gestion")
-    at.run()
+    _go_primary_route(at, "Gestion")
 
     state = at.session_state.filtered_state
     df = state.get("df_full")
@@ -124,6 +160,15 @@ def _goto_casos_editar(at: AppTest) -> str:
 
     if len(at.exception) > 0:
         raise RuntimeError(f"App exception en ir a editar: {[e.value for e in at.exception]}")
+
+    if not _has_button(at, "gestion.casos.editar.guardar") and _has_button(at, "gestion.casos.detalle.editar"):
+        at.button(key="gestion.casos.detalle.editar").click()
+        at.run()
+        if len(at.exception) > 0:
+            raise RuntimeError(f"App exception en detalle->editar: {[e.value for e in at.exception]}")
+
+    if not _has_button(at, "gestion.casos.editar.guardar"):
+        raise RuntimeError("No se renderizo boton guardar en modo editar")
 
     return selected
 
@@ -239,8 +284,7 @@ def test_auditoria_degradacion_y_export_operativo() -> tuple[bool, str]:
     try:
         at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=120)
         at.run()
-        at.radio(key="_sidebar_nav").set_value("Auditoria")
-        at.run()
+        _go_primary_route(at, "Auditoria")
 
         if len(at.exception) > 0:
             return False, f"Excepcion al abrir Auditoria: {[e.value for e in at.exception]}"
@@ -285,6 +329,11 @@ def run() -> int:
     info(f"{TEST_DATABASE_URL_ENV} validada: {mask_dsn(value_or_reason)}")
 
     os.environ.setdefault("VG_DEBUG", "0")
+    os.environ["VG_AUTH_REQUIRED"] = "0"
+    os.environ["VG_RBAC_STRICT"] = "0"
+    os.environ["VG_EXPORT_STRICT"] = "0"
+    # Esta suite valida comportamiento de Guardar manual (no auto-save).
+    os.environ["VG_AUTO_SAVE_CHANGES"] = "0"
 
     original_update = GestorCasosDB.actualizar_campos_ficha
     calls = []

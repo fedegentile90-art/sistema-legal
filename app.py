@@ -4,8 +4,11 @@ Sprint 1: Navegacion MPA logica (secciones primarias via sidebar)
 Jerarquia Sagrada: ANO > ESTADO > CLIENTE > FUERO > CAUSA
 """
 
+import html
 import logging
 import os
+import re
+from datetime import datetime
 from typing import List
 
 import pandas as pd
@@ -168,21 +171,8 @@ def render_workspace_switcher(current_route: str):
     Navegacion horizontal visible en workspace para mejorar descubribilidad.
     Mantiene rutas deshabilitadas con motivo cuando no estan disponibles.
     """
-    st.markdown(
-        """
-        <style>
-        .vg-workspace-nav {
-            border: 1px solid var(--vg-border);
-            background: linear-gradient(180deg, var(--vg-surface), var(--vg-surface-2));
-            border-radius: var(--vg-radius-lg);
-            padding: 10px;
-            margin-bottom: 12px;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
     st.markdown('<div class="vg-workspace-nav">', unsafe_allow_html=True)
+    st.markdown("<div class='vg-workspace-title'>Navegacion de modulos</div>", unsafe_allow_html=True)
     cols = st.columns(len(ROUTES))
     for idx, route in enumerate(ROUTES):
         enabled, reason = workspace_route_access(route)
@@ -202,6 +192,14 @@ def render_workspace_switcher(current_route: str):
     st.markdown("</div>", unsafe_allow_html=True)
 
 
+def _route_css_class(route: str) -> str:
+    """Normaliza nombre de ruta para usarlo como clase CSS segura."""
+    raw = str(route or "").strip().lower()
+    cleaned = re.sub(r"[^a-z0-9_-]+", "-", raw)
+    cleaned = cleaned.strip("-")
+    return cleaned or "dashboard"
+
+
 # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # HEADER COMPACTO
 # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -209,22 +207,34 @@ def render_workspace_switcher(current_route: str):
 def render_header(casos_total: int, route: str):
     """Header fijo con branding compacto + estado operativo."""
     db_ready = bool(st.session_state.get("db_ready", True))
-    db_state = "DB OK" if db_ready else "DB Degradada"
-    st.markdown(f"""
-    <div class="vg-card" style="padding: 12px 16px; margin-bottom: 8px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="font-size:20px;font-weight:900;letter-spacing:.2px;color:var(--vg-primary);line-height:1;">
-            VACA &amp; GENTILE
+    db_state = "DB operativa" if db_ready else "DB degradada"
+    db_class = "ok" if db_ready else "warn"
+    mode = st.session_state.get("theme_mode", "dark")
+    theme_label = "Oscuro" if mode == "dark" else "Claro"
+    today = datetime.now().strftime("%d/%m/%Y")
+    safe_route = html.escape(str(route or "Dashboard"))
+    st.markdown(
+        f"""
+    <div class="vg-shell-header">
+      <div class="vg-shell-top">
+        <div>
+          <div class="vg-shell-brand">VACA &amp; GENTILE</div>
+          <div class="vg-shell-meta">
+            <span class="vg-shell-meta-item">Casos: {casos_total}</span>
+            <span class="vg-shell-meta-item">Seccion: {safe_route}</span>
+            <span class="vg-shell-meta-item {db_class}">{db_state}</span>
+            <span class="vg-shell-meta-item">Tema: {theme_label}</span>
           </div>
-          <span class="vg-pill">Casos: {casos_total}</span>
-          <span class="vg-pill">Seccion: {route}</span>
-          <span class="vg-pill">{db_state}</span>
         </div>
-        <div style="font-size:11px;color:var(--muted);">ERP v1.0</div>
+        <div class="vg-shell-version">
+          <div>ERP v1.0 · DB-first</div>
+          <div>{today}</div>
+        </div>
       </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -310,6 +320,11 @@ def main():
     render_workspace_switcher(route)
 
     # â”€â”€ WORKSPACE: Dispatch por ruta â”€â”€
+    route_class = _route_css_class(route)
+    st.markdown(
+        f"<div class='vg-workspace-shell vg-route-{html.escape(route_class)}'>",
+        unsafe_allow_html=True,
+    )
     try:
         if route == "Dashboard":
             render_dashboard(gestor, casos)
@@ -336,6 +351,8 @@ def main():
             st.session_state["nav_route"] = "Dashboard"
             st.session_state["route_mode"] = "listado"
             st.rerun()
+    finally:
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 if __name__ == "__main__":

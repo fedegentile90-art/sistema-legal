@@ -27,6 +27,9 @@ Los dos manuales cubren:
 - Abrir la app:
   - `RUN_ERP.cmd` (Windows)
   - `python -m streamlit run app.py`
+- Crear acceso directo en Escritorio (Windows):
+  - `CREATE_DESKTOP_SHORTCUT.cmd`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\CREATE_DESKTOP_SHORTCUT.ps1 -Force`
 - Runner operativo diario (auditoria + gate):
   - `RUN_ERP.ps1 -DailyOps`
   - `RUN_ERP.cmd ops`
@@ -44,6 +47,9 @@ Los dos manuales cubren:
   - `python db/env_contract.py --profile daily_ops`
   - `python db/env_contract.py --profile release_gate_full`
   - `python db/env_contract.py --profile backup_restore_drill`
+- Bootstrap de DB de pruebas aislada:
+  - `python db/setup_test_db.py --write-dotenv`
+  - (alternativa UI) `Configuracion > Operativo > Preparar DB de pruebas`
 - Baseline de seguridad DB:
   - `python db/security_baseline.py --mode warn`
 - Baseline de performance/capacidad DB:
@@ -58,8 +64,10 @@ Los dos manuales cubren:
   - ejecuta `python db/env_contract.py --profile release_gate_full`
   - ejecuta `python db/release_gate.py --mode full`
 - Trazabilidad de corrida (observabilidad):
-  - `RUN_ERP.ps1 -DailyOps` emite lineas `[OBS]` con `run_id`, `stage`, `suite`
-  - `db/release_gate.py` y `db/nightly_audit.py` comparten `run_id` via env `VG_RUN_ID`
+- `RUN_ERP.ps1 -DailyOps` emite lineas `[OBS]` con `run_id`, `stage`, `suite`
+- `db/release_gate.py` y `db/nightly_audit.py` comparten `run_id` via env `VG_RUN_ID`
+- `RUN_ERP.ps1` auto-carga variables desde `.env` por defecto (`VG_DOTENV_AUTOLOAD=1`).
+- Si ejecutas `python db/*.py` directo desde consola, debes tener variables exportadas en esa sesion.
 
 Notas operativas:
 - `db/nightly_audit.py` ejecuta preflight DB (conexion + `SELECT 1`) y falla temprano si la DB no esta disponible.
@@ -98,3 +106,7 @@ Notas operativas:
 - `RUN_ERP.ps1 -DailyOps`, `db/nightly_audit.py` y `db/release_gate.py` emiten eventos `[OBS]` con `run_id/stage/suite`.
 - En `Auditoria > Tendencia diaria`, el sistema muestra alerta de degradacion (leve/moderada/critica) contra baseline de 7 dias.
 - En `Auditoria`, se puede exportar hallazgos operativos filtrando por nivel/codigo/fecha en CSV y JSON (con metadata de snapshot/backend).
+- En `Configuracion > Operativo`, hay acciones directas para:
+  - crear acceso directo del launcher en Escritorio;
+  - preparar DB de pruebas y persistir `VG_TEST_DATABASE_URL` en `.env`;
+  - activar/desactivar auto-guardado en runtime.

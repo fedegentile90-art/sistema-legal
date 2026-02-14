@@ -388,6 +388,54 @@ def _pct(completed: int, total: int) -> float:
     return round((float(completed) / float(total)) * 100.0, 1)
 
 
+def _normalize_financial_row(raw: dict[str, object] | None) -> dict[str, str]:
+    payload = raw if isinstance(raw, dict) else {}
+    return {field: str(payload.get(field, "") or "") for field in CAMPOS_FINANCIEROS}
+
+
+def _build_financial_map(gestor, casos: list[object]) -> dict[str, dict[str, str]]:
+    out: dict[str, dict[str, str]] = {}
+    rutas = [getattr(c, "ruta", None) for c in casos if getattr(c, "ruta", None) is not None]
+    batch_data: dict[str, dict[str, str]] = {}
+
+    if hasattr(gestor, "leer_datos_financieros_batch") and rutas:
+        try:
+            raw_batch = gestor.leer_datos_financieros_batch(rutas) or {}
+            if isinstance(raw_batch, dict):
+                batch_data = {str(k): _normalize_financial_row(v) for k, v in raw_batch.items()}
+        except Exception as exc:
+            _emit(f"{C.WARN}[WARN] quality_gate_kpi: lectura financiera batch fallida ({exc}){C.RESET}")
+            batch_data = {}
+
+    fallback_errors = 0
+    first_error: Exception | None = None
+    for caso in casos:
+        ref = str(caso.ruta)
+        if ref in batch_data:
+            out[ref] = _normalize_financial_row(batch_data.get(ref))
+            continue
+
+        fin_data: dict[str, object] = {}
+        if hasattr(gestor, "leer_datos_financieros"):
+            try:
+                raw_single = gestor.leer_datos_financieros(caso.ruta) or {}
+                if isinstance(raw_single, dict):
+                    fin_data = raw_single
+            except Exception as exc:
+                fallback_errors += 1
+                if first_error is None:
+                    first_error = exc
+        out[ref] = _normalize_financial_row(fin_data)
+
+    if fallback_errors:
+        _emit(
+            f"{C.WARN}[WARN] quality_gate_kpi: lectura financiera fallback con "
+            f"{fallback_errors} error(es); first={first_error}{C.RESET}"
+        )
+
+    return out
+
+
 def _build_runtime_kpi_snapshot() -> dict[str, object]:
     gestor = GestorCasos()
     casos = list(gestor.escanear_casos() or [])
@@ -397,6 +445,7 @@ def _build_runtime_kpi_snapshot() -> dict[str, object]:
     expediente_ok = 0
     evento_fecha_ok = 0
     fin_ok = 0
+    fin_by_case = _build_financial_map(gestor, casos)
 
     for caso in casos:
         if not is_blank(getattr(caso, "fecha_tarea", "")):
@@ -406,12 +455,7 @@ def _build_runtime_kpi_snapshot() -> dict[str, object]:
         if (not is_blank(getattr(caso, "evento", ""))) and (not is_blank(getattr(caso, "fecha_evento", ""))):
             evento_fecha_ok += 1
 
-        fin_data = {}
-        if hasattr(gestor, "leer_datos_financieros"):
-            try:
-                fin_data = gestor.leer_datos_financieros(caso.ruta) or {}
-            except Exception:
-                fin_data = {}
+        fin_data = fin_by_case.get(str(caso.ruta), {})
         if any(not is_blank(fin_data.get(field, "")) for field in CAMPOS_FINANCIEROS):
             fin_ok += 1
 

@@ -638,14 +638,22 @@ class GestorCasosDB:
                     if val:
                         monto = float(val)
                 except ValueError:
-                    pass
+                    logger.warning(
+                        "guardar_datos_financieros: MONTO_DEMANDADO invalido case_id=%s valor=%r",
+                        str(case_id),
+                        datos_fin.get("MONTO_DEMANDADO", ""),
+                    )
 
                 try:
                     val = datos_fin.get("HONORARIOS_PACTADOS", "").replace(",", ".")
                     if val:
                         honorarios = float(val)
                 except ValueError:
-                    pass
+                    logger.warning(
+                        "guardar_datos_financieros: HONORARIOS_PACTADOS invalido case_id=%s valor=%r",
+                        str(case_id),
+                        datos_fin.get("HONORARIOS_PACTADOS", ""),
+                    )
 
                 cur.execute("""
                     UPDATE cases SET

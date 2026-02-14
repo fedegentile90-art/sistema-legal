@@ -13,6 +13,8 @@ import json
 import logging
 import os
 import re
+import subprocess
+import sys
 import unicodedata
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
@@ -64,11 +66,14 @@ from ui import (
     page_header,
     pill,
     progress_row,
+    render_module_frame,
+    is_ui_revamp_enabled,
     section_header,
+    start_ui_block_order,
+    mark_ui_block,
     ui_centro_ayuda_content,
     vg_empty_state,
     vg_modebar,
-    vg_section,
     vg_toolbar,
 )
 
@@ -82,6 +87,7 @@ FIN_CSV_COL_ALIASES = {
 }
 FIN_CSV_FIN_COLS = ("MONTO_DEMANDADO", "HONORARIOS_PACTADOS", "ESTADO_PAGO")
 AUTO_SAVE_CHANGES_ENV = "VG_AUTO_SAVE_CHANGES"
+AUTO_SAVE_OVERRIDE_KEY = "ui.auto_save.enabled"
 
 
 @st.cache_data(show_spinner=False)
@@ -168,6 +174,37 @@ def _route_enabled(route: str) -> tuple[bool, str]:
     return True, ""
 
 
+def _render_route_quick_nav(
+    prefix_key: str,
+    routes: List[tuple[str, str, str]],
+    *,
+    title: str = "Navegacion rapida",
+    subtitle: str = "Saltos directos entre modulos",
+    group_in_more_actions: bool = False,
+):
+    """Renderiza una grilla compacta de botones de navegacion entre rutas primarias."""
+    if not routes:
+        return
+    use_more_actions = bool(group_in_more_actions and is_ui_revamp_enabled())
+    holder = st.expander("Mas acciones", expanded=False) if use_more_actions else st.container()
+    with holder:
+        card_begin(title, subtitle=subtitle, variant="tight")
+        cols = st.columns(len(routes))
+        for idx, (route, label, mode) in enumerate(routes):
+            enabled, reason = _route_enabled(route)
+            with cols[idx]:
+                if st.button(
+                    label,
+                    key=f"{prefix_key}.nav.{route.lower()}",
+                    width="stretch",
+                    type="secondary",
+                    disabled=not enabled,
+                    help=reason or None,
+                ):
+                    _go_route(route, mode=mode)
+        card_end()
+
+
 def _debug_selected_case_id(stage: str, value):
     """Debug puntual para diagnosticar deformacion URI->Path en Windows."""
     if os.environ.get("VG_DEBUG") != "1":
@@ -197,7 +234,83 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 
 def _auto_save_changes_enabled() -> bool:
-    return _env_bool(AUTO_SAVE_CHANGES_ENV, default=False)
+    if AUTO_SAVE_OVERRIDE_KEY in st.session_state:
+        return bool(st.session_state.get(AUTO_SAVE_OVERRIDE_KEY))
+    return _env_bool(AUTO_SAVE_CHANGES_ENV, default=True)
+
+
+def _create_desktop_shortcut() -> tuple[bool, str]:
+    if os.name != "nt":
+        return False, "El acceso directo de escritorio solo aplica en Windows."
+    repo_dir = Path(__file__).resolve().parent
+    script_path = repo_dir / "CREATE_DESKTOP_SHORTCUT.ps1"
+    if not script_path.exists():
+        return False, f"No se encontro script de acceso directo: {script_path}"
+
+    cmd = [
+        "powershell",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        str(script_path),
+        "-Force",
+    ]
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=str(repo_dir),
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except Exception as exc:
+        return False, f"Error ejecutando instalador de acceso directo: {exc}"
+
+    output = (result.stdout or "").strip()
+    err = (result.stderr or "").strip()
+    if result.returncode != 0:
+        detail = err or output or f"exit={result.returncode}"
+        return False, f"No se pudo crear acceso directo ({detail})"
+    if output.startswith("CREATED::"):
+        return True, f"Acceso directo creado: {output.split('::', 1)[1]}"
+    if output.startswith("EXISTS::"):
+        return True, f"Acceso directo actualizado: {output.split('::', 1)[1]}"
+    if output:
+        return True, output
+    return True, "Acceso directo creado en el Escritorio."
+
+
+def _setup_test_database_from_ui() -> tuple[bool, str]:
+    repo_dir = Path(__file__).resolve().parent
+    script_path = repo_dir / "db" / "setup_test_db.py"
+    if not script_path.exists():
+        return False, f"No se encontro script setup_test_db: {script_path}"
+
+    cmd = [
+        sys.executable,
+        str(script_path),
+        "--write-dotenv",
+    ]
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=str(repo_dir),
+            capture_output=True,
+            text=True,
+            timeout=90,
+            check=False,
+        )
+    except Exception as exc:
+        return False, f"Error ejecutando setup DB test: {exc}"
+
+    out = (result.stdout or "").strip()
+    err = (result.stderr or "").strip()
+    if result.returncode != 0:
+        detail = out or err or f"exit={result.returncode}"
+        return False, detail
+    return True, out or "Setup DB test completado."
 
 
 GESTION_SECTIONS = {
@@ -392,6 +505,16 @@ def _section_filter_defaults(section: str) -> dict:
 def _selected_value_for_section(section: str):
     sec = _normalize_section(section)
     return _gget(_selected_state_key(sec), "")
+
+
+def _has_selection_for_section(section: str) -> bool:
+    sec = _normalize_section(section)
+    selected = _selected_value_for_section(sec)
+    if not selected:
+        return False
+    if sec == "clientes":
+        return bool(str(selected).strip())
+    return bool(_canonical_case_ref(selected))
 
 
 def _set_selected_for_section(section: str, value, stage: str = "set") -> str:
@@ -1115,7 +1238,7 @@ def _parse_decimal_strict(raw_value, field_label: str) -> tuple[Decimal | None, 
     else:
         normalized = f"{sign}{re.sub(r'[.,]', '', cleaned)}"
 
-    if not re.fullmatch(r"[+-]?\d+(\.\d+)?", normalized):
+    if not re.fullmatch(r"[+-]\d+(\.\d+)", normalized):
         return None, f"{field_label}: '{text}' no es numerico valido."
 
     try:
@@ -1551,18 +1674,23 @@ def _render_finanzas_csv_import_panel(df_fin: pd.DataFrame, gestor: GestorCasos)
 
 def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
     """Dashboard real: KPIs + acciones rapidas. Sin tablas."""
+    start_ui_block_order("Dashboard")
     total = len(casos)
     status_counts = _contar_status(casos) if casos else {"ok": 0, "legacy_incomplete": 0, "error": 0}
     can_gestion, reason_gestion = _route_enabled("Gestion")
+    can_agenda, reason_agenda = _route_enabled("Agenda")
+    can_finanzas, reason_finanzas = _route_enabled("Finanzas")
     can_auditoria, reason_auditoria = _route_enabled("Auditoria")
     header_meta = [
         f"{total} caso{'s' if total != 1 else ''}",
         f"{status_counts.get('legacy_incomplete', 0)} advertencias",
         f"{status_counts.get('error', 0)} errores",
     ]
+    mark_ui_block("Dashboard", "summary")
     section_header("Dashboard", subtitle="Centro de mando", meta=header_meta)
 
     if not casos:
+        mark_ui_block("Dashboard", "actions")
         st.info("No hay casos cargados. Use Gestion para crear el primer caso.")
         if st.button(
             "Ir a Gestion",
@@ -1572,6 +1700,7 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
             help=reason_gestion or None,
         ):
             _go_route("Gestion")
+        mark_ui_block("Dashboard", "work")
         return
 
     casos_error = status_counts.get("error", 0)
@@ -1586,9 +1715,10 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
     with cols[2]:
         kpi_card("Casos con error", casos_error, status="Revisar", tone="bad")
 
-    # Acciones rÃ¡pidas
+    mark_ui_block("Dashboard", "actions")
+    # Acciones rapidas
     card_begin("Acciones rÃ¡pidas", subtitle="Atajos principales", variant="tight")
-    a1, a2, a3 = st.columns(3)
+    a1, a2, a3, a4 = st.columns(4)
 
     with a1:
         if st.button(
@@ -1603,6 +1733,28 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
 
     with a2:
         if st.button(
+            "Ir a Agenda",
+            width="stretch",
+            key="dash_go_agenda",
+            type="secondary",
+            disabled=not can_agenda,
+            help=reason_agenda or None,
+        ):
+            _go_route("Agenda")
+
+    with a3:
+        if st.button(
+            "Ir a Finanzas",
+            width="stretch",
+            key="dash_go_finanzas",
+            type="secondary",
+            disabled=not can_finanzas,
+            help=reason_finanzas or None,
+        ):
+            _go_route("Finanzas")
+
+    with a4:
+        if st.button(
             "Ejecutar Auditoria",
             width="stretch",
             key="dash_go_audit",
@@ -1612,8 +1764,16 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
         ):
             _go_route("Auditoria")
 
-    with a3:
-        if st.button("Reparar subcarpetas", width="stretch", key="dash_repair", type="secondary"):
+    repair_allowed = has_permission("cases:write")
+    with st.container():
+        if st.button(
+            "Reparar subcarpetas",
+            width="stretch",
+            key="dash_repair",
+            type="secondary",
+            disabled=not repair_allowed,
+            help="" if repair_allowed else "Sin permiso para estructura de carpetas.",
+        ):
             total_creadas = 0
             pb = st.progress(0)
             for i, c in enumerate(casos, start=1):
@@ -1623,6 +1783,7 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
             st.cache_data.clear()
     card_end()
 
+    mark_ui_block("Dashboard", "work")
     queue = build_incomplete_case_queue(casos, top_n=10)
     card_begin("Top casos incompletos", subtitle="Prioridad operativa", variant="tight")
     if queue:
@@ -1860,17 +2021,21 @@ def _build_weekly_campaign_df(trend_rows: List[Dict]) -> pd.DataFrame:
 
 def render_gestion(gestor: GestorCasos, casos: List[Caso], df: pd.DataFrame | None):
     """Gestion: pipeline fijo (header > seccion > modo > toolbar > cuerpo)."""
+    start_ui_block_order("Gestion")
     st.markdown("<style>.main .block-container { max-width: 100% !important; }</style>", unsafe_allow_html=True)
 
     if not st.session_state.get("db_ready", True):
+        mark_ui_block("Gestion", "summary")
         health = st.session_state.get("db_health", {}) or {}
         detail = health.get("last_error") or "No se pudo validar conexiÃ³n."
         st.error("GestiÃ³n no disponible: base de datos fuera de lÃ­nea.")
         st.caption(f"Detalle: {detail}")
+        mark_ui_block("Gestion", "actions")
         if st.button("Reintentar conexiÃ³n", key="gestion.retry.db", width="stretch"):
             st.session_state["db_ready"] = None
             st.session_state["db_health"] = {}
             st.rerun()
+        mark_ui_block("Gestion", "work")
         st.stop()
 
     _ginit_defaults()
@@ -1891,9 +2056,18 @@ def render_gestion(gestor: GestorCasos, casos: List[Caso], df: pd.DataFrame | No
     )
 
     # (i) Header del modulo.
-    vg_section("Gestion", subtitle="Operaciones por seccion y modo")
+    selected_for_section = _selected_value_for_section(section)
+    header_meta = [
+        f"{len(casos)} casos",
+        f"Seccion {GESTION_WORK_SECTIONS.get(section, 'Casos')}",
+        f"Modo {GESTION_MODE_LABELS.get(mode, 'Listado')}",
+        f"Seleccion {selected_for_section or 'ninguna'}",
+    ]
+    mark_ui_block("Gestion", "summary")
+    section_header("Gestion", subtitle="Operacion diaria de casos y clientes", meta=header_meta)
 
     # (ii) Barra primaria de seccion.
+    mark_ui_block("Gestion", "actions")
     tab_label_key = _gk("widgets", "tabbar", "label")
     pending_tab_label = st.session_state.pop(_gk("pending", "tabbar", "label"), None)
     valid_tab_labels = set(GESTION_WORK_SECTIONS.values())
@@ -1927,6 +2101,10 @@ def render_gestion(gestor: GestorCasos, casos: List[Caso], df: pd.DataFrame | No
         key=_gk("widgets", "modebar", section),
         label="Modo",
     )
+    if selected_mode in {"detalle", "editar"} and not _has_selection_for_section(section):
+        st.info("Seleccione un registro en Listado para pasar a Detalle o Editar.")
+        _go(section=section, mode="listado")
+        return
     if selected_mode != mode:
         _go(section=section, mode=selected_mode)
         return
@@ -1937,6 +2115,7 @@ def render_gestion(gestor: GestorCasos, casos: List[Caso], df: pd.DataFrame | No
     _render_gestion_context_toolbar(section, mode)
 
     # (v) Cuerpo exclusivo de seccion + modo.
+    mark_ui_block("Gestion", "work")
     if section == "casos":
         if df is not None and not df.empty:
             if st.session_state.get("gestion.casos.show_new_form", False) and mode != "editar":
@@ -2011,6 +2190,10 @@ def _render_standalone_modebar(section: str, mode: str) -> str:
         key=_gk("widgets", "modebar", section),
         label="Modo",
     )
+    if selected_mode in {"detalle", "editar"} and not _has_selection_for_section(section):
+        st.info("Primero seleccione un registro desde Listado.")
+        _go(section=section, mode="listado")
+        return ""
     if selected_mode != mode:
         _go(section=section, mode=selected_mode)
         return ""
@@ -2021,50 +2204,97 @@ def render_agenda(gestor: GestorCasos, casos: List[Caso]):
     st.markdown("<style>.main .block-container { max-width: 100% !important; }</style>", unsafe_allow_html=True)
     section, mode = _prepare_standalone_section("agenda")
 
-    vg_section("Agenda", subtitle="Planificacion de tareas y vencimientos")
-    selected_mode = _render_standalone_modebar(section, mode)
-    if not selected_mode:
-        return
+    total_tareas = 0
+    tareas_7d = 0
+    hoy = datetime.now().date()
+    for caso in casos:
+        fecha = caso._parsear_fecha(caso.fecha_tarea)
+        if not fecha:
+            continue
+        total_tareas += 1
+        if 0 <= (fecha - hoy).days <= 7:
+            tareas_7d += 1
+    mode_state = {"selected": ""}
 
-    _render_gestion_context_toolbar(section, selected_mode)
-    if casos:
-        render_modulo_agenda(gestor, casos, selected_mode)
-    else:
-        vg_empty_state(
-            "No hay tareas para mostrar en Agenda.",
-            "Ir a Casos",
-            lambda: _go_route("Gestion", mode="listado"),
-            key="agenda.route.empty",
+    def _summary() -> None:
+        section_header(
+            "Agenda",
+            subtitle="Planificacion de tareas y vencimientos",
+            meta=[f"Tareas {total_tareas}", f"Proximas 7 dias {tareas_7d}", f"Modo {GESTION_MODE_LABELS.get(mode, 'Listado')}"],
         )
-    _save_tab_snapshot(section)
+
+    def _actions() -> None:
+        selected_mode = _render_standalone_modebar(section, mode)
+        mode_state["selected"] = selected_mode
+        if not selected_mode:
+            return
+        _render_gestion_context_toolbar(section, selected_mode)
+
+    def _work() -> None:
+        selected_mode = mode_state.get("selected", "")
+        if not selected_mode:
+            return
+        if casos:
+            render_modulo_agenda(gestor, casos, selected_mode)
+        else:
+            vg_empty_state(
+                "No hay tareas para mostrar en Agenda.",
+                "Ir a Casos",
+                lambda: _go_route("Gestion", mode="listado"),
+                key="agenda.route.empty",
+            )
+        _save_tab_snapshot(section)
+
+    render_module_frame("Agenda", _summary, _actions, _work)
 
 
 def render_finanzas(gestor: GestorCasos, casos: List[Caso]):
     st.markdown("<style>.main .block-container { max-width: 100% !important; }</style>", unsafe_allow_html=True)
     section, mode = _prepare_standalone_section("finanzas")
 
-    vg_section("Finanzas", subtitle="Resumen economico y estado de cobros")
-    selected_mode = _render_standalone_modebar(section, mode)
-    if not selected_mode:
-        return
+    mode_state = {"selected": ""}
 
-    _render_gestion_context_toolbar(section, selected_mode)
-    if casos:
-        render_modulo_finanzas(gestor, casos, selected_mode)
-    else:
-        vg_empty_state(
-            "No hay datos financieros porque aun no existen casos.",
-            "Ir a Casos",
-            lambda: _go_route("Gestion", mode="listado"),
-            key="finanzas.route.empty",
+    def _summary() -> None:
+        section_header(
+            "Finanzas",
+            subtitle="Resumen economico y estado de cobros",
+            meta=[
+                f"Casos {len(casos)}",
+                f"Modo {GESTION_MODE_LABELS.get(mode, 'Listado')}",
+                f"Auto-guardado {'ON' if _auto_save_changes_enabled() else 'OFF'}",
+            ],
         )
-    _save_tab_snapshot(section)
+
+    def _actions() -> None:
+        selected_mode = _render_standalone_modebar(section, mode)
+        mode_state["selected"] = selected_mode
+        if not selected_mode:
+            return
+        _render_gestion_context_toolbar(section, selected_mode)
+
+    def _work() -> None:
+        selected_mode = mode_state.get("selected", "")
+        if not selected_mode:
+            return
+        if casos:
+            render_modulo_finanzas(gestor, casos, selected_mode)
+        else:
+            vg_empty_state(
+                "No hay datos financieros porque aun no existen casos.",
+                "Ir a Casos",
+                lambda: _go_route("Gestion", mode="listado"),
+                key="finanzas.route.empty",
+            )
+        _save_tab_snapshot(section)
+
+    render_module_frame("Finanzas", _summary, _actions, _work)
 
 
 def _render_gestion_context_toolbar(section: str, mode: str):
     sec = _normalize_section(section)
     card_begin("Contexto", subtitle=f"{GESTION_SECTIONS.get(sec, 'Casos')} Â· {GESTION_MODE_LABELS.get(mode, 'Listado')}", variant="tight")
-    c1, c2, c3 = st.columns([1.2, 1.2, 2.6])
+    selected_ref = _selected_value_for_section(sec)
+    c1, c2, c3, c4 = st.columns([1.1, 1.1, 1.1, 2.2])
     with c1:
         if sec == "casos" and mode != "editar":
             if st.button("Nuevo Caso", key="gestion.context.casos.nuevo", width="stretch", type="secondary"):
@@ -2075,11 +2305,68 @@ def _render_gestion_context_toolbar(section: str, mode: str):
             if st.button("Ir a Listado", key=f"gestion.context.{sec}.listado", width="stretch", type="secondary"):
                 _go(section=sec, mode="listado")
     with c2:
+        if sec in {"casos", "clientes"}:
+            can_agenda, reason_agenda = _route_enabled("Agenda")
+            if st.button(
+                "Ir a Agenda",
+                key=f"gestion.context.{sec}.go_agenda",
+                width="stretch",
+                type="secondary",
+                disabled=not can_agenda,
+                help=reason_agenda or None,
+            ):
+                _go_route("Agenda", mode="listado")
+        else:
+            can_gestion, reason_gestion = _route_enabled("Gestion")
+            target_mode = "detalle" if _canonical_case_ref(selected_ref) else "listado"
+            if st.button(
+                "Ir a Gestion",
+                key=f"gestion.context.{sec}.go_gestion",
+                width="stretch",
+                type="secondary",
+                disabled=not can_gestion,
+                help=reason_gestion or None,
+            ):
+                _go_route("Gestion", mode=target_mode, item_id=selected_ref or None)
+    with c3:
+        if sec in {"agenda", "finanzas"}:
+            canonical = _canonical_case_ref(selected_ref)
+            can_open = bool(canonical)
+            if st.button(
+                "Abrir caso",
+                key=f"gestion.context.{sec}.open_case",
+                width="stretch",
+                type="secondary",
+                disabled=not can_open,
+                help=None if can_open else "Seleccione un registro para abrir el caso.",
+            ):
+                _go_route("Gestion", mode="detalle", item_id=canonical)
+            can_dashboard, reason_dashboard = _route_enabled("Dashboard")
+            if st.button(
+                "Ir a Dashboard",
+                key=f"gestion.context.{sec}.go_dashboard",
+                width="stretch",
+                type="secondary",
+                disabled=not can_dashboard,
+                help=reason_dashboard or None,
+            ):
+                _go_route("Dashboard", mode="listado")
+        else:
+            can_dashboard, reason_dashboard = _route_enabled("Dashboard")
+            if st.button(
+                "Ir a Dashboard",
+                key=f"gestion.context.{sec}.go_dashboard",
+                width="stretch",
+                type="secondary",
+                disabled=not can_dashboard,
+                help=reason_dashboard or None,
+            ):
+                _go_route("Dashboard", mode="listado")
+    with c4:
         if mode == "listado":
             st.caption("Modo de exploracion activa.")
         else:
             st.caption("Modo de trabajo sobre seleccion activa.")
-    with c3:
         if sec == "casos":
             sel = _gget(_selected_state_key("casos"), "")
             st.caption(f"Caso seleccionado: {sel or 'Ninguno'}")
@@ -3854,7 +4141,7 @@ def _render_agenda_listado(
     solo_activos: bool = True,
 ):
     """Agenda - Listado: grilla de vencimientos."""
-    grid_shell("Agenda", subtitle=f"{len(tareas_filtradas)} de {len(tareas_total)} tareas", fluid=True)
+    card_begin("Listado de agenda", subtitle=f"{len(tareas_filtradas)} de {len(tareas_total)} tareas", variant="tight")
 
     if not tareas_filtradas:
         st.info(f"0 de {len(tareas_total)} tareas para los filtros actuales.")
@@ -3864,6 +4151,7 @@ def _render_agenda_listado(
         if st.button("Limpiar filtros", key="gestion.agenda.empty.clear_filters", width="stretch", type="secondary"):
             _reset_filtros_agenda()
             st.rerun()
+        card_end()
         return
 
     df_agenda = pd.DataFrame([{
@@ -3913,6 +4201,7 @@ def _render_agenda_listado(
         selected_item = _canonical_case_ref(selected_ruta)
         if selected_item:
             _go(section="agenda", mode="detalle", selected_id=selected_item)
+    card_end()
 
 
 def _render_agenda_detalle(tareas_filtradas: list, gestor: GestorCasos):
@@ -3936,7 +4225,7 @@ def _render_agenda_detalle(tareas_filtradas: list, gestor: GestorCasos):
         )
         return
 
-    detail_shell(f"{t.semaforo} {t.cliente} Â· {t.causa}")
+    card_begin("Detalle de agenda", subtitle=f"{t.semaforo} {t.cliente} - {t.causa}", variant="tight")
 
     cA, cB = st.columns(2)
     with cA:
@@ -3963,6 +4252,7 @@ def _render_agenda_detalle(tareas_filtradas: list, gestor: GestorCasos):
 
     st.markdown("---")
     render_quick_edit(gestor, t.ruta, "agenda_det")
+    card_end()
 
 
 def _render_agenda_editar(tareas_filtradas: list, gestor: GestorCasos):
@@ -4029,7 +4319,7 @@ def render_modulo_finanzas(gestor: GestorCasos, casos: List[Caso], mode: str = "
 
 def _render_finanzas_listado(df_fin: pd.DataFrame, gestor: GestorCasos):
     """Finanzas - Listado: grilla resumen y totales."""
-    grid_shell("Finanzas", subtitle="Resumen econÃ³mico", fluid=True)
+    card_begin("Listado financiero", subtitle="Resumen economico", variant="tight")
 
     filtros = _gget(_section_filter_state_key("finanzas"), _section_filter_defaults("finanzas"))
     if not isinstance(filtros, dict):
@@ -4065,6 +4355,7 @@ def _render_finanzas_listado(df_fin: pd.DataFrame, gestor: GestorCasos):
         selected_item = _canonical_case_ref(selected_ruta)
         if selected_item:
             _go(section="finanzas", mode="detalle", selected_id=selected_item)
+    card_end()
 
 
 def _render_finanzas_detalle(df_fin: pd.DataFrame, casos: List[Caso], gestor: GestorCasos):
@@ -4090,7 +4381,7 @@ def _render_finanzas_detalle(df_fin: pd.DataFrame, casos: List[Caso], gestor: Ge
 
     fin = gestor.leer_datos_financieros(caso_sel.ruta)
 
-    detail_shell(f"{caso_sel.cliente} Â· {caso_sel.causa}")
+    card_begin("Detalle financiero", subtitle=f"{caso_sel.cliente} - {caso_sel.causa}", variant="tight")
 
     cA, cB = st.columns(2)
     with cA:
@@ -4111,6 +4402,7 @@ def _render_finanzas_detalle(df_fin: pd.DataFrame, casos: List[Caso], gestor: Ge
     with ac2:
         if st.button("Volver", key="gestion.finanzas.detalle.volver", width="stretch", type="secondary"):
             _go(section="finanzas", mode="listado")
+    card_end()
 
 
 def _render_finanzas_editar(df_fin: pd.DataFrame, casos: List[Caso], gestor: GestorCasos):
@@ -4134,7 +4426,7 @@ def _render_finanzas_editar(df_fin: pd.DataFrame, casos: List[Caso], gestor: Ges
         )
         return
 
-    page_header("Editar finanzas", subtitle=f"{caso_sel.cliente} Â· {caso_sel.causa}")
+    card_begin("Editar finanzas", subtitle=f"{caso_sel.cliente} - {caso_sel.causa}", variant="tight")
 
     fin_actual = gestor.leer_datos_financieros(caso_sel.ruta)
     fin_case_key = _canonical_case_ref(str(caso_sel.ruta))
@@ -4186,6 +4478,7 @@ def _render_finanzas_editar(df_fin: pd.DataFrame, casos: List[Caso], gestor: Ges
 
         if datos_fin != baseline:
             if not _enforce_permission("finance:write", "No tiene permiso para modificar finanzas."):
+                card_end()
                 return
             try:
                 ok_fin = gestor.guardar_datos_financieros(
@@ -4195,6 +4488,7 @@ def _render_finanzas_editar(df_fin: pd.DataFrame, casos: List[Caso], gestor: Ges
                 )
             except ValueError as e:
                 st.error(str(e))
+                card_end()
                 return
             if ok_fin:
                 st.session_state[fin_saved_key] = dict(datos_fin)
@@ -4204,6 +4498,7 @@ def _render_finanzas_editar(df_fin: pd.DataFrame, casos: List[Caso], gestor: Ges
                 st.caption(f"Auto-guardado: {datetime.now().strftime('%H:%M:%S')}")
             else:
                 st.error("No se pudo auto-guardar finanzas.")
+        card_end()
         return
 
     submitted = False
@@ -4233,6 +4528,7 @@ def _render_finanzas_editar(df_fin: pd.DataFrame, casos: List[Caso], gestor: Ges
 
     if submitted:
         if not _enforce_permission("finance:write", "No tiene permiso para modificar finanzas."):
+            card_end()
             return
         datos_fin = {
             "MONTO_DEMANDADO": monto,
@@ -4247,12 +4543,14 @@ def _render_finanzas_editar(df_fin: pd.DataFrame, casos: List[Caso], gestor: Ges
             )
         except ValueError as e:
             st.error(str(e))
+            card_end()
             return
         if ok_fin:
             st.cache_data.clear()
             st.success("Datos financieros guardados.")
             _ui_toast("Finanzas guardadas")
             _go(section="finanzas", mode="detalle", selected_id=ruta)
+    card_end()
 
 
 # Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
@@ -4449,8 +4747,65 @@ def _render_trend_degradation_alert(alert: Dict[str, Any]) -> None:
 
 def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
     """Auditoria: pantalla tecnica limpia con estado + detalles colapsados."""
-    section_header("Auditoria", subtitle="Mando de seguridad y calidad de datos")
+    start_ui_block_order("Auditoria")
+    mark_ui_block("Auditoria", "summary")
+    section_header(
+        "Auditoria",
+        subtitle="Mando de seguridad y calidad de datos",
+        meta=[f"Casos {len(casos)}", f"Backend {'DB' if is_db_mode() else 'FS'}", f"Auto-guardado {'ON' if _auto_save_changes_enabled() else 'OFF'}"],
+    )
     auto_daily_result = _ensure_daily_audit_snapshot_ui(gestor, casos)
+
+    can_dashboard, reason_dashboard = _route_enabled("Dashboard")
+    can_gestion, reason_gestion = _route_enabled("Gestion")
+    can_agenda, reason_agenda = _route_enabled("Agenda")
+    can_config, reason_config = _route_enabled("Configuracion")
+    mark_ui_block("Auditoria", "actions")
+    with st.expander("Mas acciones", expanded=False):
+        card_begin("Navegacion rapida", subtitle="Volver a operacion diaria", variant="tight")
+        n1, n2, n3, n4 = st.columns(4)
+        with n1:
+            if st.button(
+                "Ir a Dashboard",
+                key="audit.nav.dashboard",
+                width="stretch",
+                type="secondary",
+                disabled=not can_dashboard,
+                help=reason_dashboard or None,
+            ):
+                _go_route("Dashboard")
+        with n2:
+            if st.button(
+                "Ir a Gestion",
+                key="audit.nav.gestion",
+                width="stretch",
+                type="secondary",
+                disabled=not can_gestion,
+                help=reason_gestion or None,
+            ):
+                _go_route("Gestion", mode="listado")
+        with n3:
+            if st.button(
+                "Ir a Agenda",
+                key="audit.nav.agenda",
+                width="stretch",
+                type="secondary",
+                disabled=not can_agenda,
+                help=reason_agenda or None,
+            ):
+                _go_route("Agenda", mode="listado")
+        with n4:
+            if st.button(
+                "Ir a Configuracion",
+                key="audit.nav.configuracion",
+                width="stretch",
+                type="secondary",
+                disabled=not can_config,
+                help=reason_config or None,
+            ):
+                _go_route("Configuracion", mode="listado")
+        st.caption(f"Snapshot diario: {auto_daily_result.get('date', datetime.now().strftime('%Y-%m-%d'))}")
+        card_end()
 
     # Toolbar de acciones
     card_begin("Acciones", subtitle="Ejecutar, reparar, exportar", variant="tight")
@@ -4481,6 +4836,7 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
     card_end()
 
     # Ejecutar auditoria si se presiono el boton
+    mark_ui_block("Auditoria", "work")
     if run_audit:
         with st.spinner("Ejecutando auditoria..."):
             reporte = auditar_app(gestor, casos)
@@ -4862,18 +5218,138 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
 # Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
 def render_configuracion(gestor: GestorCasos, casos: List[Caso]):
-    """Vista de configuracion: editar caso + ayuda."""
-    page_header("Configuracion", subtitle="Ajustes avanzados")
+    """Vista de configuracion: estado operativo, edicion y ayuda."""
+    start_ui_block_order("Configuracion")
+    db_ready = bool(st.session_state.get("db_ready", True))
+    db_health = st.session_state.get("db_health", {}) or {}
+    auth_required = _env_bool("VG_AUTH_REQUIRED", default=True)
+    rbac_strict = _env_bool("VG_RBAC_STRICT", default=True)
+    export_strict = _env_bool("VG_EXPORT_STRICT", default=True)
+    audit_strict = _env_bool("VG_AUDIT_WRITE_STRICT", default=False)
 
-    tab1, tab2 = st.tabs(["Editar caso", "Ayuda"])
+    mark_ui_block("Configuracion", "summary")
+    section_header(
+        "Configuracion",
+        subtitle="Ajustes operativos y soporte",
+        meta=[
+            f"Backend {'DB' if is_db_mode() else 'FS'}",
+            f"DB {'OK' if db_ready else 'DEGRADADA'}",
+            f"Auto-guardado {'ON' if _auto_save_changes_enabled() else 'OFF'}",
+        ],
+    )
+
+    card_begin("Estado operativo", subtitle="Control de acceso, persistencia y entorno", variant="tight")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        kpi_card("Auth requerida", "ON" if auth_required else "OFF")
+    with c2:
+        kpi_card("RBAC estricto", "ON" if rbac_strict else "OFF")
+    with c3:
+        kpi_card("Export estricto", "ON" if export_strict else "OFF")
+    with c4:
+        kpi_card("Audit strict", "ON" if audit_strict else "OFF")
+    if not db_ready:
+        st.warning(f"DB no operativa: {db_health.get('last_error', 'sin detalle')}")
+    card_end()
+
+    mark_ui_block("Configuracion", "actions")
+    _render_route_quick_nav(
+        "config.quick",
+        [
+            ("Dashboard", "Dashboard", "listado"),
+            ("Gestion", "Gestion", "listado"),
+            ("Agenda", "Agenda", "listado"),
+            ("Finanzas", "Finanzas", "listado"),
+            ("Auditoria", "Auditoria", "listado"),
+        ],
+        title="Navegacion rapida",
+        subtitle="Saltos directos para trabajo diario",
+        group_in_more_actions=True,
+    )
+
+    mark_ui_block("Configuracion", "work")
+    tab1, tab2, tab3 = st.tabs(["Operativo", "Editar caso", "Ayuda"])
 
     with tab1:
+        if AUTO_SAVE_OVERRIDE_KEY not in st.session_state:
+            st.session_state[AUTO_SAVE_OVERRIDE_KEY] = _env_bool(AUTO_SAVE_CHANGES_ENV, default=True)
+
+        st.toggle(
+            "Auto-guardado de cambios",
+            key=AUTO_SAVE_OVERRIDE_KEY,
+            help="Aplica en ediciones rapidas y formularios compatibles. Recomendado para operacion diaria.",
+        )
+        st.caption(
+            f"Valor efectivo: {'ON' if _auto_save_changes_enabled() else 'OFF'} | "
+            f"Default entorno ({AUTO_SAVE_CHANGES_ENV}): {'ON' if _env_bool(AUTO_SAVE_CHANGES_ENV, default=True) else 'OFF'}"
+        )
+
+        o1, o2, o3 = st.columns(3)
+        with o1:
+            if st.button("Recargar cache", key="config.ops.reload_cache", width="stretch", type="secondary"):
+                st.cache_data.clear()
+                st.session_state.pop("df_full", None)
+                _ui_toast("Cache recargada")
+                st.rerun()
+        with o2:
+            if st.button("Ir a Dashboard", key="config.ops.go_dashboard", width="stretch", type="secondary"):
+                _go_route("Dashboard")
+        with o3:
+            if st.button("Reintentar conexion DB", key="config.ops.retry_db", width="stretch", type="secondary"):
+                st.session_state["db_ready"] = None
+                st.session_state["db_health"] = {}
+                st.rerun()
+
+        p1, p2, p3 = st.columns(3)
+        with p1:
+            if st.button(
+                "Crear acceso directo en Escritorio",
+                key="config.ops.shortcut.desktop",
+                width="stretch",
+                type="secondary",
+            ):
+                ok_shortcut, detail_shortcut = _create_desktop_shortcut()
+                if ok_shortcut:
+                    st.success(detail_shortcut)
+                    _ui_toast("Acceso directo listo")
+                else:
+                    st.error(detail_shortcut)
+        with p2:
+            if st.button(
+                "Preparar DB de pruebas",
+                key="config.ops.setup_test_db",
+                width="stretch",
+                type="secondary",
+            ):
+                ok_setup, detail_setup = _setup_test_database_from_ui()
+                if ok_setup:
+                    st.success("DB de pruebas lista para suites completas.")
+                    st.code(detail_setup, language="text")
+                    _ui_toast("DB de pruebas preparada")
+                else:
+                    st.error("No se pudo preparar DB de pruebas.")
+                    st.code(detail_setup, language="text")
+        with p3:
+            st.caption("Ingreso recomendado: icono 'SistemaLegal ERP' en el Escritorio.")
+
+        flags_df = pd.DataFrame(
+            [
+                {"Flag": "VG_AUTH_REQUIRED", "Valor": "1" if auth_required else "0", "Descripcion": "Requiere autenticacion"},
+                {"Flag": "VG_RBAC_STRICT", "Valor": "1" if rbac_strict else "0", "Descripcion": "Permisos por rol estrictos"},
+                {"Flag": "VG_EXPORT_STRICT", "Valor": "1" if export_strict else "0", "Descripcion": "Control de exportes por rol"},
+                {"Flag": "VG_AUDIT_WRITE_STRICT", "Valor": "1" if audit_strict else "0", "Descripcion": "Bloquea mutaciones sin auditoria"},
+                {"Flag": AUTO_SAVE_CHANGES_ENV, "Valor": "1" if _env_bool(AUTO_SAVE_CHANGES_ENV, default=True) else "0", "Descripcion": "Default de auto-guardado"},
+            ]
+        )
+        st.dataframe(flags_df, width="stretch", hide_index=True)
+
+    with tab2:
         if casos:
             formulario_editar_caso(st, gestor, casos)
         else:
             st.info("No hay casos para editar.")
 
-    with tab2:
+    with tab3:
         ui_centro_ayuda_content()
 
 

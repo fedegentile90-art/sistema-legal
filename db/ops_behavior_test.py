@@ -131,7 +131,7 @@ def test_env_contract_read_only_without_test_dsn() -> bool:
 
 
 def test_dailyops_cuts_on_invalid_mode() -> bool:
-    section("3. DailyOps corta por env_contract con modo invalido")
+    section("3. DailyOps normaliza modo invalido y continua en read_only")
     env = os.environ.copy()
     if not str(env.get("DATABASE_URL", "")).strip():
         fail("DATABASE_URL no disponible para test operacional")
@@ -146,15 +146,19 @@ def test_dailyops_cuts_on_invalid_mode() -> bool:
         return False
 
     out = f"{proc.stdout}\n{proc.stderr}"
-    if proc.returncode != 20:
-        fail(f"DailyOps returncode={proc.returncode} (esperado=20)")
+    if proc.returncode != 0:
+        fail(f"DailyOps returncode={proc.returncode} (esperado=0)")
         info(out[-2200:])
         return False
-    if "[CUT] env_contract_daily_ops fallido. Se corta flujo antes de nightly_audit." not in out:
-        fail("No se detecto corte esperado por env_contract_daily_ops")
+    if "Se fuerza 'read_only' para DailyOps." not in out:
+        fail("No se detecto normalizacion de modo invalido -> read_only")
         info(out[-2200:])
         return False
-    ok("DailyOps corta flujo en env_contract con codigo 20")
+    if "RELEASE QA GATE: PASS" not in out:
+        fail("DailyOps normalizado no completo gate PASS")
+        info(out[-2200:])
+        return False
+    ok("DailyOps normaliza modo invalido y completa flujo en read_only")
     return True
 
 

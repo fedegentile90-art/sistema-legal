@@ -101,6 +101,7 @@ VG_BACKUP_DIR=
 VG_BACKUP_DRILL_SCHEMA_PREFIX=restore_drill
 VG_SUITE_TIMEOUT_SEC=900
 VG_STEP_TIMEOUT_SEC=1200
+VG_DOTENV_AUTOLOAD=1
 ```
 
 Validar contrato de entorno (reproducible):
@@ -110,6 +111,12 @@ python db/env_contract.py --profile app
 python db/env_contract.py --profile daily_ops
 python db/env_contract.py --profile release_gate_full
 python db/env_contract.py --profile backup_restore_drill
+```
+
+Bootstrap opcional de DB de pruebas (crea DB test si no existe, aplica schema y puede persistir `.env`):
+
+```bash
+python db/setup_test_db.py --write-dotenv
 ```
 
 ### 3. Validar operacion DB-first
@@ -131,6 +138,7 @@ python db/smoke_test.py
 | `security_baseline.py` | Auditoria base de seguridad DB (auth/roles/least privilege) |
 | `performance_capacity.py` | Baseline de performance/capacidad DB (latencia + volumen core) |
 | `backup_restore_drill.py` | Backup logico + drill de restore en schema temporal de DB test |
+| `setup_test_db.py` | Bootstrap de `VG_TEST_DATABASE_URL` (create DB + schema + preflight) |
 | `nightly_audit.py` | Auditoria diaria/nocturna + persistencia de historial (`audit_history.csv`) |
 | `release_gate.py` | QA Gate de release (`contract`, `ux`, `smoke`) |
 | `env_contract.py` | Contrato ejecutable de entorno por perfil (`app`, `daily_ops`, `release_gate`, `db_suite`) |

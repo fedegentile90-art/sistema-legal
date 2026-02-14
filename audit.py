@@ -8,7 +8,7 @@ import logging
 import platform
 import time
 from dataclasses import asdict, dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -19,6 +19,11 @@ from repo import GestorCasos, is_db_mode, is_db_path
 
 logger = logging.getLogger(__name__)
 ANOS_ACTIVOS = getattr(_config, "AÑOS_ACTIVOS", getattr(_config, "AÃ‘OS_ACTIVOS", []))
+
+
+def _utc_now_iso() -> str:
+    """Timestamp UTC estable en ISO-8601 con sufijo Z."""
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 DEFAULT_INCOMPLETE_FIELDS = (
     "FECHA_TAREA",
@@ -161,6 +166,7 @@ def build_operational_kpi_snapshot(gestor: GestorCasos, casos: List[Caso]) -> Di
     expediente_ok = 0
     evento_fecha_ok = 0
     fin_ok = 0
+    fin_by_case = _build_financial_map(gestor, casos or [])
 
     for caso in casos or []:
         if not is_blank(getattr(caso, "fecha_tarea", "")):
@@ -172,12 +178,7 @@ def build_operational_kpi_snapshot(gestor: GestorCasos, casos: List[Caso]) -> Di
         if (not is_blank(evento_val)) and (not is_blank(fecha_evento_val)):
             evento_fecha_ok += 1
 
-        fin_data = {}
-        if hasattr(gestor, "leer_datos_financieros"):
-            try:
-                fin_data = gestor.leer_datos_financieros(caso.ruta) or {}
-            except Exception:
-                fin_data = {}
+        fin_data = fin_by_case.get(str(caso.ruta), {})
         if any(not is_blank(fin_data.get(field, "")) for field in CAMPOS_FINANCIEROS):
             fin_ok += 1
 
@@ -213,10 +214,59 @@ def build_operational_kpi_snapshot(gestor: GestorCasos, casos: List[Caso]) -> Di
         metric["gap_pct"] = round(metric["pct"] - metric["target_pct"], 1)
 
     return {
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": _utc_now_iso(),
         "casos_total": total,
         "kpis": kpis,
     }
+
+
+def _normalize_financial_row(raw: Dict[str, object] | None) -> Dict[str, str]:
+    payload = raw if isinstance(raw, dict) else {}
+    return {field: str(payload.get(field, "") or "") for field in CAMPOS_FINANCIEROS}
+
+
+def _build_financial_map(gestor: GestorCasos, casos: List[Caso]) -> Dict[str, Dict[str, str]]:
+    out: Dict[str, Dict[str, str]] = {}
+    rutas = [getattr(c, "ruta", None) for c in (casos or []) if getattr(c, "ruta", None) is not None]
+    batch_data: Dict[str, Dict[str, str]] = {}
+
+    if hasattr(gestor, "leer_datos_financieros_batch") and rutas:
+        try:
+            raw_batch = gestor.leer_datos_financieros_batch(rutas) or {}
+            if isinstance(raw_batch, dict):
+                batch_data = {str(k): _normalize_financial_row(v) for k, v in raw_batch.items()}
+        except Exception as exc:
+            logger.warning("audit financial batch read failed, fallback single-case mode: %s", exc)
+            batch_data = {}
+
+    fallback_errors = 0
+    first_error: Exception | None = None
+    for caso in casos or []:
+        ref = str(caso.ruta)
+        if ref in batch_data:
+            out[ref] = _normalize_financial_row(batch_data.get(ref))
+            continue
+
+        fin_data: Dict[str, object] = {}
+        if hasattr(gestor, "leer_datos_financieros"):
+            try:
+                raw_single = gestor.leer_datos_financieros(caso.ruta) or {}
+                if isinstance(raw_single, dict):
+                    fin_data = raw_single
+            except Exception as exc:
+                fallback_errors += 1
+                if first_error is None:
+                    first_error = exc
+        out[ref] = _normalize_financial_row(fin_data)
+
+    if fallback_errors:
+        logger.warning(
+            "audit financial fallback had %s error(s); first=%s",
+            fallback_errors,
+            first_error,
+        )
+
+    return out
 
 
 def _safe_int(value: Any, default: int = 0) -> int:
@@ -243,7 +293,7 @@ def _normalize_generated_at(value: str) -> str:
     raw = str(value or "").strip()
     if raw:
         return raw
-    return datetime.utcnow().isoformat() + "Z"
+    return _utc_now_iso()
 
 
 def _generated_at_to_date(generated_at: str) -> str:
@@ -723,7 +773,7 @@ def build_operational_hallazgos_export_payload(
     dates = sorted({str(r.get("date", "")).strip() for r in rows_list if str(r.get("date", "")).strip()})
 
     return {
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": _utc_now_iso(),
         "filters": dict(filters or {}),
         "summary": {
             "rows": len(rows_list),

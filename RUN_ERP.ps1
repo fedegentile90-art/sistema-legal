@@ -5,14 +5,17 @@
 $ErrorActionPreference = "Stop"
 
 $RepoDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Port = 8501
-$Url = "http://localhost:$Port"
+$DefaultPort = 8501
 $PythonVenv = Join-Path $RepoDir ".venv\Scripts\python.exe"
 $Python = if (Test-Path $PythonVenv) { $PythonVenv } else { "python" }
 $LogDir = Join-Path $RepoDir "logs"
 $LauncherLog = Join-Path $LogDir "launcher.log"
 $OpsLog = Join-Path $LogDir ("ops_{0}.log" -f (Get-Date).ToString("yyyyMMdd"))
 $StepTimeoutSec = 1200
+$ReleaseModeEnvName = "VG_RELEASE_GATE_MODE"
+$ReleaseModeReadOnly = "read_only"
+$ReleaseModeFull = "full"
+$DotEnvAutoLoadEnvName = "VG_DOTENV_AUTOLOAD"
 
 $EXIT_OK = 0
 $EXIT_LAUNCHER_FAIL = 10
@@ -113,6 +116,109 @@ function Test-Port([int]$PortNumber, [int]$TimeoutMs = 350) {
     } finally {
         $client.Close()
     }
+}
+
+function _IsDotEnvAutoloadEnabled {
+    $raw = [Environment]::GetEnvironmentVariable($DotEnvAutoLoadEnvName, "Process")
+    if ([string]::IsNullOrWhiteSpace($raw)) {
+        return $true
+    }
+    $norm = $raw.Trim().ToLowerInvariant()
+    if ($norm -in @("0", "false", "off", "no")) {
+        return $false
+    }
+    return $true
+}
+
+function Initialize-EnvFromDotEnv {
+    if (-not (_IsDotEnvAutoloadEnabled)) {
+        return @{
+            "enabled" = $false
+            "loaded" = 0
+            "file" = ""
+            "reason" = ("{0}=off" -f $DotEnvAutoLoadEnvName)
+        }
+    }
+
+    $envPath = Join-Path $RepoDir ".env"
+    if (-not (Test-Path $envPath)) {
+        return @{
+            "enabled" = $true
+            "loaded" = 0
+            "file" = $envPath
+            "reason" = "missing"
+        }
+    }
+
+    $loaded = 0
+    foreach ($rawLine in (Get-Content -Path $envPath)) {
+        $line = [string]$rawLine
+        if ($null -eq $line) {
+            continue
+        }
+        $line = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+        if ($line.StartsWith("#")) {
+            continue
+        }
+        $idx = $line.IndexOf("=")
+        if ($idx -le 0) {
+            continue
+        }
+        $name = $line.Substring(0, $idx).Trim()
+        $value = $line.Substring($idx + 1)
+        if ($name -notmatch "^[A-Za-z_][A-Za-z0-9_]*$") {
+            continue
+        }
+        if (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+            $value = $value.Substring(1, [Math]::Max(0, $value.Length - 2))
+        }
+        $current = [Environment]::GetEnvironmentVariable($name, "Process")
+        if (-not [string]::IsNullOrWhiteSpace($current)) {
+            continue
+        }
+        [Environment]::SetEnvironmentVariable($name, $value, "Process")
+        $loaded++
+    }
+
+    return @{
+        "enabled" = $true
+        "loaded" = $loaded
+        "file" = $envPath
+        "reason" = "ok"
+    }
+}
+
+function Test-StreamlitServer([int]$PortNumber, [int]$TimeoutSec = 1) {
+    $url = "http://localhost:$PortNumber"
+    try {
+        $response = Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec $TimeoutSec
+        $body = ""
+        if ($null -ne $response.Content) {
+            $body = [string]$response.Content
+        }
+        if (($response.StatusCode -ge 200) -and ($response.StatusCode -lt 500) -and ($body -match "(?i)streamlit")) {
+            return $true
+        }
+    } catch {
+    }
+    return $false
+}
+
+function Get-FreePort([int]$PreferredPort, [int]$MaxOffset = 20) {
+    if (-not (Test-Port -PortNumber $PreferredPort)) {
+        return $PreferredPort
+    }
+
+    for ($offset = 1; $offset -le $MaxOffset; $offset++) {
+        $candidate = $PreferredPort + $offset
+        if (-not (Test-Port -PortNumber $candidate)) {
+            return $candidate
+        }
+    }
+    return -1
 }
 
 function Invoke-PythonStep([string]$StepName, [string[]]$StepArgs, [int]$TimeoutSec, [string]$RunId = "") {
@@ -223,18 +329,41 @@ function Invoke-PythonStep([string]$StepName, [string[]]$StepArgs, [int]$Timeout
 
 function Run-Launcher {
     Set-Location $RepoDir
+    $dotenv = Initialize-EnvFromDotEnv
+    if (-not [bool]$dotenv.enabled) {
+        Write-LauncherLog ("Auto-load .env desactivado ({0})." -f $dotenv.reason)
+    } elseif ($dotenv.reason -eq "missing") {
+        Write-LauncherLog ("No se encontro archivo .env en {0}." -f $dotenv.file)
+    } else {
+        Write-LauncherLog ("Variables cargadas desde .env: {0} ({1})" -f $dotenv.loaded, $dotenv.file)
+    }
+    $preferredPort = Get-PositiveIntEnv -Name "VG_APP_PORT" -DefaultValue $DefaultPort
+    $selectedPort = $preferredPort
+    $url = "http://localhost:$selectedPort"
 
-    if (Test-Port -PortNumber $Port) {
-        Write-LauncherLog "Server ya activo, abriendo browser"
-        Start-Process $Url | Out-Null
+    if (Test-StreamlitServer -PortNumber $preferredPort) {
+        Write-LauncherLog ("Server streamlit ya activo en puerto {0}, abriendo browser" -f $preferredPort)
+        Start-Process $url | Out-Null
         return $EXIT_OK
     }
 
-    Write-LauncherLog "Iniciando server streamlit..."
+    if (Test-Port -PortNumber $preferredPort) {
+        $candidate = Get-FreePort -PreferredPort $preferredPort -MaxOffset 20
+        if ($candidate -lt 1) {
+            Write-LauncherLog ("Puerto {0} ocupado y no se encontro puerto alternativo." -f $preferredPort)
+            Start-Process "notepad.exe" -ArgumentList @($LauncherLog) | Out-Null
+            return $EXIT_LAUNCHER_FAIL
+        }
+        $selectedPort = $candidate
+        $url = "http://localhost:$selectedPort"
+        Write-LauncherLog ("Puerto {0} ocupado por otro proceso. Se usara puerto alternativo {1}." -f $preferredPort, $selectedPort)
+    }
+
+    Write-LauncherLog ("Iniciando server streamlit en puerto {0}..." -f $selectedPort)
     $args = @(
         "-m", "streamlit", "run", "app.py",
         "--server.address=localhost",
-        "--server.port=8501",
+        "--server.port=$selectedPort",
         "--logger.level=info"
     )
 
@@ -246,21 +375,41 @@ function Run-Launcher {
 
     for ($i = 0; $i -lt 24; $i++) {
         Start-Sleep -Milliseconds 500
-        if (Test-Port -PortNumber $Port) {
-            Write-LauncherLog "Server arriba, abriendo browser"
-            Start-Process $Url | Out-Null
+        if (Test-StreamlitServer -PortNumber $selectedPort) {
+            Write-LauncherLog ("Server arriba en puerto {0}, abriendo browser" -f $selectedPort)
+            Start-Process $url | Out-Null
             return $EXIT_OK
         }
     }
 
-    Write-LauncherLog "Timeout esperando puerto"
+    Write-LauncherLog ("Timeout esperando server en puerto {0}" -f $selectedPort)
     Start-Process "notepad.exe" -ArgumentList @($LauncherLog) | Out-Null
     return $EXIT_LAUNCHER_FAIL
 }
 
 function Run-DailyOps {
     Set-Location $RepoDir
+    $dotenv = Initialize-EnvFromDotEnv
+    if (-not [bool]$dotenv.enabled) {
+        Write-OpsLog ("[INFO] Auto-load .env desactivado ({0})." -f $dotenv.reason)
+    } elseif ($dotenv.reason -eq "missing") {
+        Write-OpsLog ("[INFO] No se encontro archivo .env en {0}." -f $dotenv.file)
+    } else {
+        Write-OpsLog ("[INFO] Variables cargadas desde .env: {0} ({1})" -f $dotenv.loaded, $dotenv.file)
+    }
     $StepTimeoutSec = Get-PositiveIntEnv -Name "VG_STEP_TIMEOUT_SEC" -DefaultValue 1200
+    $releaseModeRaw = [Environment]::GetEnvironmentVariable($ReleaseModeEnvName, "Process")
+    $releaseMode = if ([string]::IsNullOrWhiteSpace($releaseModeRaw)) {
+        $ReleaseModeReadOnly
+    } else {
+        $releaseModeRaw.Trim().ToLowerInvariant()
+    }
+    if (($releaseMode -ne $ReleaseModeReadOnly) -and ($releaseMode -ne $ReleaseModeFull)) {
+        Write-OpsLog ("[WARN] {0} invalida ('{1}'). Se fuerza '{2}' para DailyOps." -f $ReleaseModeEnvName, $releaseModeRaw, $ReleaseModeReadOnly)
+        $releaseMode = $ReleaseModeReadOnly
+    }
+    [Environment]::SetEnvironmentVariable($ReleaseModeEnvName, $releaseMode, "Process")
+
     $runId = [Environment]::GetEnvironmentVariable("VG_RUN_ID", "Process")
     if ([string]::IsNullOrWhiteSpace($runId)) {
         $runId = New-RunId
@@ -270,6 +419,7 @@ function Run-DailyOps {
     Write-OpsLog ("RepoDir: {0}" -f $RepoDir)
     Write-OpsLog ("Run ID: {0} (env VG_RUN_ID)" -f $runId)
     Write-OpsLog ("Step timeout: {0}s (env VG_STEP_TIMEOUT_SEC)" -f $StepTimeoutSec)
+    Write-OpsLog ("Release gate mode efectivo: {0} (env {1})" -f $releaseMode, $ReleaseModeEnvName)
     Write-OpsObs -RunId $runId -Stage "daily_ops_start" -Suite "daily_ops" -Status "RUN"
 
     $envCode = Invoke-PythonStep -StepName "env_contract_daily_ops" -StepArgs @("db/env_contract.py", "--profile", "daily_ops") -TimeoutSec $StepTimeoutSec -RunId $runId
