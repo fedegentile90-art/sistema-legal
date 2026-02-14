@@ -1,24 +1,29 @@
-﻿# Stabilization (30 days)
+﻿# Stabilization 30 Days (D15-D30)
 
-Window: 2026-03-01 to 2026-03-30.
+Ventana: 2026-03-01 a 2026-03-30.
 
-## Tickets
-| Ticket | Objective | I/R/E | Evidence baseline | Files/modules | Acceptance |
+## Objetivo
+Ejecutar hardening estructural sin romper el flujo diario que ya esta en produccion interna.
+
+## Tickets de estabilizacion
+| Ticket | Objetivo | I/R/E | Evidencia base | Archivos | Aceptacion |
 |---|---|---|---|---|---|
-| ST01 | Migrate agenda engine to `tasks` with compatibility fallback | 5/5/4 | `tasks` exists but unused (`db/schema.sql:159`) | `repo_db.py`, `views.py`, migration scripts | Agenda reads/writes via `tasks`, legacy state explicit |
-| ST02 | Document versions and custody events | 5/4/4 | `document_versions`/`case_events` not wired | `repo_db.py`, `views.py`, migrations | Immutable document history per case |
-| ST03 | Encrypted backups + retention policy | 5/5/3 | clear JSON backup writes (`db/backup_restore_drill.py:203`) | `db/backup_restore_drill.py`, policy docs/scripts | encrypted artifacts and successful restore drill |
-| ST04 | Security gate enforce in test/preprod | 5/5/2 | gate defaults warn (`db/release_gate.py:748`) | `db/release_gate.py`, `db/env_contract.py` | release blocked for privilege deviations |
+| ST01 | Integrar agenda sobre `tasks` con compatibilidad legacy | 5/5/4 | `tasks` existe y agenda actual sigue legacy (`db/schema.sql:159`, `views.py:3667`) | `repo_db.py`, `views.py`, migraciones | agenda lee/escribe en `tasks` y fallback legacy explicito |
+| ST02 | Modelo documental con versionado + custodia | 5/4/4 | modulo documental sin custodia completa | `db/schema.sql`, `repo_db.py`, `views.py`, migraciones | historial documental por caso trazable y auditable |
+| ST03 | Backup cifrado + retencion | 5/5/3 | backup JSON plano en drill | `db/backup_restore_drill.py`, docs operativas | artefacto cifrado, retencion aplicada, restore validado |
+| ST04 | Gate seguridad/performance en enforce (test/preprod) | 5/5/2 | gate soporta enforce (`db/release_gate.py`) | `db/release_gate.py`, `.env`, `db/env_contract.py` | `release_gate --mode full --security-mode enforce --performance-mode enforce` PASS |
 
-## Go/No-Go criteria
-- `python db/release_gate.py --mode full --security-mode enforce --performance-mode enforce` must pass in preprod.
-- `VG_TEST_DATABASE_URL` isolation validated by `db/env_contract.py --profile daily_ops` and `--profile release_gate_full`.
+## Go/No-Go
+- Obligatorio: `python db/env_contract.py --profile daily_ops` PASS.
+- Obligatorio: `python db/release_gate.py --mode full` PASS sin suites BLOCKED.
+- Obligatorio: no incidentes P1 abiertos por auth/rbac/auditoria.
 
-## Rollback strategy
-1. Rollback migrations down in reverse order.
-2. Restore from encrypted backup drill target.
-3. Switch gate mode to `warn` only with incident ticket and explicit approval.
+## Rollback
+1. Revertir migraciones del lote en orden inverso.
+2. Restaurar ultimo backup validado.
+3. Volver gate a `read_only` solo con ticket de incidente.
 
-## Dependencies
-- ST03 depends on policy completion from privacy/governance work.
-- ST01 and ST02 depend on stable audit instrumentation from quick wins.
+## Dependencias
+- Requiere D0-D14 estable y checklist diario cumplido.
+- ST03 depende de politica de retencion definida en docs operativas.
+- ST01/ST02 requieren auditoria de mutaciones activa.

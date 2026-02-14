@@ -38,6 +38,7 @@ Import-DotEnv -Path (Join-Path $RepoDir ".env")
 [Environment]::SetEnvironmentVariable("VG_RBAC_STRICT", "1", "Process")
 [Environment]::SetEnvironmentVariable("VG_EXPORT_STRICT", "1", "Process")
 [Environment]::SetEnvironmentVariable("VG_AUTO_SAVE_CHANGES", "1", "Process")
+[Environment]::SetEnvironmentVariable("VG_RELEASE_GATE_MODE", "read_only", "Process")
 
 $dsn = [Environment]::GetEnvironmentVariable("DATABASE_URL", "Process")
 if ([string]::IsNullOrWhiteSpace($dsn)) {

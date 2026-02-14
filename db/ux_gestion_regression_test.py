@@ -446,8 +446,12 @@ def test_wizard_minimos_guardar_actualiza() -> tuple[bool, str]:
         })
         return data
 
-    def fake_update(self, ruta_caso, cambios):
-        update_calls.append({"ruta": str(ruta_caso), "cambios": dict(cambios)})
+    def fake_update(self, ruta_caso, cambios, actor_ctx=None):
+        update_calls.append({
+            "ruta": str(ruta_caso),
+            "cambios": dict(cambios),
+            "actor_ctx": dict(actor_ctx or {}),
+        })
         return True
 
     GestorCasosDB._leer_ficha = fake_leer_ficha
@@ -564,8 +568,12 @@ def test_finanzas_csv_import_plan_apply() -> tuple[bool, str]:
         def __init__(self):
             self.calls: list[dict] = []
 
-        def guardar_datos_financieros(self, ruta_caso, datos_fin):
-            self.calls.append({"ruta": str(ruta_caso), "datos_fin": dict(datos_fin)})
+        def guardar_datos_financieros(self, ruta_caso, datos_fin, actor_ctx=None):
+            self.calls.append({
+                "ruta": str(ruta_caso),
+                "datos_fin": dict(datos_fin),
+                "actor_ctx": dict(actor_ctx or {}),
+            })
             return True
 
     fake = FakeGestor()
@@ -604,9 +612,9 @@ def run() -> int:
 
     original_update = GestorCasosDB.actualizar_campos_ficha
 
-    def counting_update(self, ruta_caso, cambios):
+    def counting_update(self, ruta_caso, cambios, actor_ctx=None):
         calls.append({"ruta": str(ruta_caso), "cambios": dict(cambios)})
-        return original_update(self, ruta_caso, cambios)
+        return original_update(self, ruta_caso, cambios, actor_ctx=actor_ctx)
 
     GestorCasosDB.actualizar_campos_ficha = counting_update
     try:

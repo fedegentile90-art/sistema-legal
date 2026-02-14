@@ -290,9 +290,9 @@ def run() -> int:
     calls = []
     temp_case = None
 
-    def counting_update(self, ruta_caso, cambios):
+    def counting_update(self, ruta_caso, cambios, actor_ctx=None):
         calls.append({"ruta": str(ruta_caso), "cambios": dict(cambios)})
-        return original_update(self, ruta_caso, cambios)
+        return original_update(self, ruta_caso, cambios, actor_ctx=actor_ctx)
 
     GestorCasosDB.actualizar_campos_ficha = counting_update
 

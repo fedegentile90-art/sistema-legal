@@ -14,6 +14,16 @@ _DB_CASE_RE = re.compile(r"db[:/\\\\]+cases[:/\\\\]+([0-9a-fA-F-]{36})", re.IGNO
 _UUID_RE = re.compile(r"^[0-9a-fA-F-]{36}$")
 
 
+def available_routes(can_access_fn=None) -> list[str]:
+    """
+    Devuelve rutas visibles segun permisos.
+    Si ninguna ruta queda habilitada, mantiene Dashboard como fallback seguro.
+    """
+    checker = can_access_fn or (lambda _route: True)
+    visible = [route for route in ROUTES if checker(route)]
+    return visible or ["Dashboard"]
+
+
 def _canonical_case_id(value: str) -> str:
     raw = str(value or "").strip()
     if not raw:
@@ -35,15 +45,27 @@ def get_route() -> str:
     if st.session_state.get("_nav_target"):
         target = st.session_state["_nav_target"]
         st.session_state["nav_route"] = target
+        st.session_state["_sidebar_nav"] = target
         st.session_state["_nav_target"] = ""
         st.rerun()
 
+    # Resolver rutas visibles segun RBAC.
+    from security import can_access_route
+
+    visible_routes = available_routes(can_access_route)
+
     current = st.session_state.get("nav_route", "Dashboard")
-    idx = ROUTES.index(current) if current in ROUTES else 0
+    if current not in visible_routes:
+        current = visible_routes[0]
+        st.session_state["nav_route"] = current
+    if st.session_state.get("_sidebar_nav") not in visible_routes:
+        st.session_state["_sidebar_nav"] = current
+
+    idx = visible_routes.index(current) if current in visible_routes else 0
 
     route = st.sidebar.radio(
-        "Navegacion",
-        ROUTES,
+        "Navegacion principal",
+        visible_routes,
         index=idx,
         key="_sidebar_nav",
         label_visibility="collapsed",

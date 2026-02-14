@@ -1,47 +1,63 @@
-﻿# Master Plan 90 Days (DB-first)
+﻿# Plan Maestro 90 Dias (DB-first)
 
-Reference window: 2026-02-14 to 2026-05-15.
+Ventana de referencia: 2026-02-14 a 2026-05-15.
 
-## Goals
-- Preserve compatibility while raising security, reliability, and maintainability.
-- Close critical legal-tech operational gaps without production breakage.
+## Estrategia
+1. Carril Operacion: trabajar todos los dias sin cortes.
+2. Carril Mejora Diaria: 1 lote pequeno por dia, verificable y reversible.
 
-## Prioritization model
-- Priority score = Impact x Risk reduction x (1 / Effort).
-- Stage gates enforce go/no-go based on tests, policy flags, and rollback readiness.
+## Decisiones cerradas
+- Alcance inicial: MVP operativo.
+- Ritmo: lote diario.
+- Riesgo: seguridad progresiva.
+- Compatibilidad: sin cambios breaking en semana 1.
 
-## Phases
-1. Stage 0 (Day 1-2): freeze baseline and evidence.
-2. Stage 1 (Day 3-14): quick wins + initial stabilization.
-3. Stage 2 (Day 15-30): strong stabilization.
-4. Stage 3 (Day 31-60): functional scaling.
-5. Stage 4 (Day 61-90): operational professionalization.
+## Baseline verificable (evidencia)
+- Rutas operativas activas: `app.py:254`, `app.py:257`, `app.py:260`, `app.py:263`, `app.py:266`, `app.py:269`.
+- Login gate habilitado: `app.py:187`, `security.py:534`.
+- Modulos productivos presentes:
+  - Casos: `views.py:2537`
+  - Agenda: `views.py:3667`
+  - Finanzas: `views.py:3890`
+  - Auditoria: `views.py:4359`
+- Wizard de completitud minima: `views.py:2278`.
+- Importador CSV financiero: `views.py:1423`.
+- Contratos operativos listos: `db/env_contract.py:6`, `db/env_contract.py:10`, `db/release_gate.py:7`, `db/release_gate.py:8`.
+- Baseline KPI bajo por deuda legacy:
+  - `FECHA_TAREA`: `db/snapshots/audit_daily/audit_snapshot_latest.json:388`
+  - `EXPEDIENTE`: `db/snapshots/audit_daily/audit_snapshot_latest.json:396`
+  - `EVENTO_FECHA_EVENTO`: `db/snapshots/audit_daily/audit_snapshot_latest.json:404`
+  - `COBERTURA_FINANCIERA`: `db/snapshots/audit_daily/audit_snapshot_latest.json:412`
 
-## Stage plan summary
-| Stage | Window | Main outcomes | Go/No-Go gate | Rollback |
+## Configuracion operativa por defecto
+- Runtime:
+  - `VG_AUTH_REQUIRED=1`
+  - `VG_RBAC_STRICT=1`
+  - `VG_EXPORT_STRICT=1`
+  - `VG_AUTO_SAVE_CHANGES=1`
+- Gate diario:
+  - `VG_RELEASE_GATE_MODE=read_only` hasta corregir preflight de DB test.
+- Endurecimiento progresivo:
+  - Semana 2: mover a `full` cuando `VG_TEST_DATABASE_URL` pase `env_contract`.
+
+## Plan por fases (Impacto x Riesgo x Esfuerzo)
+| Fase | Dias | Objetivo | Go/No-Go | Rollback |
 |---|---|---|---|---|
-| 0 | D1-D2 | Reproducible baseline, signed snapshots | `release_gate --mode full` evidence captured | Revert only docs/scripts baseline artifacts |
-| 1 | D3-D14 | Logging, audit writes, auth/RBAC flags, XSS fix, duplicate guard, quality CI | `contract`, `ux_gestion`, `ux_phase2`, `smoke` pass; no open criticals F01/F02/F06/F10 for promoted scope | Disable flags: `VG_AUTH_REQUIRED=0`, `VG_RBAC_STRICT=0`, revert stage migrations |
-| 2 | D15-D30 | tasks integration, document versions/custody, encrypted backups, security gate enforce in test/preprod | `release_gate --mode full --security-mode enforce --performance-mode enforce` pass | migration down + validated restore drill |
-| 3 | D31-D60 | Financial layer (aging/rentability), minimal integrations, KPI lineage dashboard | KPI midpoint met (FT>=25, EXP>=30, EV/FE>=15, FIN>=15) | module-level rollback + controlled `warn` fallback |
-| 4 | D61-D90 | Privacy governance hardening, rollout playbooks, 12D objective closure | KPI targets met and availability >=99.5% monthly | major rollback playbook + encrypted restore + postmortem |
+| F0 | D0 | Operar hoy (MVP) | `env_contract --profile app` + flujo casos/agenda/finanzas/auditoria OK | volver a `RUN_ERP.cmd` + flags permissive solo por incidente |
+| F1 | D1-D14 | Estabilizacion diaria con backlog cerrado | secuencia diaria PASS y primer salto KPI | revertir lote diario (docs/flags/script), mantener operacion |
+| F2 | D15-D30 | Hardening estructural sin ruptura | gate `full` y controles seguridad/performance en enforce en test/preprod | rollback por migracion + restore drill |
+| F3 | D31-D60 | Escalado funcional (economico/KPI/integraciones minimas) | KPI intermedio FT>=25 EXP>=30 EV/FE>=15 FIN>=15 | fallback modular con flags |
+| F4 | D61-D90 | Profesionalizacion operativa y cierre de brechas | KPI final FT>=60 EXP>=70 EV/FE>=40 FIN>=70 y disponibilidad >=99.5% | rollback mayor documentado + postmortem |
 
-## Metrics before/after targets
-- KPI completeness targets from `audit_snapshot_latest.json`: move from 7.0/9.3/2.3/2.3 to >=60/70/40/70.
-- Security posture: runtime role warnings (SEC-ROLE/SEC-TABLE) reduced to zero in enforce mode.
-- Quality gate: CI quality + DB gate all green before production promotion.
+## Objetivos medibles (90 dias)
+- KPI completitud: `7.0/9.3/2.3/2.3` -> `>=60/70/40/70`.
+- Disponibilidad mensual: `>=99.5%`.
+- Gate de seguridad en enforce sin hallazgos criticos abiertos.
+- Rutina diaria ejecutada sin cortes no planificados.
 
-## Atomic delivery batches (implemented wave + next)
-- commit-01-observabilidad
-- commit-02-integridad-legacy
-- commit-03-seguridad-minima
-- commit-04-performance
-- commit-05-ux-consistencia
-- commit-06-exportes-reportes
-
-## Dependency order
-1. Security and role hardening.
-2. Audit strictness and mutation completeness.
-3. Data model migration (`tasks`, `document_versions`, `case_events`).
-4. Financial/integration expansion.
-5. Governance and final rollout controls.
+## Orden de implementacion
+1. Operacion diaria estable y segura (auth/rbac/autosave/export strict, gate read_only).
+2. Calidad de datos operativa (campana Top-20 + agenda critica + finanzas base).
+3. Hardening de auditoria y release gate full.
+4. Especificaciones cerradas para migraciones estructurales (`tasks`, custodia documental).
+5. Escalado funcional y gobernanza final.

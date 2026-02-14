@@ -14,7 +14,7 @@ import streamlit as st
 import views as _views
 from db.health import wait_for_db
 from domain import Caso
-from nav import get_route
+from nav import ROUTES, get_route
 from repo import GestorCasos, is_db_mode
 from security import can_access_route, render_login_gate, render_sidebar_identity
 from ui import aplicar_estilos_stitch, barra_lateral_config, configurar_pagina
@@ -25,6 +25,8 @@ render_auditoria = _views.render_auditoria
 render_configuracion = _views.render_configuracion
 
 logger = logging.getLogger(__name__)
+
+DEGRADED_ALLOWED_ROUTES = {"Dashboard", "Auditoria", "Configuracion"}
 
 
 def render_agenda(gestor: GestorCasos, casos: List[Caso]):
@@ -144,20 +146,80 @@ def cargar_casos(_gestor: GestorCasos) -> List[Caso]:
     return _gestor.escanear_casos()
 
 
+def workspace_route_access(route: str, db_ready: bool | None = None) -> tuple[bool, str]:
+    """
+    Evalua si una ruta esta disponible para la sesion actual.
+    Devuelve (enabled, reason).
+    """
+    route_name = str(route or "").strip()
+    if route_name not in ROUTES:
+        return False, "Ruta no valida."
+    if not can_access_route(route_name):
+        return False, "Acceso restringido por rol."
+
+    ready = st.session_state.get("db_ready", True) if db_ready is None else bool(db_ready)
+    if is_db_mode() and not ready and route_name not in DEGRADED_ALLOWED_ROUTES:
+        return False, "Temporalmente deshabilitada: DB fuera de linea."
+    return True, ""
+
+
+def render_workspace_switcher(current_route: str):
+    """
+    Navegacion horizontal visible en workspace para mejorar descubribilidad.
+    Mantiene rutas deshabilitadas con motivo cuando no estan disponibles.
+    """
+    st.markdown(
+        """
+        <style>
+        .vg-workspace-nav {
+            border: 1px solid var(--vg-border);
+            background: linear-gradient(180deg, var(--vg-surface), var(--vg-surface-2));
+            border-radius: var(--vg-radius-lg);
+            padding: 10px;
+            margin-bottom: 12px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="vg-workspace-nav">', unsafe_allow_html=True)
+    cols = st.columns(len(ROUTES))
+    for idx, route in enumerate(ROUTES):
+        enabled, reason = workspace_route_access(route)
+        with cols[idx]:
+            clicked = st.button(
+                route,
+                key=f"workspace.nav.{route.lower()}",
+                width="stretch",
+                type="primary" if route == current_route else "secondary",
+                disabled=not enabled,
+                help=reason or None,
+            )
+            if clicked and route != current_route:
+                st.session_state["_nav_target"] = route
+                st.session_state["route_mode"] = "listado"
+                st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
 # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # HEADER COMPACTO
 # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-def render_header(casos_total: int):
-    """Header fijo con branding compacto."""
+def render_header(casos_total: int, route: str):
+    """Header fijo con branding compacto + estado operativo."""
+    db_ready = bool(st.session_state.get("db_ready", True))
+    db_state = "DB OK" if db_ready else "DB Degradada"
     st.markdown(f"""
     <div class="vg-card" style="padding: 12px 16px; margin-bottom: 8px;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
         <div style="display:flex;align-items:center;gap:12px;">
-          <div style="font-size:20px;font-weight:900;letter-spacing:.2px;color:var(--brand);line-height:1;">
+          <div style="font-size:20px;font-weight:900;letter-spacing:.2px;color:var(--vg-primary);line-height:1;">
             VACA &amp; GENTILE
           </div>
           <span class="vg-pill">Casos: {casos_total}</span>
+          <span class="vg-pill">Seccion: {route}</span>
+          <span class="vg-pill">{db_state}</span>
         </div>
         <div style="font-size:11px;color:var(--muted);">ERP v1.0</div>
       </div>
@@ -235,38 +297,45 @@ def main():
     barra_lateral_config(gestor)
     render_sidebar_identity()
     route = get_route()
-    if is_db_mode() and not st.session_state.get("db_ready", False):
-        allowed_routes = {"Dashboard", "Auditoria", "Configuracion"}
-        if route not in allowed_routes:
-            st.session_state["nav_route"] = "Dashboard"
-            route = "Dashboard"
-    if not can_access_route(route):
-        logger.warning("route blocked by RBAC route=%s", route)
-        st.error("Acceso denegado para la ruta seleccionada.")
+    enabled, reason = workspace_route_access(route)
+    if not enabled:
+        logger.warning("route unavailable route=%s reason=%s", route, reason)
+        st.warning(f"Ruta no disponible ({route}): {reason}")
         st.session_state["nav_route"] = "Dashboard"
+        st.session_state["route_mode"] = "listado"
         route = "Dashboard"
 
     # â”€â”€ HEADER (minimo) â”€â”€
-    render_header(len(casos))
+    render_header(len(casos), route)
+    render_workspace_switcher(route)
 
     # â”€â”€ WORKSPACE: Dispatch por ruta â”€â”€
-    if route == "Dashboard":
-        render_dashboard(gestor, casos)
+    try:
+        if route == "Dashboard":
+            render_dashboard(gestor, casos)
 
-    elif route == "Gestion":
-        render_gestion(gestor, casos, df)
+        elif route == "Gestion":
+            render_gestion(gestor, casos, df)
 
-    elif route == "Agenda":
-        render_agenda(gestor, casos)
+        elif route == "Agenda":
+            render_agenda(gestor, casos)
 
-    elif route == "Finanzas":
-        render_finanzas(gestor, casos)
+        elif route == "Finanzas":
+            render_finanzas(gestor, casos)
 
-    elif route == "Auditoria":
-        render_auditoria(gestor, casos)
+        elif route == "Auditoria":
+            render_auditoria(gestor, casos)
 
-    elif route == "Configuracion":
-        render_configuracion(gestor, casos)
+        elif route == "Configuracion":
+            render_configuracion(gestor, casos)
+    except Exception as exc:
+        logger.exception("workspace render failed route=%s", route)
+        st.error(f"No se pudo renderizar la seccion {route}.")
+        st.caption(f"Detalle tecnico: {type(exc).__name__}: {exc}")
+        if st.button("Volver al Dashboard", key="workspace.error.back", width="stretch", type="secondary"):
+            st.session_state["nav_route"] = "Dashboard"
+            st.session_state["route_mode"] = "listado"
+            st.rerun()
 
 
 if __name__ == "__main__":

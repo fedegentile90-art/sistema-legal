@@ -49,7 +49,7 @@ from domain import Caso, case_status, is_blank
 from exports import build_export_metadata, df_to_xlsx_bytes, payload_to_json_bytes
 from grids import render_aggrid
 from repo import GestorCasos, is_db_mode
-from security import build_actor_context, can_export, has_permission, is_rbac_strict
+from security import build_actor_context, can_access_route, can_export, has_permission, is_rbac_strict
 from ui import (
     _ensure_bool_state,
     _swap,
@@ -142,6 +142,7 @@ def _completitud_basica(casos: List[Caso]) -> Dict[str, Dict[str, float]]:
 
 def _go_route(route: str, mode: str = "listado", item_id: str | None = None):
     """NavegaciÃ³n interna sin depender de nav.navigate_to."""
+    st.session_state["_nav_target"] = route
     st.session_state["nav_route"] = route
     if route == "Gestion":
         _go(mode=mode, case_id=item_id, rerun=False)
@@ -151,6 +152,20 @@ def _go_route(route: str, mode: str = "listado", item_id: str | None = None):
             canonical = _canonical_case_ref(item_id)
             st.session_state["selected_item_id"] = canonical or str(item_id).strip()
     st.rerun()
+
+
+def _route_enabled(route: str) -> tuple[bool, str]:
+    """
+    Determina si una ruta es navegable para la sesion actual.
+    Se usa para deshabilitar CTAs y evitar sensacion de botones rotos.
+    """
+    route_name = str(route or "").strip()
+    if not can_access_route(route_name):
+        return False, "Sin permisos para esta seccion."
+    if is_db_mode() and not st.session_state.get("db_ready", True):
+        if route_name in {"Gestion", "Agenda", "Finanzas"}:
+            return False, "Requiere base de datos disponible."
+    return True, ""
 
 
 def _debug_selected_case_id(stage: str, value):
@@ -1538,6 +1553,8 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
     """Dashboard real: KPIs + acciones rapidas. Sin tablas."""
     total = len(casos)
     status_counts = _contar_status(casos) if casos else {"ok": 0, "legacy_incomplete": 0, "error": 0}
+    can_gestion, reason_gestion = _route_enabled("Gestion")
+    can_auditoria, reason_auditoria = _route_enabled("Auditoria")
     header_meta = [
         f"{total} caso{'s' if total != 1 else ''}",
         f"{status_counts.get('legacy_incomplete', 0)} advertencias",
@@ -1547,7 +1564,13 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
 
     if not casos:
         st.info("No hay casos cargados. Use Gestion para crear el primer caso.")
-        if st.button("Ir a Gestion", width="stretch"):
+        if st.button(
+            "Ir a Gestion",
+            width="stretch",
+            key="dash_empty_go_gestion",
+            disabled=not can_gestion,
+            help=reason_gestion or None,
+        ):
             _go_route("Gestion")
         return
 
@@ -1568,11 +1591,25 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
     a1, a2, a3 = st.columns(3)
 
     with a1:
-        if st.button("Ir a Gestion (Casos)", width="stretch", key="dash_go_gestion", type="secondary"):
+        if st.button(
+            "Ir a Gestion (Casos)",
+            width="stretch",
+            key="dash_go_gestion",
+            type="secondary",
+            disabled=not can_gestion,
+            help=reason_gestion or None,
+        ):
             _go_route("Gestion")
 
     with a2:
-        if st.button("Ejecutar Auditoria", width="stretch", key="dash_go_audit", type="secondary"):
+        if st.button(
+            "Ejecutar Auditoria",
+            width="stretch",
+            key="dash_go_audit",
+            type="secondary",
+            disabled=not can_auditoria,
+            help=reason_auditoria or None,
+        ):
             _go_route("Auditoria")
 
     with a3:
@@ -1599,9 +1636,22 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
                 )
                 st.caption(f"Faltantes: {missing}")
             with c_right:
-                if st.button("Abrir", key=f"dash_incomplete_open_{idx}", width="stretch"):
+                if st.button(
+                    "Abrir",
+                    key=f"dash_incomplete_open_{idx}",
+                    width="stretch",
+                    disabled=not can_gestion,
+                    help=reason_gestion or None,
+                ):
                     _go_route("Gestion", mode="detalle", item_id=item.get("case_ref", ""))
-        if st.button("Ver todos en Gestion", key="dash_incomplete_gestion", type="secondary", width="stretch"):
+        if st.button(
+            "Ver todos en Gestion",
+            key="dash_incomplete_gestion",
+            type="secondary",
+            width="stretch",
+            disabled=not can_gestion,
+            help=reason_gestion or None,
+        ):
             _go_route("Gestion", mode="listado")
     else:
         st.success("No hay casos con faltantes en los campos objetivo.")
@@ -1675,7 +1725,14 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
     # CTA a AuditorÃ­a (secundario)
     card_begin("Control de datos", subtitle="DiagnÃ³stico completo en AuditorÃ­a", variant="tight")
     st.caption("Salud de datos se revisa en Auditoria.")
-    if st.button("Ir a Auditoria de datos", key="go_audit_from_dash", type="secondary", width="stretch"):
+    if st.button(
+        "Ir a Auditoria de datos",
+        key="go_audit_from_dash",
+        type="secondary",
+        width="stretch",
+        disabled=not can_auditoria,
+        help=reason_auditoria or None,
+    ):
         _go_route("Auditoria")
     card_end()
 
@@ -3174,12 +3231,29 @@ def _render_casos_detalle_v3(df: pd.DataFrame, gestor: GestorCasos):
             if st.button("Completar tarea", key="gestion.casos.detalle.tarea_ok", width="stretch", type="secondary"):
                 accion_completar_tarea(gestor, ruta_repo)
 
+    can_agenda, reason_agenda = _route_enabled("Agenda")
+    can_finanzas, reason_finanzas = _route_enabled("Finanzas")
+
     dl1, dl2 = st.columns(2)
     with dl1:
-        if st.button("Abrir en Agenda", key="gestion.casos.detalle.deep.agenda", width="stretch", type="secondary"):
+        if st.button(
+            "Abrir en Agenda",
+            key="gestion.casos.detalle.deep.agenda",
+            width="stretch",
+            type="secondary",
+            disabled=not can_agenda,
+            help=reason_agenda or None,
+        ):
             _go_route("Agenda", mode="detalle", item_id=ruta)
     with dl2:
-        if st.button("Abrir en Finanzas", key="gestion.casos.detalle.deep.finanzas", width="stretch", type="secondary"):
+        if st.button(
+            "Abrir en Finanzas",
+            key="gestion.casos.detalle.deep.finanzas",
+            width="stretch",
+            type="secondary",
+            disabled=not can_finanzas,
+            help=reason_finanzas or None,
+        ):
             _go_route("Finanzas", mode="detalle", item_id=ruta)
 
     st.markdown("---")
@@ -3590,12 +3664,29 @@ def _render_cliente_detalle(casos_cliente: list, cliente_sel: str, gestor: Gesto
         if st.button("Editar caso", key="gestion.cliente.detalle.editar", width="stretch"):
             _go(section="casos", mode="editar", selected_id=str(caso_sel.ruta))
 
+    can_agenda, reason_agenda = _route_enabled("Agenda")
+    can_finanzas, reason_finanzas = _route_enabled("Finanzas")
+
     dl1, dl2 = st.columns(2)
     with dl1:
-        if st.button("Abrir en Agenda", key="gestion.cliente.detalle.deep.agenda", width="stretch", type="secondary"):
+        if st.button(
+            "Abrir en Agenda",
+            key="gestion.cliente.detalle.deep.agenda",
+            width="stretch",
+            type="secondary",
+            disabled=not can_agenda,
+            help=reason_agenda or None,
+        ):
             _go_route("Agenda", mode="detalle", item_id=str(caso_sel.ruta))
     with dl2:
-        if st.button("Abrir en Finanzas", key="gestion.cliente.detalle.deep.finanzas", width="stretch", type="secondary"):
+        if st.button(
+            "Abrir en Finanzas",
+            key="gestion.cliente.detalle.deep.finanzas",
+            width="stretch",
+            type="secondary",
+            disabled=not can_finanzas,
+            help=reason_finanzas or None,
+        ):
             _go_route("Finanzas", mode="detalle", item_id=str(caso_sel.ruta))
 
     st.markdown("---")

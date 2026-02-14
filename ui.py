@@ -984,7 +984,8 @@ def barra_lateral_config(gestor: Any = None):
         unsafe_allow_html=True,
     )
 
-    if st.sidebar.button("Abrir carpeta base", width="stretch"):
+    st.sidebar.caption("Acciones rapidas")
+    if st.sidebar.button("Abrir carpeta base", key="sidebar.open_base", width="stretch"):
         try:
             from config import RUTA_BASE
 
@@ -992,10 +993,12 @@ def barra_lateral_config(gestor: Any = None):
         except Exception as exc:  # pragma: no cover - UI feedback
             st.sidebar.error(f"No se pudo abrir la ruta base: {exc}")
 
-    if st.sidebar.button("Recargar datos", width="stretch"):
+    if st.sidebar.button("Recargar datos", key="sidebar.reload", width="stretch"):
         st.cache_data.clear()
         st.rerun()
 
     st.sidebar.markdown("---")
-
+    st.sidebar.caption("Navegacion")
+    st.sidebar.caption("Use el selector de rutas y los botones del area principal.")
+    st.sidebar.markdown("---")
     st.sidebar.caption("UI Â· Stitch Design System")
