@@ -33,14 +33,14 @@ DEGRADED_ALLOWED_ROUTES = {"Dashboard", "Auditoria", "Configuracion"}
 
 
 def render_agenda(gestor: GestorCasos, casos: List[Caso]):
-    """Compat: usa entrypoint nuevo o fallback al mÃ³dulo legacy."""
+    """Compat: usa entrypoint nuevo o fallback al módulo legacy."""
     if hasattr(_views, "render_agenda"):
         return _views.render_agenda(gestor, casos)
     return _views.render_modulo_agenda(gestor, casos, "listado")
 
 
 def render_finanzas(gestor: GestorCasos, casos: List[Caso]):
-    """Compat: usa entrypoint nuevo o fallback al mÃ³dulo legacy."""
+    """Compat: usa entrypoint nuevo o fallback al módulo legacy."""
     if hasattr(_views, "render_finanzas"):
         return _views.render_finanzas(gestor, casos)
     return _views.render_modulo_finanzas(gestor, casos, "listado")
@@ -88,7 +88,7 @@ def ensure_state():
     st.session_state.setdefault("gestion.snapshots.finanzas", {})
     # Estado de filtros/controles de Gestion > Casos para evitar claves faltantes entre reruns.
     st.session_state.setdefault("busqueda_global", "")
-    st.session_state.setdefault("filtro_aÃ±o", "Todos")
+    st.session_state.setdefault("filtro_año", "Todos")
     st.session_state.setdefault("filtro_estado", "Todos")
     st.session_state.setdefault("filtro_cliente", "Todos")
     st.session_state.setdefault("filtro_fuero", "Todos")

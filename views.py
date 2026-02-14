@@ -101,7 +101,7 @@ def _xlsx_bytes(df: pd.DataFrame, sheet_name: str = "Reporte") -> bytes:
 
 
 def _get_export_ts(name: str) -> str:
-    """Timestamp estable por sesiÃ³n para file_name de descargas."""
+    """Timestamp estable por sesión para file_name de descargas."""
     key = f"export_ts_{name}"
     if key not in st.session_state:
         st.session_state[key] = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -109,7 +109,7 @@ def _get_export_ts(name: str) -> str:
 
 
 def _regen_export_ts(names: List[str]):
-    """Actualiza los timestamps de exportes (botÃ³n 'Regenerar')."""
+    """Actualiza los timestamps de exportes (botón 'Regenerar')."""
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     for name in names:
         st.session_state[f"export_ts_{name}"] = ts
@@ -125,7 +125,7 @@ def _contar_status(casos: List[Caso]) -> Dict[str, int]:
 
 
 def _completitud_basica(casos: List[Caso]) -> Dict[str, Dict[str, float]]:
-    """Calcula completitud por campo usando la misma lÃ³gica que auditorÃ­a."""
+    """Calcula completitud por campo usando la misma lógica que auditoría."""
     total = len(casos)
     if total == 0:
         return {}
@@ -147,7 +147,7 @@ def _completitud_basica(casos: List[Caso]) -> Dict[str, Dict[str, float]]:
 
 
 def _go_route(route: str, mode: str = "listado", item_id: str | None = None):
-    """NavegaciÃ³n interna sin depender de nav.navigate_to."""
+    """Navegación interna sin depender de nav.navigate_to."""
     st.session_state["_nav_target"] = route
     st.session_state["nav_route"] = route
     if route == "Gestion":
@@ -372,7 +372,7 @@ GESTION_SECTION_FILTER_DEFAULTS = {
 
 GESTION_FILTER_LEGACY_KEYS = {
     "busqueda": "busqueda_global",
-    "anio": "filtro_aÃ±o",
+    "anio": "filtro_año",
     "estado": "filtro_estado",
     "cliente": "filtro_cliente",
     "fuero": "filtro_fuero",
@@ -385,7 +385,7 @@ GESTION_FILTER_LEGACY_KEYS = {
 }
 
 GESTION_FILTER_LEGACY_ALIASES = {
-    "anio": ["filtro_aÃ±o", "filtro_a\u00c3\u00b1o"],
+    "anio": ["filtro_año", "filtro_a\u00c3\u00b1o"],
 }
 
 SEMAFORO_ICONS = {
@@ -906,7 +906,7 @@ def _canonical_case_ref(value) -> str:
 
 
 def _set_selected_case_id(value, stage: str = "set") -> str:
-    """Setea selected_case_id en formato canÃ³nico en estado namespaced + legacy."""
+    """Setea selected_case_id en formato canónico en estado namespaced + legacy."""
     return _set_selected_for_section("casos", value, stage=stage)
 
 
@@ -1123,12 +1123,12 @@ def _persist_casos_filter_state():
 
 
 def _anio_col(df: pd.DataFrame) -> str:
-    """Resuelve nombre de columna de aÃ±o tolerando variantes de encoding."""
+    """Resuelve nombre de columna de año tolerando variantes de encoding."""
     return _resolve_col(df, "AÑO")
 
 
 def _semaforo_col(df: pd.DataFrame) -> str:
-    """Resuelve nombre de columna de semÃ¡foro tolerando variantes de encoding."""
+    """Resuelve nombre de columna de semáforo tolerando variantes de encoding."""
     return _resolve_col(df, "SEMÁFORO")
 
 
@@ -1709,15 +1709,15 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
 
     cols = st.columns(3)
     with cols[0]:
-        kpi_card("Casos vÃ¡lidos", casos_validos, status="OK", tone="good")
+        kpi_card("Casos válidos", casos_validos, status="OK", tone="good")
     with cols[1]:
-        kpi_card("Legacy incompletos", casos_legacy_warn, status="AtenciÃ³n", tone="warn")
+        kpi_card("Legacy incompletos", casos_legacy_warn, status="Atención", tone="warn")
     with cols[2]:
         kpi_card("Casos con error", casos_error, status="Revisar", tone="bad")
 
     mark_ui_block("Dashboard", "actions")
     # Acciones rapidas
-    card_begin("Acciones rÃ¡pidas", subtitle="Atajos principales", variant="tight")
+    card_begin("Acciones rápidas", subtitle="Atajos principales", variant="tight")
     a1, a2, a3, a4 = st.columns(4)
 
     with a1:
@@ -1854,8 +1854,8 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
         st.caption("Sin historial semanal aun. Se alimenta desde auditoria diaria/nocturna.")
     card_end()
 
-    # Actividad / prÃ³ximos vencimientos (compacto, max 5)
-    card_begin("Actividad", subtitle="PrÃ³ximos vencimientos (7 dÃ­as)", variant="tight")
+    # Actividad / próximos vencimientos (compacto, max 5)
+    card_begin("Actividad", subtitle="Próximos vencimientos (7 días)", variant="tight")
 
     hoy = datetime.now().date()
     tareas_prox = []
@@ -1883,8 +1883,8 @@ def render_dashboard(gestor: GestorCasos, casos: List[Caso]):
         st.success("Sin vencimientos en los proximos 7 dias.")
     card_end()
 
-    # CTA a AuditorÃ­a (secundario)
-    card_begin("Control de datos", subtitle="DiagnÃ³stico completo en AuditorÃ­a", variant="tight")
+    # CTA a Auditoría (secundario)
+    card_begin("Control de datos", subtitle="Diagnóstico completo en Auditoría", variant="tight")
     st.caption("Salud de datos se revisa en Auditoria.")
     if st.button(
         "Ir a Auditoria de datos",
@@ -2027,11 +2027,11 @@ def render_gestion(gestor: GestorCasos, casos: List[Caso], df: pd.DataFrame | No
     if not st.session_state.get("db_ready", True):
         mark_ui_block("Gestion", "summary")
         health = st.session_state.get("db_health", {}) or {}
-        detail = health.get("last_error") or "No se pudo validar conexiÃ³n."
-        st.error("GestiÃ³n no disponible: base de datos fuera de lÃ­nea.")
+        detail = health.get("last_error") or "No se pudo validar conexión."
+        st.error("Gestión no disponible: base de datos fuera de línea.")
         st.caption(f"Detalle: {detail}")
         mark_ui_block("Gestion", "actions")
-        if st.button("Reintentar conexiÃ³n", key="gestion.retry.db", width="stretch"):
+        if st.button("Reintentar conexión", key="gestion.retry.db", width="stretch"):
             st.session_state["db_ready"] = None
             st.session_state["db_health"] = {}
             st.rerun()
@@ -2123,7 +2123,7 @@ def render_gestion(gestor: GestorCasos, casos: List[Caso], df: pd.DataFrame | No
             render_modulo_casos(df, gestor, mode)
         else:
             vg_empty_state(
-                "No hay casos cargados todavÃ­a.",
+                "No hay casos cargados todavía.",
                 "Nuevo caso",
                 lambda: st.session_state.__setitem__("gestion.casos.show_new_form", True),
                 key="gestion.empty.casos.crear",
@@ -2134,7 +2134,7 @@ def render_gestion(gestor: GestorCasos, casos: List[Caso], df: pd.DataFrame | No
             render_modulo_cliente(gestor, casos, mode)
         else:
             vg_empty_state(
-                "No hay clientes disponibles porque aÃºn no existen casos.",
+                "No hay clientes disponibles porque aún no existen casos.",
                 "Ir a Casos",
                 lambda: _go(section="casos", mode="listado"),
                 key="gestion.empty.clientes",
@@ -2292,7 +2292,7 @@ def render_finanzas(gestor: GestorCasos, casos: List[Caso]):
 
 def _render_gestion_context_toolbar(section: str, mode: str):
     sec = _normalize_section(section)
-    card_begin("Contexto", subtitle=f"{GESTION_SECTIONS.get(sec, 'Casos')} Â· {GESTION_MODE_LABELS.get(mode, 'Listado')}", variant="tight")
+    card_begin("Contexto", subtitle=f"{GESTION_SECTIONS.get(sec, 'Casos')} · {GESTION_MODE_LABELS.get(mode, 'Listado')}", variant="tight")
     selected_ref = _selected_value_for_section(sec)
     c1, c2, c3, c4 = st.columns([1.1, 1.1, 1.1, 2.2])
     with c1:
@@ -2400,7 +2400,7 @@ def ordenar_por_urgencia(df: pd.DataFrame) -> pd.DataFrame:
     df2 = df.copy()
     orden = {
         SEMAFORO_ICONS["Vencidos"]: 0,
-        SEMAFORO_ICONS["PrÃ³ximos"]: 1,
+        SEMAFORO_ICONS["Próximos"]: 1,
         SEMAFORO_ICONS["En tiempo"]: 2,
         SEMAFORO_ICONS["Sin tarea"]: 3,
     }
@@ -2434,7 +2434,7 @@ def mostrar_metricas(casos: List[Caso]):
     total = len(casos)
     activos = sum(1 for c in casos if "Activo" in c.estado or "Activos" in c.estado)
     vencidos = sum(1 for c in casos if c.semaforo == SEMAFORO_ICONS["Vencidos"])
-    proximos = sum(1 for c in casos if c.semaforo == SEMAFORO_ICONS["PrÃ³ximos"])
+    proximos = sum(1 for c in casos if c.semaforo == SEMAFORO_ICONS["Próximos"])
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -2445,7 +2445,7 @@ def mostrar_metricas(casos: List[Caso]):
     with col3:
         st.metric("Vencidos", vencidos)
     with col4:
-        st.metric("PrÃ³ximos", proximos)
+        st.metric("Próximos", proximos)
 
 
 def _reset_filtros_casos():
@@ -2473,11 +2473,11 @@ def mostrar_filtros(df: pd.DataFrame) -> pd.DataFrame:
     anio_col = _anio_col(df)
     semaforo_col = _semaforo_col(df)
 
-    card_begin("Filtros", subtitle="BÃºsqueda y segmentaciÃ³n", variant="tight")
+    card_begin("Filtros", subtitle="Búsqueda y segmentación", variant="tight")
 
     busqueda = st.text_input(
-        "BÃºsqueda global",
-        placeholder="Cliente, causa, expediente, carÃ¡tula...",
+        "Búsqueda global",
+        placeholder="Cliente, causa, expediente, carátula...",
         help="Filtra en todos los campos visibles de la tabla",
         key=_gestion_filter_key("busqueda"),
     )
@@ -2485,7 +2485,7 @@ def mostrar_filtros(df: pd.DataFrame) -> pd.DataFrame:
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         anios = ["Todos"] + sorted([v for v in df[anio_col].unique().tolist() if str(v)], reverse=True)
-        anio_sel = st.selectbox("AÃ±o", anios, key=_gestion_filter_key("anio"))
+        anio_sel = st.selectbox("Año", anios, key=_gestion_filter_key("anio"))
     with col2:
         estados = ["Todos"] + ESTADOS_DISPONIBLES
         estado_sel = st.selectbox("Estado", estados, key=_gestion_filter_key("estado"))
@@ -2496,8 +2496,8 @@ def mostrar_filtros(df: pd.DataFrame) -> pd.DataFrame:
         fueros = ["Todos"] + FUEROS_DISPONIBLES
         fuero_sel = st.selectbox("Fuero", fueros, key=_gestion_filter_key("fuero"))
     with col5:
-        semaforos = ["Todos", "Vencidos", "PrÃ³ximos", "En tiempo", "Sin tarea"]
-        semaforo_sel = st.selectbox("SemÃ¡foro", semaforos, key=_gestion_filter_key("semaforo"))
+        semaforos = ["Todos", "Vencidos", "Próximos", "En tiempo", "Sin tarea"]
+        semaforo_sel = st.selectbox("Semáforo", semaforos, key=_gestion_filter_key("semaforo"))
 
     ctrl1, ctrl2, ctrl3, ctrl4 = st.columns([1.15, 1, 1, 1])
     with ctrl1:
@@ -2509,7 +2509,7 @@ def mostrar_filtros(df: pd.DataFrame) -> pd.DataFrame:
     with ctrl4:
         atajo = st.selectbox(
             "Atajos",
-            ["Ninguno", "Solo vencidos", "PrÃ³ximos 7 dÃ­as", "PrÃ³ximos 30 dÃ­as"],
+            ["Ninguno", "Solo vencidos", "Próximos 7 días", "Próximos 30 días"],
             key=_gestion_filter_key("atajo"),
         )
     if st.button("Limpiar filtros", key="gestion.casos.filters.limpiar", width="stretch", type="secondary"):
@@ -2535,7 +2535,7 @@ def mostrar_filtros(df: pd.DataFrame) -> pd.DataFrame:
     if semaforo_sel != "Todos":
         emoji_map = {
             "Vencidos": SEMAFORO_ICONS["Vencidos"],
-            "PrÃ³ximos": SEMAFORO_ICONS["PrÃ³ximos"],
+            "Próximos": SEMAFORO_ICONS["Próximos"],
             "En tiempo": SEMAFORO_ICONS["En tiempo"],
             "Sin tarea": SEMAFORO_ICONS["Sin tarea"],
         }
@@ -2545,9 +2545,9 @@ def mostrar_filtros(df: pd.DataFrame) -> pd.DataFrame:
 
     if atajo == "Solo vencidos":
         df_filtrado = df_filtrado[df_filtrado[semaforo_col] == SEMAFORO_ICONS["Vencidos"]]
-    elif atajo in ("PrÃ³ximos 7 dÃ­as", "PrÃ³ximos 30 dÃ­as"):
+    elif atajo in ("Próximos 7 días", "Próximos 30 días"):
         try:
-            dias = 7 if atajo == "PrÃ³ximos 7 dÃ­as" else 30
+            dias = 7 if atajo == "Próximos 7 días" else 30
             ft = pd.to_datetime(df_filtrado["FECHA TAREA"], errors="coerce", dayfirst=True)
             hoy = pd.Timestamp.now().normalize()
             limite = hoy + pd.Timedelta(days=dias)
@@ -2642,7 +2642,7 @@ def render_minimum_completion_wizard(gestor: GestorCasos, ruta_caso, case_ref: s
     missing_quality = [f for f in status_info.get("missing_quality", []) if f in DEFAULT_INCOMPLETE_FIELDS]
     wizard_fields = missing_minimum + [f for f in missing_quality if f not in missing_minimum]
 
-    card_begin("Wizard: Completar mÃ­nimos", subtitle="Campos objetivo del caso", variant="tight")
+    card_begin("Wizard: Completar mínimos", subtitle="Campos objetivo del caso", variant="tight")
 
     if not wizard_fields:
         st.success("Este caso no tiene faltantes en los campos objetivo.")
@@ -2659,9 +2659,9 @@ def render_minimum_completion_wizard(gestor: GestorCasos, ruta_caso, case_ref: s
     }
     date_fields = {"FECHA_EVENTO", "FECHA_TAREA"}
     if missing_minimum:
-        st.warning("Faltan campos mÃ­nimos obligatorios. Complete este bloque para normalizar el caso.")
+        st.warning("Faltan campos mínimos obligatorios. Complete este bloque para normalizar el caso.")
     else:
-        st.info("El mÃ­nimo obligatorio estÃ¡ cubierto. Puede completar faltantes de calidad para mejorar agenda/reportes.")
+        st.info("El mínimo obligatorio está cubierto. Puede completar faltantes de calidad para mejorar agenda/reportes.")
 
     st.caption(f"Pendientes: {', '.join(wizard_fields)}")
     st.caption("Fechas admitidas: DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY o DD.MM.YYYY.")
@@ -2695,7 +2695,7 @@ def render_minimum_completion_wizard(gestor: GestorCasos, ruta_caso, case_ref: s
         b1, b2 = st.columns(2)
         with b1:
             save_clicked = st.form_submit_button(
-                "Guardar mÃ­nimos",
+                "Guardar mínimos",
                 key=f"{prefix}.save",
                 width="stretch",
             )
@@ -2739,7 +2739,7 @@ def render_minimum_completion_wizard(gestor: GestorCasos, ruta_caso, case_ref: s
                 baseline[field] = _normalize_text_value(old_raw)
 
         if invalid_dates:
-            st.error(f"Formato de fecha invÃ¡lido en: {', '.join(invalid_dates)}.")
+            st.error(f"Formato de fecha inválido en: {', '.join(invalid_dates)}.")
             card_end()
             return
 
@@ -2756,7 +2756,7 @@ def render_minimum_completion_wizard(gestor: GestorCasos, ruta_caso, case_ref: s
             return
 
         if not ok:
-            st.error("No se pudo guardar la actualizaciÃ³n de mÃ­nimos.")
+            st.error("No se pudo guardar la actualización de mínimos.")
             card_end()
             return
 
@@ -2764,15 +2764,15 @@ def render_minimum_completion_wizard(gestor: GestorCasos, ruta_caso, case_ref: s
         st.session_state.pop("df_full", None)
         if hasattr(gestor, "_cache_casos"):
             gestor._cache_casos = []
-        _ui_toast("MÃ­nimos actualizados")
-        st.success("Campos mÃ­nimos guardados.")
+        _ui_toast("Mínimos actualizados")
+        st.success("Campos mínimos guardados.")
         _go(section="casos", mode="detalle", selected_id=case_ref)
 
     card_end()
 
 
 def render_quick_edit(gestor: GestorCasos, ruta_caso: Path, key_suffix: str):
-    """EdiciÃ³n rÃ¡pida unificada - un solo punto de mantenimiento (DATA-001)."""
+    """Edición rápida unificada - un solo punto de mantenimiento (DATA-001)."""
     ruta_str = str(ruta_caso)
     state_key = f"gestion.qe.{key_suffix}.case_ref"
     resp_key = f"gestion.qe.{key_suffix}.responsable"
@@ -2879,7 +2879,7 @@ def render_quick_edit(gestor: GestorCasos, ruta_caso: Path, key_suffix: str):
 # Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
 def render_modulo_casos(df: pd.DataFrame, gestor: GestorCasos, mode: str = "listado"):
-    """MÃ³dulo Casos: cuerpo exclusivo por modo."""
+    """Módulo Casos: cuerpo exclusivo por modo."""
     if mode == "listado":
         df_filtrado = mostrar_filtros(df)
         if bool(_gget(_gestion_filter_key("priorizar_urgentes"), True)):
@@ -2956,10 +2956,10 @@ def _render_batch_apply_panel(df: pd.DataFrame, gestor: GestorCasos):
     - previsualizacion
     - aplicacion con log de actualizados/omitidos
     """
-    with st.expander("AplicaciÃ³n rÃ¡pida (batch controlado)", expanded=False):
+    with st.expander("Aplicación rápida (batch controlado)", expanded=False):
         candidates = _build_batch_incomplete_candidates(df)
         if not candidates:
-            st.success("No hay casos candidatos para aplicaciÃ³n rÃ¡pida.")
+            st.success("No hay casos candidatos para aplicación rápida.")
             return
 
         prefix = "gestion.casos.batch"
@@ -2975,7 +2975,7 @@ def _render_batch_apply_panel(df: pd.DataFrame, gestor: GestorCasos):
             }
             for item in top
         ])
-        st.caption("Top candidatos por criticidad (segÃºn faltantes objetivo).")
+        st.caption("Top candidatos por criticidad (según faltantes objetivo).")
         st.dataframe(top_df, width="stretch", hide_index=True)
 
         labels = {
@@ -3021,7 +3021,7 @@ def _render_batch_apply_panel(df: pd.DataFrame, gestor: GestorCasos):
                         invalid_dates.append(field)
 
                 if invalid_dates:
-                    st.error(f"Formato de fecha invÃ¡lido en: {', '.join(invalid_dates)}.")
+                    st.error(f"Formato de fecha inválido en: {', '.join(invalid_dates)}.")
                 else:
                     apply_rows = []
                     skip_rows = []
@@ -3077,7 +3077,7 @@ def _render_batch_apply_panel(df: pd.DataFrame, gestor: GestorCasos):
         skip_rows = plan.get("skip_rows", []) if isinstance(plan, dict) else []
 
         if apply_rows or skip_rows:
-            st.markdown("**PrevisualizaciÃ³n**")
+            st.markdown("**Previsualización**")
             if apply_rows:
                 prev_apply_df = pd.DataFrame([
                     {
@@ -3099,7 +3099,7 @@ def _render_batch_apply_panel(df: pd.DataFrame, gestor: GestorCasos):
                     }
                     for row in skip_rows
                 ])
-                st.caption("Omitidos en previsualizaciÃ³n")
+                st.caption("Omitidos en previsualización")
                 st.dataframe(prev_skip_df, width="stretch", hide_index=True)
 
             if st.button("Aplicar lote", key=f"{prefix}.apply", width="stretch", disabled=not apply_rows):
@@ -3163,7 +3163,7 @@ def _render_batch_apply_panel(df: pd.DataFrame, gestor: GestorCasos):
 
         result = st.session_state.get(f"{prefix}.result", {})
         if isinstance(result, dict) and result.get("rows"):
-            st.markdown("**Resultado Ãºltimo lote**")
+            st.markdown("**Resultado último lote**")
             st.caption(
                 f"Actualizados: {result.get('updated', 0)} | "
                 f"Omitidos: {result.get('omitted', 0)} | "
@@ -3233,7 +3233,7 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
         )
     with col_extra:
         st.checkbox("Ajustar texto", key=_gestion_filter_key("wrap"))
-        st.caption(f"{len(df)} casos Â· {modo} Â· Densidad {densidad}")
+        st.caption(f"{len(df)} casos · {modo} · Densidad {densidad}")
         st.caption(f"CSV sha256: {csv_meta['sha256'][:12]}...")
         st.caption(f"XLSX sha256: {xlsx_meta['sha256'][:12]}...")
     card_end()
@@ -3273,7 +3273,7 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
         )
 
     presets = {
-        "GestiÃ³n": [sem_col, "LEGACY", "FECHA TAREA", "TAREA PENDIENTE", "CLIENTE", "FUERO", "CAUSA", "EXPEDIENTE", "RESPONSABLE", "ESTADO", anio_col],
+        "Gestión": [sem_col, "LEGACY", "FECHA TAREA", "TAREA PENDIENTE", "CLIENTE", "FUERO", "CAUSA", "EXPEDIENTE", "RESPONSABLE", "ESTADO", anio_col],
         "Cliente/Causa": ["CLIENTE", "FUERO", "CAUSA", "CARATULA", "EXPEDIENTE", "RESPONSABLE", sem_col, "FECHA TAREA", "TAREA PENDIENTE", "LEGACY"],
         "Procesal": ["CLIENTE", "FUERO", "TIPO PROCESO", "JURISDICCION", "ORGANISMO", "EXPEDIENTE", "CARATULA", "CONTROL", "EVENTO", "FECHA EVENTO", "LEGACY"],
         "Completo": [c for c in df.columns if not str(c).startswith("_")],
@@ -3284,11 +3284,11 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
     visible_key = "gestion.casos.listado.cols_visible"
     order_key = "gestion.casos.listado.col_sel"
 
-    st.session_state.setdefault(preset_key, "GestiÃ³n")
+    st.session_state.setdefault(preset_key, "Gestión")
     if st.session_state[preset_key] not in presets:
-        st.session_state[preset_key] = "GestiÃ³n"
+        st.session_state[preset_key] = "Gestión"
     if cols_key not in st.session_state or not isinstance(st.session_state[cols_key], list):
-        base = presets.get(st.session_state[preset_key], presets["GestiÃ³n"])
+        base = presets.get(st.session_state[preset_key], presets["Gestión"])
         st.session_state[cols_key] = [c for c in base if c in df.columns]
     if visible_key not in st.session_state or not isinstance(st.session_state[visible_key], list):
         st.session_state[visible_key] = list(st.session_state[cols_key])
@@ -3300,9 +3300,9 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
         all_cols = [c for c in presets["Completo"] if not str(c).startswith("_")]
         pcol1, pcol2 = st.columns([2, 3])
         with pcol1:
-            preset = st.selectbox("Vista estÃ¡ndar", list(presets.keys()), key=preset_key)
+            preset = st.selectbox("Vista estándar", list(presets.keys()), key=preset_key)
             if st.button("Restaurar vista", key="gestion.casos.listado.restaurar", width="stretch", type="secondary"):
-                base = presets.get(preset, presets["GestiÃ³n"])
+                base = presets.get(preset, presets["Gestión"])
                 st.session_state[cols_key] = [c for c in base if c in df.columns]
                 st.session_state[visible_key] = list(st.session_state[cols_key])
                 st.session_state[order_key] = st.session_state[cols_key][0] if st.session_state[cols_key] else ""
@@ -3319,7 +3319,7 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
 
         cols = st.session_state.get(cols_key, [])
         if not cols:
-            st.session_state[cols_key] = [c for c in presets["GestiÃ³n"] if c in df.columns]
+            st.session_state[cols_key] = [c for c in presets["Gestión"] if c in df.columns]
             cols = st.session_state[cols_key]
             if cols:
                 st.session_state[order_key] = cols[0]
@@ -3343,7 +3343,7 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
 
     cols = [c for c in st.session_state.get(cols_key, []) if c in df.columns and not str(c).startswith("_")]
     if not cols:
-        cols = [c for c in presets["GestiÃ³n"] if c in df.columns]
+        cols = [c for c in presets["Gestión"] if c in df.columns]
 
     df_grid = df[cols + (["_RUTA"] if "_RUTA" in df.columns else [])].copy()
     df_grid = df_grid.replace("S/D", "")
@@ -3356,15 +3356,15 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
         "CLIENTE": st.column_config.TextColumn("Cliente", width="medium"),
         "FUERO": st.column_config.TextColumn("Fuero", width="small"),
         "CAUSA": st.column_config.TextColumn("Causa", width="large"),
-        "CARATULA": st.column_config.TextColumn("CarÃ¡tula", width="large"),
+        "CARATULA": st.column_config.TextColumn("Carátula", width="large"),
         "EXPEDIENTE": st.column_config.TextColumn("Expte.", width="small"),
         "RESPONSABLE": st.column_config.TextColumn("Resp.", width="small"),
         "ESTADO": st.column_config.TextColumn("Estado", width="small"),
-        anio_col: st.column_config.TextColumn("AÃ±o", width="small"),
+        anio_col: st.column_config.TextColumn("Año", width="small"),
     }
 
     height = 520 if densidad == "Compacta" else 640
-    st.caption(f"{len(df_grid)} casos filtrados Â· clic en una fila para ver detalle")
+    st.caption(f"{len(df_grid)} casos filtrados · clic en una fila para ver detalle")
     selected_ruta = render_aggrid(df_grid, key="gestion.casos.listado.grid", height=height, column_config=column_config)
     _persist_casos_filter_state()
     _render_batch_apply_panel(df, gestor)
@@ -3377,13 +3377,13 @@ def _render_casos_listado_v3(df: pd.DataFrame, gestor: GestorCasos):
 
 
 def _render_tarjetas(df: pd.DataFrame, gestor: GestorCasos):
-    """Vista tarjetas para Listado (mÃ³vil)."""
+    """Vista tarjetas para Listado (móvil)."""
     df_cards = df.copy()
     sem_col = _semaforo_col(df_cards)
     try:
         orden = {
             SEMAFORO_ICONS["Vencidos"]: 0,
-            SEMAFORO_ICONS["PrÃ³ximos"]: 1,
+            SEMAFORO_ICONS["Próximos"]: 1,
             SEMAFORO_ICONS["En tiempo"]: 2,
             SEMAFORO_ICONS["Sin tarea"]: 3,
         }
@@ -3406,7 +3406,7 @@ def _render_tarjetas(df: pd.DataFrame, gestor: GestorCasos):
         responsable = str(row.get("RESPONSABLE", ""))
         ruta = str(row.get("_RUTA", ""))
 
-        titulo = f"{sem} {cliente} Â· {causa}"
+        titulo = f"{sem} {cliente} · {causa}"
         with st.expander(titulo, expanded=False):
             if legacy_badge:
                 st.markdown(_legacy_badge_html(legacy_badge), unsafe_allow_html=True)
@@ -3416,9 +3416,9 @@ def _render_tarjetas(df: pd.DataFrame, gestor: GestorCasos):
                 if expte and expte != "S/D":
                     st.write(f"**Expediente:** {expte}")
                 if caratula and caratula != "S/D":
-                    st.write(f"**CarÃ¡tula:** {caratula}")
+                    st.write(f"**Carátula:** {caratula}")
             with cB:
-                st.write(f"**SemÃ¡foro:** {sem}")
+                st.write(f"**Semáforo:** {sem}")
                 if vence:
                     st.write(f"**Vence:** {vence}")
                 if responsable and responsable != "S/D":
@@ -3473,12 +3473,12 @@ def _render_casos_detalle_v3(df: pd.DataFrame, gestor: GestorCasos):
     badges = []
     if sem == SEMAFORO_ICONS["Vencidos"]:
         badges.append('<span class="vg-badge-danger">Vencido</span>')
-    elif sem == SEMAFORO_ICONS["PrÃ³ximos"]:
-        badges.append('<span class="vg-badge-warn">PrÃ³ximo</span>')
+    elif sem == SEMAFORO_ICONS["Próximos"]:
+        badges.append('<span class="vg-badge-warn">Próximo</span>')
     elif sem == SEMAFORO_ICONS["En tiempo"]:
         badges.append('<span class="vg-badge-ok">En tiempo</span>')
 
-    detail_shell(f"{sem} {caso_row.get('CLIENTE', '')} Â· {caso_row.get('CAUSA', '')}", badges=badges)
+    detail_shell(f"{sem} {caso_row.get('CLIENTE', '')} · {caso_row.get('CAUSA', '')}", badges=badges)
 
     cA, cB, cC = st.columns(3)
     with cA:
@@ -3486,12 +3486,12 @@ def _render_casos_detalle_v3(df: pd.DataFrame, gestor: GestorCasos):
         st.write(f"**Causa:** {caso_row.get('CAUSA','')}")
         st.write(f"**Fuero:** {caso_row.get('FUERO','')}")
         st.write(f"**Estado:** {caso_row.get('ESTADO','')}")
-        st.write(f"**AÃ±o:** {caso_row.get(_anio_col(df), '')}")
+        st.write(f"**Año:** {caso_row.get(_anio_col(df), '')}")
     with cB:
         st.write(f"**Expediente:** {caso_row.get('EXPEDIENTE','')}")
-        st.write(f"**CarÃ¡tula:** {caso_row.get('CARATULA','')}")
+        st.write(f"**Carátula:** {caso_row.get('CARATULA','')}")
         st.write(f"**Tipo de Proceso:** {caso_row.get('TIPO PROCESO','')}")
-        st.write(f"**JurisdicciÃ³n:** {caso_row.get('JURISDICCION','')}")
+        st.write(f"**Jurisdicción:** {caso_row.get('JURISDICCION','')}")
         st.write(f"**Organismo:** {caso_row.get('ORGANISMO','')}")
     with cC:
         st.write(f"**Responsable:** {caso_row.get('RESPONSABLE','')}")
@@ -3567,7 +3567,7 @@ def _render_casos_editar_v3(df: pd.DataFrame, gestor: GestorCasos):
     except ValueError as e:
         st.error(str(e))
         vg_empty_state(
-            "No se pudo cargar la ficha del caso para ediciÃ³n.",
+            "No se pudo cargar la ficha del caso para edición.",
             "Volver a detalle",
             lambda: _go(section="casos", mode="detalle", selected_id=ruta),
             key="gestion.casos.editar.no_ficha",
@@ -3589,7 +3589,7 @@ def _render_casos_editar_v3(df: pd.DataFrame, gestor: GestorCasos):
         )
         return
 
-    page_header("Editar caso", subtitle=f"{caso_row.get('CLIENTE','')} Â· {caso_row.get('CAUSA','')}")
+    page_header("Editar caso", subtitle=f"{caso_row.get('CLIENTE','')} · {caso_row.get('CAUSA','')}")
 
     fields = {
         "TIPO_PROCESO": "gestion.casos.editar.field.tipo_proceso",
@@ -3722,33 +3722,33 @@ def _render_casos_editar_v3(df: pd.DataFrame, gestor: GestorCasos):
     submitted = False
     cancel_clicked = False
     with st.form("gestion.casos.editar.form", clear_on_submit=False):
-        st.markdown("#### IdentificaciÃ³n")
+        st.markdown("#### Identificación")
         ident_a, ident_b = st.columns(2)
         with ident_a:
-            st.write(f"**AÃ±o:** {caso_row.get(_anio_col(df), '')}")
+            st.write(f"**Año:** {caso_row.get(_anio_col(df), '')}")
             st.write(f"**Estado:** {caso_row.get('ESTADO', '')}")
             st.write(f"**Cliente:** {caso_row.get('CLIENTE', '')}")
         with ident_b:
             st.write(f"**Fuero:** {caso_row.get('FUERO', '')}")
             st.write(f"**Causa:** {caso_row.get('CAUSA', '')}")
             st.write(f"**Expediente actual:** {caso_row.get('EXPEDIENTE', '')}")
-        st.caption("Para cambiar jerarquÃ­a o nombre de carpeta, use ConfiguraciÃ³n > Editar caso.")
+        st.caption("Para cambiar jerarquía o nombre de carpeta, use Configuración > Editar caso.")
 
         st.markdown("#### Expediente y proceso")
         p1, p2, p3 = st.columns(3)
         with p1:
             st.text_input("Tipo de Proceso", key=fields["TIPO_PROCESO"])
         with p2:
-            st.text_input("JurisdicciÃ³n", key=fields["JURISDICCION"])
+            st.text_input("Jurisdicción", key=fields["JURISDICCION"])
         with p3:
             st.text_input("Organismo", key=fields["ORGANISMO"])
         p4, p5 = st.columns(2)
         with p4:
             st.text_input("Expediente", key=fields["EXPEDIENTE"])
         with p5:
-            st.text_input("CarÃ¡tula", key=fields["CARATULA"])
+            st.text_input("Carátula", key=fields["CARATULA"])
 
-        st.markdown("#### GestiÃ³n y control")
+        st.markdown("#### Gestión y control")
         g1, g2 = st.columns(2)
         with g1:
             st.text_input("Responsable", key=fields["RESPONSABLE"])
@@ -3803,7 +3803,7 @@ def _render_casos_editar_v3(df: pd.DataFrame, gestor: GestorCasos):
             return
 
         if not ok:
-            st.error("No se pudo guardar la actualizaciÃ³n.")
+            st.error("No se pudo guardar la actualización.")
             return
 
         st.cache_data.clear()
@@ -3825,7 +3825,7 @@ def _render_casos_editar_v3(df: pd.DataFrame, gestor: GestorCasos):
         _go(section="casos", mode="detalle", selected_id=ruta)
 
 def render_modulo_cliente(gestor: GestorCasos, casos: List[Caso], mode: str = "listado"):
-    """MÃ³dulo Cliente: cuerpo exclusivo por modo."""
+    """Módulo Cliente: cuerpo exclusivo por modo."""
     clientes = gestor.obtener_clientes_existentes()
     if not clientes:
         vg_empty_state(
@@ -3907,7 +3907,7 @@ def _render_cliente_listado(casos_cliente: list, cliente_sel: str, gestor: Gesto
 
 
 def _render_cliente_detalle(casos_cliente: list, cliente_sel: str, gestor: GestorCasos):
-    """Cliente - Detalle: ficha del caso y estadÃ­sticas del cliente."""
+    """Cliente - Detalle: ficha del caso y estadísticas del cliente."""
     if not casos_cliente:
         st.info("Este cliente no tiene causas registradas.")
         return
@@ -3923,7 +3923,7 @@ def _render_cliente_detalle(casos_cliente: list, cliente_sel: str, gestor: Gesto
         caso_sel = casos_cliente[0]
         _set_selected_case_id(str(caso_sel.ruta), stage="cliente.detalle.fallback")
 
-    detail_shell(f"{caso_sel.semaforo} {caso_sel.cliente} Â· {caso_sel.causa}")
+    detail_shell(f"{caso_sel.semaforo} {caso_sel.cliente} · {caso_sel.causa}")
 
     cA, cB = st.columns(2)
     with cA:
@@ -3980,14 +3980,14 @@ def _render_cliente_detalle(casos_cliente: list, cliente_sel: str, gestor: Gesto
     render_quick_edit(gestor, caso_sel.ruta, "cli_det")
     mostrar_documentos_recientes(gestor, caso_sel.ruta, key_suffix="cli_det_v3")
 
-    # EstadÃ­sticas del cliente
+    # Estadísticas del cliente
     st.markdown("---")
-    st.markdown("#### EstadÃ­sticas del cliente")
+    st.markdown("#### Estadísticas del cliente")
 
     estados = {}
     semaforos = {
         SEMAFORO_ICONS["Vencidos"]: 0,
-        SEMAFORO_ICONS["PrÃ³ximos"]: 0,
+        SEMAFORO_ICONS["Próximos"]: 0,
         SEMAFORO_ICONS["En tiempo"]: 0,
         SEMAFORO_ICONS["Sin tarea"]: 0,
     }
@@ -4000,7 +4000,7 @@ def _render_cliente_detalle(casos_cliente: list, cliente_sel: str, gestor: Gesto
     with m1:
         st.metric("Vencidos", semaforos[SEMAFORO_ICONS["Vencidos"]])
     with m2:
-        st.metric("PrÃ³ximos", semaforos[SEMAFORO_ICONS["PrÃ³ximos"]])
+        st.metric("Próximos", semaforos[SEMAFORO_ICONS["Próximos"]])
     with m3:
         st.metric("En tiempo", semaforos[SEMAFORO_ICONS["En tiempo"]])
     with m4:
@@ -4022,7 +4022,7 @@ def _render_cliente_editar(casos_cliente: list, cliente_sel: str, gestor: Gestor
     page_header("Editar cliente", subtitle=cliente_sel)
     st.caption("Seleccione una causa del cliente para abrir su edicion completa en Casos.")
 
-    options = {f"{c.fuero} Â· {c.causa}": str(c.ruta) for c in casos_cliente}
+    options = {f"{c.fuero} · {c.causa}": str(c.ruta) for c in casos_cliente}
     labels = list(options.keys())
     selected_label = st.selectbox("Causa asociada", labels, key="gestion.cliente.editar.case_selector")
     ruta = options.get(selected_label, "")
@@ -4043,12 +4043,12 @@ def _render_cliente_editar(casos_cliente: list, cliente_sel: str, gestor: Gestor
 # Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
 def render_modulo_agenda(gestor: GestorCasos, casos: List[Caso], mode: str = "listado"):
-    """MÃ³dulo Agenda: cuerpo exclusivo por modo."""
+    """Módulo Agenda: cuerpo exclusivo por modo."""
     tareas = [c for c in casos if c.fecha_tarea and c.fecha_tarea != "S/D"]
 
     if not tareas:
         vg_empty_state(
-            "No hay tareas programadas en ningÃºn caso.",
+            "No hay tareas programadas en ningún caso.",
             "Ir a Casos",
             lambda: _go(section="casos", mode="listado"),
             key="gestion.agenda.empty",
@@ -4072,7 +4072,7 @@ def render_modulo_agenda(gestor: GestorCasos, casos: List[Caso], mode: str = "li
         with fc1:
             agenda_ver = st.selectbox(
                 "Ver",
-                ["Todas", "Solo vencidas", "PrÃ³ximos 7 dÃ­as", "PrÃ³ximos 30 dÃ­as"],
+                ["Todas", "Solo vencidas", "Próximos 7 días", "Próximos 30 días"],
                 key="gestion.agenda.filtro.ver",
             )
         with fc2:
@@ -4094,9 +4094,9 @@ def render_modulo_agenda(gestor: GestorCasos, casos: List[Caso], mode: str = "li
             continue
         if agenda_ver == "Solo vencidas" and fecha_obj >= hoy:
             continue
-        if agenda_ver == "PrÃ³ximos 7 dÃ­as" and not (hoy <= fecha_obj <= hoy + timedelta(days=7)):
+        if agenda_ver == "Próximos 7 días" and not (hoy <= fecha_obj <= hoy + timedelta(days=7)):
             continue
-        if agenda_ver == "PrÃ³ximos 30 dÃ­as" and not (hoy <= fecha_obj <= hoy + timedelta(days=30)):
+        if agenda_ver == "Próximos 30 días" and not (hoy <= fecha_obj <= hoy + timedelta(days=30)):
             continue
         tareas_filtradas.append((fecha_obj, t))
 
@@ -4146,7 +4146,7 @@ def _render_agenda_listado(
     if not tareas_filtradas:
         st.info(f"0 de {len(tareas_total)} tareas para los filtros actuales.")
         st.caption(
-            f"Vista: {agenda_ver} | Solo activos: {'SÃ­' if solo_activos else 'No'}."
+            f"Vista: {agenda_ver} | Solo activos: {'Sí' if solo_activos else 'No'}."
         )
         if st.button("Limpiar filtros", key="gestion.agenda.empty.clear_filters", width="stretch", type="secondary"):
             _reset_filtros_agenda()
@@ -4155,7 +4155,7 @@ def _render_agenda_listado(
         return
 
     df_agenda = pd.DataFrame([{
-        "SEMÃFORO": t.semaforo,
+        "SEMÁFORO": t.semaforo,
         "FECHA TAREA": t.fecha_tarea,
         "CLIENTE": t.cliente,
         "CAUSA": t.causa,
@@ -4269,7 +4269,7 @@ def _render_agenda_editar(tareas_filtradas: list, gestor: GestorCasos):
 # Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
 def render_modulo_finanzas(gestor: GestorCasos, casos: List[Caso], mode: str = "listado"):
-    """MÃ³dulo Finanzas: cuerpo exclusivo por modo."""
+    """Módulo Finanzas: cuerpo exclusivo por modo."""
     if not casos:
         vg_empty_state(
             "No hay casos cargados para visualizar finanzas.",
@@ -4419,7 +4419,7 @@ def _render_finanzas_editar(df_fin: pd.DataFrame, casos: List[Caso], gestor: Ges
 
     if not caso_sel:
         vg_empty_state(
-            "El caso seleccionado no estÃ¡ disponible para editar finanzas.",
+            "El caso seleccionado no está disponible para editar finanzas.",
             "Ir a listado",
             lambda: _go(section="finanzas", mode="listado"),
             key="gestion.finanzas.editar.no_case",
@@ -4623,7 +4623,7 @@ def formulario_editar_caso(ui, gestor: GestorCasos, casos: List[Caso]):
     with ui.form("editar_caso_form"):
         st.markdown("#### Ubicacion del Caso")
 
-        anio_actual = getattr(caso, "aÃ±o", getattr(caso, "a\u00c3\u00b1o", ""))
+        anio_actual = getattr(caso, "año", getattr(caso, "a\u00c3\u00b1o", ""))
         idx_anio = gestor.obtener_años_existentes().index(anio_actual) if anio_actual in gestor.obtener_años_existentes() else 0
         nuevo_anio = st.selectbox("AÃ±o", gestor.obtener_años_existentes(), index=idx_anio)
 
@@ -4832,7 +4832,7 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
             st.caption(str(auto_daily_result.get("snapshot_path", "")))
         else:
             st.caption("Snapshot diario auto: ya existente hoy")
-            st.caption("Exportes en la secciÃ³n inferior.")
+            st.caption("Exportes en la sección inferior.")
     card_end()
 
     # Ejecutar auditoria si se presiono el boton
@@ -4915,7 +4915,7 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
     metricas = _cargar_metricas_auditoria(gestor, casos)
     completitud = metricas.get("completitud", {})
 
-    card_begin("Salud de datos", subtitle="Completitud por campo (Ãºltima auditorÃ­a o cÃ¡lculo rÃ¡pido)", variant="tight")
+    card_begin("Salud de datos", subtitle="Completitud por campo (última auditoría o cálculo rápido)", variant="tight")
     campos_salud = ["JURISDICCION", "ORGANISMO", "EXPEDIENTE", "CARATULA", "RESPONSABLE", "CONTROL"]
     st.caption("Porcentaje de completitud por campo clave.")
     if completitud:
@@ -4959,7 +4959,7 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
                 "Actual %": pct,
                 "Objetivo %": target_pct,
                 "Gap %": float(metric.get("gap_pct", 0.0)),
-                "Cumple": "SÃ­" if metric.get("goal_met") else "No",
+                "Cumple": "Sí" if metric.get("goal_met") else "No",
                 "Completos": int(metric.get("completed", 0)),
                 "Total": int(metric.get("total", 0)),
             })

@@ -197,7 +197,7 @@ def toggle_theme():
 
 
 def _df_select_kwargs():
-    """Devuelve kwargs opcionales para habilitar selecciÃ³n en st.dataframe si la versiÃ³n lo soporta."""
+    """Devuelve kwargs opcionales para habilitar selección en st.dataframe si la versión lo soporta."""
     try:
         params = inspect.signature(st.dataframe).parameters
         kw = {}
@@ -219,7 +219,7 @@ def _ensure_bool_state(key: str, default: bool = False) -> bool:
 
 
 def _ensure_int_step_state(key: str, min_v: int, max_v: int, step: int, default: int) -> int:
-    """Normaliza un entero en session_state con lÃ­mites y step."""
+    """Normaliza un entero en session_state con límites y step."""
     v = st.session_state.get(key, default)
     try:
         if isinstance(v, (list, tuple)):
@@ -243,7 +243,7 @@ def _swap(lst, i, j):
 
 
 def _ui_toast(msg: str, icon: str | None = None):
-    """Toast seguro si la versiÃ³n de Streamlit lo soporta."""
+    """Toast seguro si la versión de Streamlit lo soporta."""
     if hasattr(st, "toast"):
         try:
             st.toast(msg, icon=icon)
@@ -266,7 +266,7 @@ def page_header(
     right_actions: list | None = None,
     context_badges: list | None = None,
 ):
-    """Header de pÃ¡gina con acciones y badges opcionales."""
+    """Header de página con acciones y badges opcionales."""
     right_actions = right_actions or []
     context_badges = context_badges or []
     st.markdown('<div class="vg-card vg-page-header">', unsafe_allow_html=True)
@@ -293,7 +293,7 @@ def page_header(
 
 
 def _vh_to_px(vh: int) -> int:
-    """ConversiÃ³n aproximada de vh a px (Streamlit no expone viewport real)."""
+    """Conversión aproximada de vh a px (Streamlit no expone viewport real)."""
     return int(vh * 7.2)
 
 
@@ -307,7 +307,7 @@ def render_grid(
     column_config: dict | None = None,
     hide_index: bool = True,
 ):
-    """Grilla simple con altura controlada y soporte opcional de selecciÃ³n."""
+    """Grilla simple con altura controlada y soporte opcional de selección."""
     kw = {"width": "stretch", "hide_index": hide_index, "height": _vh_to_px(height_vh)}
     if column_config:
         kw["column_config"] = column_config
@@ -319,7 +319,7 @@ def render_grid(
 
 
 def section(title: str, help_text: str | None = None):
-    """SecciÃ³n con encabezado; devuelve el contenedor para contexto."""
+    """Sección con encabezado; devuelve el contenedor para contexto."""
     st.markdown(f"<div class='vg-section-title'>{html.escape(title)}</div>", unsafe_allow_html=True)
     if help_text:
         help_section(f"sec_{title.lower().replace(' ', '_')}", title, help_text)
@@ -503,7 +503,7 @@ def empty_state_nav(
     cta_module: str | None = None,
     cta_mode: str = "listado",
 ):
-    """Estado vacÃ­o con CTA opcional que navega usando nav.navigate_to."""
+    """Estado vacío con CTA opcional que navega usando nav.navigate_to."""
     st.info(f"**{title}**\n\n{body}")
     if cta_label and cta_module:
         if st.button(cta_label, width="stretch", key=f"es_cta_{cta_module}"):
@@ -532,7 +532,7 @@ def detail_shell(title: str, badges: list | None = None):
 
 
 def edit_shell(title: str, steps: list[str], current_step: int, key: str = "edit_wizard") -> int:
-    """Wizard por pasos; retorna el Ã­ndice seleccionado."""
+    """Wizard por pasos; retorna el índice seleccionado."""
     page_header(title, subtitle=f"Paso {current_step + 1} de {len(steps)}")
     selected = st.radio(
         "Paso",
@@ -558,12 +558,12 @@ def progress_row(label: str, pct: float):
 
 
 def audit_status_badge(errores: int, warnings: int):
-    """Badge de estado para auditorÃ­a."""
+    """Badge de estado para auditoría."""
     if errores == 0 and warnings == 0:
         txt = "Ã“ptimo Â· Sin problemas detectados"
         variant = "ok"
     elif errores > 0:
-        txt = f"Errores: {errores} Â· Advertencias: {warnings}"
+        txt = f"Errores: {errores} · Advertencias: {warnings}"
         variant = "danger"
     else:
         txt = f"Advertencias: {warnings}"
@@ -592,7 +592,7 @@ def card_end():
 
 
 def pill(text: str, kind: str = "default"):
-    """Renderiza una pill bÃ¡sica."""
+    """Renderiza una pill básica."""
     safe_kind = "".join(ch for ch in (kind or "").lower() if ch.isalnum() or ch in ("-", "_"))
     classes = ["vg-pill"]
     if safe_kind in {"danger", "warn", "ok"}:
@@ -604,14 +604,14 @@ def pill(text: str, kind: str = "default"):
 
 
 def ui_centro_ayuda_content():
-    """Contenido del centro de ayuda (versiÃ³n breve)."""
-    tab1, tab2, tab3, tab4 = st.tabs(["Uso bÃ¡sico", "Planilla", "Carpetas", "Problemas tÃ­picos"])
+    """Contenido del centro de ayuda (versión breve)."""
+    tab1, tab2, tab3, tab4 = st.tabs(["Uso básico", "Planilla", "Carpetas", "Problemas típicos"])
     with tab1:
         st.markdown("**Flujo recomendado:**\n1) Gestion > Casos > seleccionar un caso.\n2) Completar Responsable / Tarea / Fecha.\n3) Usar Agenda para priorizar.")
     with tab2:
-        st.markdown("Atajos: priorizar urgentes, prÃ³ximos 7/30 dÃ­as, vista tarjetas.")
+        st.markdown("Atajos: priorizar urgentes, próximos 7/30 días, vista tarjetas.")
     with tab3:
-        st.markdown("Estructura estÃ¡ndar por caso: 01.PRUEBA / 02.ESCRITOS / 03.RECIBOS / 04.OTROS.")
+        st.markdown("Estructura estándar por caso: 01.PRUEBA / 02.ESCRITOS / 03.RECIBOS / 04.OTROS.")
     with tab4:
         st.markdown("Tips OneDrive/Windows: evitar rutas largas, carpetas fantasma, normalizar UTF-8.")
 
@@ -620,11 +620,11 @@ def open_path(path: Path | str | None, container: "st.container | None" = None) 
     """Abre archivo/carpeta de forma segura; muestra mensajes si no es posible."""
     target = container or st
     if path is None:
-        target.info("No hay carpeta fÃ­sica asociada.")
+        target.info("No hay carpeta física asociada.")
         return False
     path = Path(path)
     if str(path).startswith("db://"):
-        target.info(f"Este caso estÃ¡ en base de datos.\n\nID: `{str(path).replace('db://cases/', '')}`")
+        target.info(f"Este caso está en base de datos.\n\nID: `{str(path).replace('db://cases/', '')}`")
         return False
     if not path.exists():
         target.error(f"Ruta no encontrada: `{path}`")
@@ -653,7 +653,7 @@ def configurar_pagina():
             initial_sidebar_state="expanded",
         )
     except Exception:
-        # Streamlit lanza excepciÃ³n si set_page_config ya fue invocado; mantener idempotencia.
+        # Streamlit lanza excepción si set_page_config ya fue invocado; mantener idempotencia.
         logger.debug("set_page_config ya estaba inicializado")
     inicializar_ui()
 
@@ -1444,7 +1444,7 @@ def inject_theme(*args, **kwargs):
 
 
 def stitch_header(titulo, subtitulo=None):
-    """Renderiza el header principal de la pÃ¡gina."""
+    """Renderiza el header principal de la página."""
     html_block = f"""
     <div style="margin-bottom: 2rem;">
         <h1 style="font-size: 1.875rem; margin-bottom: 0.5rem;">{html.escape(titulo)}</h1>
