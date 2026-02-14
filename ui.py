@@ -664,6 +664,7 @@ def configurar_pagina():
 def aplicar_estilos_stitch():
     """Inyecta CSS global y unifica la experiencia claro/oscuro de toda la app."""
     inicializar_ui()
+    revamp_enabled = is_ui_revamp_enabled()
     theme_by_label = {label: key for key, label in THEME_OPTIONS.items()}
     density_by_label = {label: key for key, label in DENSITY_OPTIONS.items()}
 
@@ -690,17 +691,18 @@ def aplicar_estilos_stitch():
         )
         st.session_state[SESSION_THEME_KEY] = theme_by_label.get(theme_label, _default_theme_mode())
         st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown('<div class="vg-density-toggle">', unsafe_allow_html=True)
-        density_label = st.radio(
-            "Densidad",
-            density_opts,
-            index=density_default_idx,
-            key="stitch_density_selector",
-            label_visibility="collapsed",
-            horizontal=True,
-        )
-        st.session_state[SESSION_DENSITY_KEY] = density_by_label.get(density_label, _default_density_mode())
-        st.markdown("</div>", unsafe_allow_html=True)
+        if revamp_enabled:
+            st.markdown('<div class="vg-density-toggle">', unsafe_allow_html=True)
+            density_label = st.radio(
+                "Densidad",
+                density_opts,
+                index=density_default_idx,
+                key="stitch_density_selector",
+                label_visibility="collapsed",
+                horizontal=True,
+            )
+            st.session_state[SESSION_DENSITY_KEY] = density_by_label.get(density_label, _default_density_mode())
+            st.markdown("</div>", unsafe_allow_html=True)
 
     _persist_ui_preferences_if_possible(
         st.session_state.get(SESSION_THEME_KEY, _default_theme_mode()),
@@ -1161,6 +1163,9 @@ def aplicar_estilos_stitch():
         container_pad_bottom=density_cfg["pad_bottom"],
     )
     st.markdown(css, unsafe_allow_html=True)
+
+    if not revamp_enabled:
+        return
 
     # Capa de refinamiento visual para ordenar todos los modulos con el mismo shell.
     st.markdown(
