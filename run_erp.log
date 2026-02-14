@@ -1,0 +1,7 @@
+[RUN] 14/02/2026  1:02:38,37 
+
+  You can now view your Streamlit app in your browser.
+
+  URL: http://localhost:8501
+
+2026-02-14 01:02:42,660 WARNING security Auth bootstrap user created username=admin role=admin. Cambiar credenciales por variables seguras.

@@ -81,6 +81,7 @@ FIN_CSV_COL_ALIASES = {
     "ESTADO_PAGO": ["ESTADO_PAGO", "ESTADO PAGO"],
 }
 FIN_CSV_FIN_COLS = ("MONTO_DEMANDADO", "HONORARIOS_PACTADOS", "ESTADO_PAGO")
+AUTO_SAVE_CHANGES_ENV = "VG_AUTO_SAVE_CHANGES"
 
 
 @st.cache_data(show_spinner=False)
@@ -167,6 +168,21 @@ def _debug_selected_case_id(stage: str, value):
 def _dbg(label: str, **kvs):
     if os.environ.get("VG_DEBUG") == "1":
         print("[VG]", label, kvs)
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = str(os.environ.get(name, "")).strip().lower()
+    if not raw:
+        return bool(default)
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    return bool(default)
+
+
+def _auto_save_changes_enabled() -> bool:
+    return _env_bool(AUTO_SAVE_CHANGES_ENV, default=False)
 
 
 GESTION_SECTIONS = {
@@ -2419,6 +2435,7 @@ def render_quick_edit(gestor: GestorCasos, ruta_caso: Path, key_suffix: str):
     tarea_key = f"gestion.qe.{key_suffix}.tarea"
     fecha_key = f"gestion.qe.{key_suffix}.fecha"
     obs_key = f"gestion.qe.{key_suffix}.observaciones"
+    saved_snapshot_key = f"gestion.qe.{key_suffix}.last_saved"
 
     # Reset widgets cuando cambia el caso seleccionado
     if st.session_state.get(state_key) != ruta_str:
@@ -2432,6 +2449,12 @@ def render_quick_edit(gestor: GestorCasos, ruta_caso: Path, key_suffix: str):
         st.session_state[tarea_key] = ficha.get('TAREA_PENDIENTE', '')
         st.session_state[fecha_key] = ficha.get('FECHA_TAREA', '')
         st.session_state[obs_key] = ficha.get('OBSERVACIONES', '')
+        st.session_state[saved_snapshot_key] = {
+            "RESPONSABLE": _normalize_text_value(ficha.get('RESPONSABLE', '')),
+            "TAREA_PENDIENTE": _normalize_text_value(ficha.get('TAREA_PENDIENTE', '')),
+            "FECHA_TAREA": _normalize_date_value(ficha.get('FECHA_TAREA', '')),
+            "OBSERVACIONES": _normalize_text_value(ficha.get('OBSERVACIONES', '')),
+        }
 
     st.markdown("#### Edicion rapida")
     qe_resp = st.text_input("Responsable", key=resp_key)
@@ -2439,16 +2462,69 @@ def render_quick_edit(gestor: GestorCasos, ruta_caso: Path, key_suffix: str):
     qe_fecha = st.text_input("Fecha Tarea (DD/MM/YYYY)", key=fecha_key)
     qe_obs = st.text_area("Observaciones", key=obs_key)
 
+    auto_save_mode = _auto_save_changes_enabled()
+    current_changes = {
+        "RESPONSABLE": _normalize_text_value(qe_resp),
+        "TAREA_PENDIENTE": _normalize_text_value(qe_tarea),
+        "FECHA_TAREA": _normalize_date_value(qe_fecha),
+        "OBSERVACIONES": _normalize_text_value(qe_obs),
+    }
+
+    if auto_save_mode:
+        st.caption("Guardado automatico activado (VG_AUTO_SAVE_CHANGES=1).")
+        if not _is_valid_supported_date(qe_fecha):
+            st.warning("Fecha tarea invalida. Use DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY o DD.MM.YYYY.")
+        else:
+            baseline = st.session_state.get(saved_snapshot_key, {})
+            if not isinstance(baseline, dict):
+                baseline = {}
+            if current_changes != baseline:
+                if _enforce_permission("cases:write", "No tiene permiso para modificar casos."):
+                    try:
+                        ok = gestor.actualizar_campos_ficha(
+                            ruta_caso,
+                            current_changes,
+                            actor_ctx=_actor_ctx(),
+                        )
+                    except ValueError as e:
+                        st.error(str(e))
+                        ok = False
+                    if ok:
+                        st.session_state[saved_snapshot_key] = dict(current_changes)
+                        st.cache_data.clear()
+                        st.session_state.pop("df_full", None)
+                        if hasattr(gestor, "_cache_casos"):
+                            gestor._cache_casos = []
+                        _ui_toast("Auto-guardado")
+                        st.caption(f"Auto-guardado: {datetime.now().strftime('%H:%M:%S')}")
+                    else:
+                        st.error("No se pudo auto-guardar la actualizacion.")
+
     b1, b2 = st.columns(2)
     with b1:
-        if st.button("Guardar", key=f"gestion.qe.{key_suffix}.guardar", width="stretch"):
-            cambios = {
-                'RESPONSABLE': qe_resp,
-                'TAREA_PENDIENTE': qe_tarea,
-                'FECHA_TAREA': qe_fecha,
-                'OBSERVACIONES': qe_obs,
-            }
-            accion_guardar_campos(gestor, ruta_caso, cambios, f"Edicion rapida ({key_suffix})")
+        if auto_save_mode:
+            st.button(
+                "Guardar",
+                key=f"gestion.qe.{key_suffix}.guardar.disabled",
+                width="stretch",
+                disabled=True,
+                help="Guardado automatico activo.",
+            )
+        else:
+            if st.button("Guardar", key=f"gestion.qe.{key_suffix}.guardar", width="stretch"):
+                cambios = {
+                    'RESPONSABLE': qe_resp,
+                    'TAREA_PENDIENTE': qe_tarea,
+                    'FECHA_TAREA': qe_fecha,
+                    'OBSERVACIONES': qe_obs,
+                }
+                st.session_state[saved_snapshot_key] = {
+                    "RESPONSABLE": _normalize_text_value(qe_resp),
+                    "TAREA_PENDIENTE": _normalize_text_value(qe_tarea),
+                    "FECHA_TAREA": _normalize_date_value(qe_fecha),
+                    "OBSERVACIONES": _normalize_text_value(qe_obs),
+                }
+                accion_guardar_campos(gestor, ruta_caso, cambios, f"Edicion rapida ({key_suffix})")
     with b2:
         if st.button("Tarea completada", key=f"gestion.qe.{key_suffix}.done", width="stretch", type="secondary"):
             accion_completar_tarea(gestor, ruta_caso)
@@ -3170,12 +3246,117 @@ def _render_casos_editar_v3(df: pd.DataFrame, gestor: GestorCasos):
     }
     date_fields = {"FECHA_EVENTO", "FECHA_TAREA"}
     form_case_key = "gestion.casos.editar.case_ref"
+    saved_snapshot_key = "gestion.casos.editar.last_saved"
+    auto_save_mode = _auto_save_changes_enabled()
 
     if st.session_state.get(form_case_key) != ruta:
         st.session_state[form_case_key] = ruta
         for field, state_key in fields.items():
             raw = ficha.get(field, "")
             st.session_state[state_key] = _normalize_date_value(raw) if field in date_fields else _normalize_text_value(raw)
+        st.session_state[saved_snapshot_key] = {
+            field: (
+                _normalize_date_value(ficha.get(field, ""))
+                if field in date_fields
+                else _normalize_text_value(ficha.get(field, ""))
+            )
+            for field in fields.keys()
+        }
+
+    if auto_save_mode:
+        st.caption("Guardado automatico activado (VG_AUTO_SAVE_CHANGES=1).")
+        st.markdown("#### Identificacion")
+        ident_a, ident_b = st.columns(2)
+        with ident_a:
+            st.write(f"**Año:** {caso_row.get(_anio_col(df), '')}")
+            st.write(f"**Estado:** {caso_row.get('ESTADO', '')}")
+            st.write(f"**Cliente:** {caso_row.get('CLIENTE', '')}")
+        with ident_b:
+            st.write(f"**Fuero:** {caso_row.get('FUERO', '')}")
+            st.write(f"**Causa:** {caso_row.get('CAUSA', '')}")
+            st.write(f"**Expediente actual:** {caso_row.get('EXPEDIENTE', '')}")
+        st.caption("Para cambiar jerarquía o nombre de carpeta, use Configuración > Editar caso.")
+
+        st.markdown("#### Expediente y proceso")
+        p1, p2, p3 = st.columns(3)
+        with p1:
+            st.text_input("Tipo de Proceso", key=fields["TIPO_PROCESO"])
+        with p2:
+            st.text_input("Jurisdicción", key=fields["JURISDICCION"])
+        with p3:
+            st.text_input("Organismo", key=fields["ORGANISMO"])
+        p4, p5 = st.columns(2)
+        with p4:
+            st.text_input("Expediente", key=fields["EXPEDIENTE"])
+        with p5:
+            st.text_input("Carátula", key=fields["CARATULA"])
+
+        st.markdown("#### Gestión y control")
+        g1, g2 = st.columns(2)
+        with g1:
+            st.text_input("Responsable", key=fields["RESPONSABLE"])
+            st.text_input("Control", key=fields["CONTROL"])
+        with g2:
+            st.text_input("Último evento", key=fields["EVENTO"])
+            st.text_input("Fecha evento (DD/MM/YYYY)", key=fields["FECHA_EVENTO"])
+
+        st.markdown("#### Agenda y observaciones")
+        a1, a2 = st.columns(2)
+        with a1:
+            st.text_input("Tarea pendiente", key=fields["TAREA_PENDIENTE"])
+            st.text_input("Fecha tarea (DD/MM/YYYY)", key=fields["FECHA_TAREA"])
+        with a2:
+            st.text_area("Observaciones", key=fields["OBSERVACIONES"], height=150)
+
+        if st.button("Volver", key="gestion.casos.editar.volver.auto", width="stretch", type="secondary"):
+            _go(section="casos", mode="detalle", selected_id=ruta)
+
+        cambios = {}
+        invalid_dates: List[str] = []
+        for field, state_key in fields.items():
+            raw_new = st.session_state.get(state_key, "")
+            if field in date_fields:
+                if not _is_valid_supported_date(raw_new):
+                    invalid_dates.append(field)
+                cambios[field] = _normalize_date_value(raw_new)
+            else:
+                cambios[field] = _normalize_text_value(raw_new)
+
+        if invalid_dates:
+            bad = ", ".join(sorted(invalid_dates))
+            st.warning(f"Fechas inválidas ({bad}). Corrija formato para auto-guardar.")
+            return
+
+        baseline = st.session_state.get(saved_snapshot_key, {})
+        if not isinstance(baseline, dict):
+            baseline = {}
+
+        if cambios != baseline:
+            if not _enforce_permission("cases:write", "No tiene permiso para editar casos."):
+                return
+            try:
+                ok = gestor.actualizar_campos_ficha(ruta_repo, cambios, actor_ctx=_actor_ctx())
+            except ValueError as e:
+                st.error(str(e))
+                return
+
+            if not ok:
+                st.error("No se pudo auto-guardar la actualización.")
+                return
+
+            st.session_state[saved_snapshot_key] = dict(cambios)
+            st.cache_data.clear()
+            st.session_state.pop("df_full", None)
+            for key in list(st.session_state.keys()):
+                if key.startswith("gestion.qe."):
+                    st.session_state.pop(key, None)
+            if hasattr(gestor, "_cache_casos"):
+                gestor._cache_casos = []
+            st.session_state["_edit_last_snapshot"] = dict(cambios)
+            _save_tab_snapshot("casos")
+            _ui_toast("Auto-guardado caso")
+            st.caption(f"Auto-guardado: {datetime.now().strftime('%H:%M:%S')}")
+        return
 
     submitted = False
     cancel_clicked = False
@@ -3867,6 +4048,8 @@ def _render_finanzas_editar(df_fin: pd.DataFrame, casos: List[Caso], gestor: Ges
     fin_actual = gestor.leer_datos_financieros(caso_sel.ruta)
     fin_case_key = _canonical_case_ref(str(caso_sel.ruta))
     fin_state_case_key = "gestion.finanzas.editar.case_ref"
+    fin_saved_key = "gestion.finanzas.editar.last_saved"
+    auto_save_mode = _auto_save_changes_enabled()
     fin_state = {
         "gestion.finanzas.editar.monto": fin_actual.get("MONTO_DEMANDADO", ""),
         "gestion.finanzas.editar.honorarios": fin_actual.get("HONORARIOS_PACTADOS", ""),
@@ -3879,9 +4062,58 @@ def _render_finanzas_editar(df_fin: pd.DataFrame, casos: List[Caso], gestor: Ges
         st.session_state[fin_state_case_key] = fin_case_key
         for k, v in fin_state.items():
             st.session_state[k] = v
+        st.session_state[fin_saved_key] = {
+            "MONTO_DEMANDADO": str(fin_state["gestion.finanzas.editar.monto"] or ""),
+            "HONORARIOS_PACTADOS": str(fin_state["gestion.finanzas.editar.honorarios"] or ""),
+            "ESTADO_PAGO": str(fin_state["gestion.finanzas.editar.estado_pago"] or ""),
+        }
     else:
         for k, v in fin_state.items():
             st.session_state.setdefault(k, v)
+
+    if auto_save_mode:
+        st.caption("Guardado automatico activado (VG_AUTO_SAVE_CHANGES=1).")
+        fc1, fc2, fc3 = st.columns(3)
+        with fc1:
+            st.text_input("Monto demandado", key="gestion.finanzas.editar.monto")
+        with fc2:
+            st.text_input("Honorarios pactados", key="gestion.finanzas.editar.honorarios")
+        with fc3:
+            st.selectbox("Estado de pago", ESTADOS_PAGO, key="gestion.finanzas.editar.estado_pago")
+
+        if st.button("Volver", key="gestion.finanzas.editar.volver.auto", width="stretch", type="secondary"):
+            _go(section="finanzas", mode="detalle", selected_id=ruta)
+
+        datos_fin = {
+            "MONTO_DEMANDADO": str(st.session_state.get("gestion.finanzas.editar.monto", "") or ""),
+            "HONORARIOS_PACTADOS": str(st.session_state.get("gestion.finanzas.editar.honorarios", "") or ""),
+            "ESTADO_PAGO": str(st.session_state.get("gestion.finanzas.editar.estado_pago", "") or ""),
+        }
+        baseline = st.session_state.get(fin_saved_key, {})
+        if not isinstance(baseline, dict):
+            baseline = {}
+
+        if datos_fin != baseline:
+            if not _enforce_permission("finance:write", "No tiene permiso para modificar finanzas."):
+                return
+            try:
+                ok_fin = gestor.guardar_datos_financieros(
+                    caso_sel.ruta,
+                    datos_fin,
+                    actor_ctx=_actor_ctx(),
+                )
+            except ValueError as e:
+                st.error(str(e))
+                return
+            if ok_fin:
+                st.session_state[fin_saved_key] = dict(datos_fin)
+                st.cache_data.clear()
+                st.session_state.pop("df_full", None)
+                _ui_toast("Auto-guardado finanzas")
+                st.caption(f"Auto-guardado: {datetime.now().strftime('%H:%M:%S')}")
+            else:
+                st.error("No se pudo auto-guardar finanzas.")
+        return
 
     submitted = False
     cancel_clicked = False

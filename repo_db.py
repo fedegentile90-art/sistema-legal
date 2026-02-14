@@ -1,4 +1,4 @@
-"""
+﻿"""
 Repositorio PostgreSQL - Implementacion alternativa a fs_repo.py.
 Se activa automaticamente cuando DATABASE_URL esta configurada.
 """
@@ -14,13 +14,16 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, TypedDict
 from urllib.parse import urlparse
 
-from config import AÑOS_ACTIVOS, CAMPOS_FICHA, CAMPOS_FINANCIEROS
+import config as _config
+from config import CAMPOS_FICHA, CAMPOS_FINANCIEROS
 from db.health import parse_database_url
 from domain import Caso
 
-# ══════════════════════════════════════════════════════════════════════════════
+ANOS_ACTIVOS = getattr(_config, "AÑOS_ACTIVOS", getattr(_config, "AÃ‘OS_ACTIVOS", []))
+
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # CONEXION A BASE DE DATOS
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 _DB_URL = os.environ.get("DATABASE_URL", "")
 _CASE_URI_RE = re.compile(r"db[:/\\\\]+cases[:/\\\\]+([0-9a-fA-F-]{36})")
@@ -70,7 +73,7 @@ def _mask_db_url(u: str) -> str:
         return ""
     try:
         p = urlparse(u)
-        # Oculta password si está presente
+        # Oculta password si estÃ¡ presente
         netloc = p.netloc
         if "@" in netloc and ":" in netloc.split("@")[0]:
             userpass, host = netloc.split("@", 1)
@@ -106,14 +109,14 @@ def get_conn():
         conn.close()
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # CLASE PRINCIPAL: GestorCasosDB
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class GestorCasosDB:
     """Motor de gestion usando PostgreSQL - API compatible con GestorCasos (fs_repo)."""
 
-    def __init__(self, ruta_base: Path = None):
+    def __init__(self, ruta_base: Optional[Path] = None):
         """
         Inicializa el gestor DB.
         ruta_base se ignora en modo DB pero se acepta para compatibilidad de API.
@@ -429,7 +432,7 @@ class GestorCasosDB:
 
                 # Actualizar columnas directas si aplica
                 col_updates = []
-                params = []
+                params: List[Any] = []
 
                 col_map = {
                     "TIPO_PROCESO": "tipo_proceso",
@@ -691,7 +694,7 @@ class GestorCasosDB:
 
     def obtener_años_existentes(self) -> List[str]:
         """Devuelve años activos (igual que FS - desde config)."""
-        return sorted(AÑOS_ACTIVOS, reverse=True)
+        return sorted(ANOS_ACTIVOS, reverse=True)
 
     def crear_caso(
         self,
@@ -938,12 +941,12 @@ class GestorCasosDB:
         return out
 
     def listar_documentos_recientes(self, ruta_caso: Path, n: int = 5) -> List[Dict]:
-        """Retorna los últimos n documentos del caso desde la tabla documents.
+        """Retorna los Ãºltimos n documentos del caso desde la tabla documents.
 
         Returns:
             Lista de dicts con claves:
             - filename: str - nombre del archivo
-            - updated_at: str - fecha de modificación (dd/mm HH:MM)
+            - updated_at: str - fecha de modificaciÃ³n (dd/mm HH:MM)
             - open_target: str | None - storage_path si existe, None si no
         """
         case_id = self._get_case_id_from_path(ruta_caso)
