@@ -42,88 +42,87 @@ def _has_content(title: str, due_date: Any, assigned_to: str) -> bool:
 def run_backfill(*, dry_run: bool = False, limit: int = 0) -> BackfillStats:
     stats = BackfillStats()
     with _connect() as conn:
-        with conn:
-            with conn.cursor() as cur:
-                query = """
-                    SELECT
-                        c.id,
-                        c.causa,
-                        c.tarea_pendiente,
-                        c.fecha_tarea,
-                        c.responsable
-                    FROM cases c
-                    ORDER BY c.created_at ASC
-                """
-                if limit > 0:
-                    query += " LIMIT %s"
-                    cur.execute(query, (int(limit),))
-                else:
-                    cur.execute(query)
+        with conn.cursor() as cur:
+            query = """
+                SELECT
+                    c.id,
+                    c.causa,
+                    c.tarea_pendiente,
+                    c.fecha_tarea,
+                    c.responsable
+                FROM cases c
+                ORDER BY c.created_at ASC
+            """
+            if limit > 0:
+                query += " LIMIT %s"
+                cur.execute(query, (int(limit),))
+            else:
+                cur.execute(query)
 
-                rows = cur.fetchall()
-                for row in rows:
-                    stats.scanned += 1
-                    case_id, causa, tarea_pendiente, fecha_tarea, responsable = row
-                    case_id_str = str(case_id)
+            rows = cur.fetchall()
+            for row in rows:
+                stats.scanned += 1
+                case_id, causa, tarea_pendiente, fecha_tarea, responsable = row
+                case_id_str = str(case_id)
 
-                    title = str(tarea_pendiente or "").strip() or f"Seguimiento: {str(causa or '').strip() or 'Caso'}"
-                    assigned_to = str(responsable or "").strip()
-                    due_date = fecha_tarea
-                    if not _has_content(title, due_date, assigned_to):
-                        stats.skipped_empty += 1
-                        continue
+                title = str(tarea_pendiente or "").strip() or f"Seguimiento: {str(causa or '').strip() or 'Caso'}"
+                assigned_to = str(responsable or "").strip()
+                due_date = fecha_tarea
+                if not _has_content(title, due_date, assigned_to):
+                    stats.skipped_empty += 1
+                    continue
 
+                cur.execute(
+                    """
+                    SELECT id
+                    FROM tasks
+                    WHERE (extra->>'legacy_source_case_id') = %s
+                      AND (extra->>'is_primary_legacy') = '1'
+                    LIMIT 1
+                    """,
+                    (case_id_str,),
+                )
+                if cur.fetchone():
+                    stats.skipped_existing += 1
+                    continue
+
+                extra = {
+                    "legacy_source_case_id": case_id_str,
+                    "is_primary_legacy": "1",
+                    "sync_origin": "backfill_tasks_from_cases",
+                }
+                if dry_run:
+                    stats.created += 1
+                    continue
+
+                try:
                     cur.execute(
                         """
-                        SELECT id
-                        FROM tasks
-                        WHERE (extra->>'legacy_source_case_id') = %s
-                          AND (extra->>'is_primary_legacy') = '1'
-                        LIMIT 1
+                        INSERT INTO tasks (
+                            case_id,
+                            title,
+                            description,
+                            due_date,
+                            priority,
+                            status,
+                            assigned_to,
+                            extra
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb)
                         """,
-                        (case_id_str,),
+                        (
+                            case_id_str,
+                            title[:255],
+                            "",
+                            due_date,
+                            "normal",
+                            "pendiente",
+                            assigned_to[:100],
+                            json.dumps(extra, ensure_ascii=False),
+                        ),
                     )
-                    if cur.fetchone():
-                        stats.skipped_existing += 1
-                        continue
-
-                    extra = {
-                        "legacy_source_case_id": case_id_str,
-                        "is_primary_legacy": "1",
-                        "sync_origin": "backfill_tasks_from_cases",
-                    }
-                    if dry_run:
-                        stats.created += 1
-                        continue
-
-                    try:
-                        cur.execute(
-                            """
-                            INSERT INTO tasks (
-                                case_id,
-                                title,
-                                description,
-                                due_date,
-                                priority,
-                                status,
-                                assigned_to,
-                                extra
-                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb)
-                            """,
-                            (
-                                case_id_str,
-                                title[:255],
-                                "",
-                                due_date,
-                                "normal",
-                                "pendiente",
-                                assigned_to[:100],
-                                json.dumps(extra, ensure_ascii=False),
-                            ),
-                        )
-                        stats.created += 1
-                    except Exception:
-                        stats.errors += 1
+                    stats.created += 1
+                except Exception:
+                    stats.errors += 1
     return stats
 
 
