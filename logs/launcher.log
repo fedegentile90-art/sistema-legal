@@ -87,3 +87,8 @@
 [2026-02-15 02:57:18.640] VG_FORCE_RESTART_ON_LAUNCH=1: se reinicia server en puerto 8501.
 [2026-02-15 02:57:19.022] Iniciando server streamlit en puerto 8501...
 [2026-02-15 02:57:21.151] Server arriba en puerto 8501, abriendo browser
+[2026-02-15 03:15:47.694] Variables cargadas desde .env: 17 (C:\Users\Pc\Desktop\SistemaLegal\.env)
+[2026-02-15 03:15:48.451] Proceso streamlit detenido (PID 16516) para refrescar cambios.
+[2026-02-15 03:15:49.165] VG_FORCE_RESTART_ON_LAUNCH=1: se reinicia server en puerto 8501.
+[2026-02-15 03:15:49.587] Iniciando server streamlit en puerto 8501...
+[2026-02-15 03:15:50.665] Server arriba en puerto 8501, abriendo browser
