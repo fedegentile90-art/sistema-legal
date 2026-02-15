@@ -79,3 +79,11 @@
 [2026-02-14 21:47:21.874] Variables cargadas desde .env: 17 (C:\Users\Pc\Desktop\SistemaLegal\.env)
 [2026-02-14 21:47:23.358] Iniciando server streamlit en puerto 8501...
 [2026-02-14 21:47:25.437] Server arriba en puerto 8501, abriendo browser
+[2026-02-15 01:29:06.261] Variables cargadas desde .env: 17 (C:\Users\Pc\Desktop\SistemaLegal\.env)
+[2026-02-15 01:29:07.906] Iniciando server streamlit en puerto 8501...
+[2026-02-15 01:29:11.599] Server arriba en puerto 8501, abriendo browser
+[2026-02-15 02:57:15.845] Variables cargadas desde .env: 17 (C:\Users\Pc\Desktop\SistemaLegal\.env)
+[2026-02-15 02:57:17.915] Proceso streamlit detenido (PID 26840) para refrescar cambios.
+[2026-02-15 02:57:18.640] VG_FORCE_RESTART_ON_LAUNCH=1: se reinicia server en puerto 8501.
+[2026-02-15 02:57:19.022] Iniciando server streamlit en puerto 8501...
+[2026-02-15 02:57:21.151] Server arriba en puerto 8501, abriendo browser

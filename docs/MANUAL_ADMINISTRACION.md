@@ -1,4 +1,4 @@
-# Manual Operativo - Rol Administracion
+﻿# Manual Operativo - Rol Administracion
 
 Fecha de referencia: 2026-02-13
 
@@ -19,8 +19,13 @@ Fecha de referencia: 2026-02-13
 5. Confirmar autoload de `.env` en launcher:
    - `VG_DOTENV_AUTOLOAD=1` en `.env` (default recomendado).
 6. Confirmar experiencia visual:
-   - `VG_UI_REVAMP_V2=1` para rediseño profundo activo.
+   - `VG_UI_REVAMP_V2=1` para rediseÃ±o profundo activo.
    - rollback visual inmediato: `VG_UI_REVAMP_V2=0`.
+7. Flags de rollout para Gestion/Agenda v2 + Google Calendar:
+   - `VG_GESTION_AGENDA_V2=0|1`
+   - `VG_TASKS_DUAL_WRITE=1` (recomendado durante transicion)
+   - `VG_GOOGLE_CALENDAR_ENABLED=0|1`
+   - `VG_GOOGLE_CALENDAR_SYNC_ENABLED=0|1`
 
 ## 2) Alta y mantenimiento administrativo (Gestion)
 
@@ -153,6 +158,12 @@ Fecha de referencia: 2026-02-13
 14. Ejecutar drill de backup/restore al menos semanalmente:
    - `python db/backup_restore_drill.py`
    - validar cierre con `BACKUP RESTORE DRILL: PASS`.
+15. Si se activa Google Calendar:
+   - configurar `VG_GOOGLE_OAUTH_CLIENT_ID`, `VG_GOOGLE_OAUTH_CLIENT_SECRET`,
+     `VG_GOOGLE_OAUTH_REDIRECT_URI` y `VG_GOOGLE_CALENDAR_ENC_KEY`;
+   - vincular cuenta en `Configuracion > Integraciones > Google Calendar`;
+   - ejecutar sync manual inicial:
+     - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\google_calendar_sync_worker.ps1`.
 
 ### Codigos de salida del runner diario
 
@@ -228,3 +239,4 @@ Criterio:
 - CI recomendado:
   - usar `.github/workflows/ci-db.yml` para validar el gate con PostgreSQL efimero;
   - el workflow aplica `db/schema.sql` en DB runtime y DB test, y ejecuta `release_gate --mode full`.
+

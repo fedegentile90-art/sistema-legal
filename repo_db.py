@@ -10,6 +10,7 @@ import os
 import re
 import uuid
 from contextlib import contextmanager
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, TypedDict
 from urllib.parse import urlparse
@@ -17,7 +18,7 @@ from urllib.parse import urlparse
 import config as _config
 from config import CAMPOS_FICHA, CAMPOS_FINANCIEROS
 from db.health import parse_database_url
-from domain import Caso
+from domain import Caso, GoogleCalendarConnection, GoogleEventMap, TaskRecord
 
 ANOS_ACTIVOS = getattr(_config, "AÑOS_ACTIVOS", getattr(_config, "AÃ‘OS_ACTIVOS", []))
 
@@ -29,6 +30,7 @@ _DB_URL = os.environ.get("DATABASE_URL", "")
 _CASE_URI_RE = re.compile(r"db[:/\\\\]+cases[:/\\\\]+([0-9a-fA-F-]{36})")
 AUDIT_WRITE_STRICT_ENV = "VG_AUDIT_WRITE_STRICT"
 CASE_DUPLICATE_POLICY_ENV = "VG_CASE_DUPLICATE_POLICY"
+TASKS_DUAL_WRITE_ENV = "VG_TASKS_DUAL_WRITE"
 
 logger = logging.getLogger(__name__)
 
@@ -479,6 +481,8 @@ class GestorCasosDB:
                     changes={"fields": list(cambios.keys()), "values": dict(cambios)},
                     actor_ctx=actor_ctx,
                 )
+                if any(k in cambios for k in ("TAREA_PENDIENTE", "FECHA_TAREA", "RESPONSABLE")):
+                    self._sync_primary_task_for_case(cur, case_id, actor_ctx=actor_ctx)
 
         return True
 
@@ -496,6 +500,234 @@ class GestorCasosDB:
             except ValueError:
                 continue
         return None
+
+    def _parse_datetime_utc(self, raw: Any) -> Optional[datetime]:
+        text = str(raw or "").strip()
+        if not text:
+            return None
+        try:
+            if text.endswith("Z"):
+                text = text[:-1] + "+00:00"
+            return datetime.fromisoformat(text)
+        except Exception:
+            return None
+
+    def _task_row_to_record(self, row: Dict[str, Any]) -> TaskRecord:
+        due_raw = row.get("due_date")
+        due_date = due_raw.isoformat() if isinstance(due_raw, date) else str(due_raw or "")
+        completed_raw = row.get("completed_at")
+        completed_at = completed_raw.isoformat() if completed_raw else ""
+        created_raw = row.get("created_at")
+        created_at = created_raw.isoformat() if created_raw else ""
+        updated_raw = row.get("updated_at")
+        updated_at = updated_raw.isoformat() if updated_raw else ""
+        extra = row.get("extra") or {}
+        if isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except Exception:
+                extra = {}
+        if not isinstance(extra, dict):
+            extra = {}
+        case_id = str(row.get("case_id", "") or "")
+        return TaskRecord(
+            id=str(row.get("id", "") or ""),
+            case_id=case_id,
+            case_ref=f"db://cases/{case_id}" if case_id else "",
+            title=str(row.get("title", "") or ""),
+            description=str(row.get("description", "") or ""),
+            due_date=due_date,
+            priority=str(row.get("priority", "") or "normal"),
+            status=str(row.get("status", "") or "pendiente"),
+            assigned_to=str(row.get("assigned_to", "") or ""),
+            completed_at=completed_at,
+            created_at=created_at,
+            updated_at=updated_at,
+            client_name=str(row.get("client_name", "") or ""),
+            case_causa=str(row.get("case_causa", "") or ""),
+            case_estado=str(row.get("case_estado", "") or ""),
+            extra=extra,
+        )
+
+    def _sync_primary_task_for_case(
+        self,
+        cur: Any,
+        case_id: str,
+        *,
+        actor_ctx: Optional[ActorContext] = None,
+    ) -> None:
+        """Sincroniza tarea primaria legacy con fields operativos del caso."""
+        if not _env_bool(TASKS_DUAL_WRITE_ENV, default=True):
+            return
+
+        cur.execute(
+            """
+            SELECT c.id, c.causa, c.tarea_pendiente, c.fecha_tarea, c.responsable
+            FROM cases c
+            WHERE c.id = %s
+            LIMIT 1
+            """,
+            (case_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return
+        _, causa, tarea_pendiente, fecha_tarea, responsable = row
+        title = str(tarea_pendiente or "").strip() or f"Seguimiento: {str(causa or '').strip() or 'Caso'}"
+        assigned_to = str(responsable or "").strip()
+        due_date = fecha_tarea
+
+        cur.execute(
+            """
+            SELECT id, extra
+            FROM tasks
+            WHERE (extra->>'legacy_source_case_id') = %s
+              AND (extra->>'is_primary_legacy') = '1'
+            LIMIT 1
+            """,
+            (case_id,),
+        )
+        task_row = cur.fetchone()
+        if task_row:
+            task_id = str(task_row[0])
+            extra = task_row[1] or {}
+            if isinstance(extra, str):
+                try:
+                    extra = json.loads(extra)
+                except Exception:
+                    extra = {}
+            if not isinstance(extra, dict):
+                extra = {}
+            extra["legacy_source_case_id"] = case_id
+            extra["is_primary_legacy"] = "1"
+            cur.execute(
+                """
+                UPDATE tasks SET
+                    title = %s,
+                    due_date = %s,
+                    assigned_to = %s,
+                    extra = %s::jsonb
+                WHERE id = %s
+                """,
+                (title[:255], due_date, assigned_to[:100], json.dumps(extra, ensure_ascii=False), task_id),
+            )
+            self._try_write_audit_log(
+                cur,
+                entity_type="task",
+                entity_id=task_id,
+                action="sync_from_case",
+                changes={"case_id": case_id, "title": title[:255], "due_date": str(due_date or ""), "assigned_to": assigned_to[:100]},
+                actor_ctx=actor_ctx,
+            )
+            return
+
+        if not (title or due_date or assigned_to):
+            return
+
+        extra = {
+            "legacy_source_case_id": case_id,
+            "is_primary_legacy": "1",
+            "sync_origin": "case_fields",
+        }
+        cur.execute(
+            """
+            INSERT INTO tasks (
+                case_id, title, description, due_date, priority, status, assigned_to, extra
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+            RETURNING id
+            """,
+            (
+                case_id,
+                title[:255],
+                "",
+                due_date,
+                "normal",
+                "pendiente",
+                assigned_to[:100],
+                json.dumps(extra, ensure_ascii=False),
+            ),
+        )
+        created_id = str(cur.fetchone()[0])
+        self._try_write_audit_log(
+            cur,
+            entity_type="task",
+            entity_id=created_id,
+            action="create_primary_from_case",
+            changes={"case_id": case_id},
+            actor_ctx=actor_ctx,
+        )
+
+    def _sync_case_fields_from_primary_task(self, cur: Any, task_id: str, actor_ctx: Optional[ActorContext] = None) -> None:
+        if not _env_bool(TASKS_DUAL_WRITE_ENV, default=True):
+            return
+
+        cur.execute(
+            """
+            SELECT id, case_id, title, due_date, assigned_to, extra
+            FROM tasks
+            WHERE id = %s
+            LIMIT 1
+            """,
+            (task_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return
+        _, case_id, title, due_date, assigned_to, extra = row
+        extra = extra or {}
+        if isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except Exception:
+                extra = {}
+        if not isinstance(extra, dict):
+            extra = {}
+        if str(extra.get("is_primary_legacy", "0")) != "1":
+            return
+
+        case_id_str = str(case_id or "")
+        if not case_id_str:
+            return
+
+        cur.execute("SELECT extra FROM cases WHERE id = %s LIMIT 1", (case_id_str,))
+        case_row = cur.fetchone()
+        if not case_row:
+            return
+        case_extra = case_row[0] or {}
+        if isinstance(case_extra, str):
+            try:
+                case_extra = json.loads(case_extra)
+            except Exception:
+                case_extra = {}
+        if not isinstance(case_extra, dict):
+            case_extra = {}
+
+        tarea = str(title or "").strip()
+        responsable = str(assigned_to or "").strip()
+        fecha_text = due_date.isoformat() if due_date else ""
+        case_extra["TAREA_PENDIENTE"] = tarea
+        case_extra["RESPONSABLE"] = responsable
+        case_extra["FECHA_TAREA"] = fecha_text
+
+        cur.execute(
+            """
+            UPDATE cases SET
+                tarea_pendiente = %s,
+                responsable = %s,
+                fecha_tarea = %s,
+                extra = %s::jsonb
+            WHERE id = %s
+            """,
+            (tarea, responsable, due_date, json.dumps(case_extra, ensure_ascii=False), case_id_str),
+        )
+        self._try_write_audit_log(
+            cur,
+            entity_type="case",
+            entity_id=case_id_str,
+            action="sync_from_task",
+            changes={"task_id": task_id, "tarea_pendiente": tarea, "responsable": responsable, "fecha_tarea": fecha_text},
+            actor_ctx=actor_ctx,
+        )
 
     def actualizar_caso(
         self,
@@ -556,6 +788,7 @@ class GestorCasosDB:
                     changes={"fields": sorted(list(datos.keys()))},
                     actor_ctx=actor_ctx,
                 )
+                self._sync_primary_task_for_case(cur, case_id, actor_ctx=actor_ctx)
 
         return True
 
@@ -991,3 +1224,625 @@ class GestorCasosDB:
             logger.warning("listar_documentos_recientes failed case_id=%s err=%s", case_id, exc)
 
         return result
+
+    # ------------------------------------------------------------------
+    # TASKS-FIRST AGENDA API
+    # ------------------------------------------------------------------
+
+    def listar_tareas(
+        self,
+        case_ref: Path | str | None = None,
+        *,
+        status: str = "",
+        assigned_to: str = "",
+        due_from: str = "",
+        due_to: str = "",
+        limit: int = 500,
+    ) -> List[TaskRecord]:
+        clauses = ["1=1", "COALESCE(t.extra->>'deleted','0') <> '1'"]
+        params: List[Any] = []
+
+        case_id = ""
+        if case_ref is not None:
+            case_id = self._get_case_id_from_path(Path(str(case_ref))) or ""
+            if case_id:
+                clauses.append("t.case_id = %s")
+                params.append(case_id)
+
+        status_norm = str(status or "").strip().lower()
+        if status_norm:
+            clauses.append("LOWER(COALESCE(t.status,'')) = %s")
+            params.append(status_norm)
+
+        assigned_norm = str(assigned_to or "").strip()
+        if assigned_norm:
+            clauses.append("LOWER(COALESCE(t.assigned_to,'')) LIKE %s")
+            params.append(f"%{assigned_norm.lower()}%")
+
+        due_from_db = self._parse_date_for_db(str(due_from or ""))
+        if due_from_db:
+            clauses.append("t.due_date >= %s")
+            params.append(due_from_db)
+
+        due_to_db = self._parse_date_for_db(str(due_to or ""))
+        if due_to_db:
+            clauses.append("t.due_date <= %s")
+            params.append(due_to_db)
+
+        query = f"""
+            SELECT
+                t.id,
+                t.case_id,
+                t.title,
+                t.description,
+                t.due_date,
+                t.priority,
+                t.status,
+                t.assigned_to,
+                t.completed_at,
+                t.created_at,
+                t.updated_at,
+                t.extra,
+                c.causa AS case_causa,
+                c.status AS case_estado,
+                COALESCE(cl.name, 'S/D') AS client_name
+            FROM tasks t
+            JOIN cases c ON c.id = t.case_id
+            LEFT JOIN clients cl ON cl.id = c.client_id
+            WHERE {' AND '.join(clauses)}
+            ORDER BY
+                CASE
+                    WHEN LOWER(COALESCE(t.status,'')) = 'pendiente' THEN 0
+                    WHEN LOWER(COALESCE(t.status,'')) = 'en_progreso' THEN 1
+                    WHEN LOWER(COALESCE(t.status,'')) = 'completada' THEN 2
+                    ELSE 3
+                END,
+                t.due_date ASC NULLS LAST,
+                t.updated_at DESC
+            LIMIT %s
+        """
+        params.append(max(1, min(int(limit or 500), 5000)))
+        rows: List[TaskRecord] = []
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, tuple(params))
+                columns = [d[0] for d in cur.description]
+                for r in cur.fetchall():
+                    rows.append(self._task_row_to_record(dict(zip(columns, r))))
+        return rows
+
+    def obtener_tarea_por_id(self, task_id: str) -> Optional[TaskRecord]:
+        task_id_norm = str(task_id or "").strip()
+        if not task_id_norm:
+            return None
+        query = """
+            SELECT
+                t.id,
+                t.case_id,
+                t.title,
+                t.description,
+                t.due_date,
+                t.priority,
+                t.status,
+                t.assigned_to,
+                t.completed_at,
+                t.created_at,
+                t.updated_at,
+                t.extra,
+                c.causa AS case_causa,
+                c.status AS case_estado,
+                COALESCE(cl.name, 'S/D') AS client_name
+            FROM tasks t
+            JOIN cases c ON c.id = t.case_id
+            LEFT JOIN clients cl ON cl.id = c.client_id
+            WHERE t.id::text = %s
+            LIMIT 1
+        """
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, (task_id_norm,))
+                row = cur.fetchone()
+                if not row:
+                    return None
+                columns = [d[0] for d in cur.description]
+                return self._task_row_to_record(dict(zip(columns, row)))
+
+    def crear_tarea(
+        self,
+        case_ref: Path | str,
+        *,
+        title: str,
+        description: str = "",
+        due_date: str = "",
+        priority: str = "normal",
+        status: str = "pendiente",
+        assigned_to: str = "",
+        extra: Optional[Dict[str, Any]] = None,
+        actor_ctx: Optional[ActorContext] = None,
+    ) -> Optional[TaskRecord]:
+        case_id = self._get_case_id_from_path(Path(str(case_ref)))
+        if not case_id:
+            raise ValueError(f"Case ref invalida para crear tarea: {case_ref!r}")
+        title_norm = str(title or "").strip()
+        if not title_norm:
+            raise ValueError("El titulo de la tarea no puede estar vacio.")
+
+        due_db = self._parse_date_for_db(str(due_date or ""))
+        extra_payload = dict(extra or {})
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO tasks (
+                        case_id, title, description, due_date, priority, status, assigned_to, extra
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+                    RETURNING id::text
+                    """,
+                    (
+                        case_id,
+                        title_norm[:255],
+                        str(description or ""),
+                        due_db,
+                        str(priority or "normal").strip().lower() or "normal",
+                        str(status or "pendiente").strip().lower() or "pendiente",
+                        str(assigned_to or "").strip()[:100],
+                        json.dumps(extra_payload, ensure_ascii=False),
+                    ),
+                )
+                new_id = str(cur.fetchone()[0])
+                self._try_write_audit_log(
+                    cur,
+                    entity_type="task",
+                    entity_id=new_id,
+                    action="task_create",
+                    changes={"case_id": case_id, "title": title_norm[:255]},
+                    actor_ctx=actor_ctx,
+                )
+                self._sync_case_fields_from_primary_task(cur, new_id, actor_ctx=actor_ctx)
+
+        return self.obtener_tarea_por_id(new_id)
+
+    def actualizar_tarea(
+        self,
+        task_id: str,
+        cambios: Dict[str, Any],
+        *,
+        actor_ctx: Optional[ActorContext] = None,
+    ) -> bool:
+        task_id_norm = str(task_id or "").strip()
+        if not task_id_norm:
+            return False
+        changes = dict(cambios or {})
+        if not changes:
+            return True
+
+        col_updates: List[str] = []
+        params: List[Any] = []
+        allowed_text = {"title", "description", "priority", "status", "assigned_to"}
+        for key in allowed_text:
+            if key in changes:
+                col_updates.append(f"{key} = %s")
+                params.append(str(changes.get(key, "") or "").strip())
+
+        if "due_date" in changes:
+            col_updates.append("due_date = %s")
+            params.append(self._parse_date_for_db(str(changes.get("due_date", "") or "")))
+
+        if "completed_at" in changes:
+            raw_completed = changes.get("completed_at")
+            completed_dt = self._parse_datetime_utc(raw_completed)
+            col_updates.append("completed_at = %s")
+            params.append(completed_dt)
+
+        if "extra" in changes and isinstance(changes.get("extra"), dict):
+            col_updates.append("extra = %s::jsonb")
+            params.append(json.dumps(changes.get("extra"), ensure_ascii=False))
+
+        if not col_updates:
+            return True
+
+        params.append(task_id_norm)
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"UPDATE tasks SET {', '.join(col_updates)} WHERE id::text = %s",
+                    tuple(params),
+                )
+                if cur.rowcount <= 0:
+                    return False
+                self._try_write_audit_log(
+                    cur,
+                    entity_type="task",
+                    entity_id=task_id_norm,
+                    action="task_update",
+                    changes={"fields": sorted(list(changes.keys()))},
+                    actor_ctx=actor_ctx,
+                )
+                self._sync_case_fields_from_primary_task(cur, task_id_norm, actor_ctx=actor_ctx)
+        return True
+
+    def completar_tarea(self, task_id: str, *, actor_ctx: Optional[ActorContext] = None) -> bool:
+        task_id_norm = str(task_id or "").strip()
+        if not task_id_norm:
+            return False
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE tasks
+                    SET status = 'completada', completed_at = NOW()
+                    WHERE id::text = %s
+                    """,
+                    (task_id_norm,),
+                )
+                if cur.rowcount <= 0:
+                    return False
+                self._try_write_audit_log(
+                    cur,
+                    entity_type="task",
+                    entity_id=task_id_norm,
+                    action="task_complete",
+                    changes={"status": "completada"},
+                    actor_ctx=actor_ctx,
+                )
+                self._sync_case_fields_from_primary_task(cur, task_id_norm, actor_ctx=actor_ctx)
+        return True
+
+    def eliminar_tarea(self, task_id: str, *, actor_ctx: Optional[ActorContext] = None) -> bool:
+        task = self.obtener_tarea_por_id(task_id)
+        if not task:
+            return False
+        extra = dict(task.extra or {})
+        extra["deleted"] = "1"
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE tasks
+                    SET status = 'cancelada',
+                        extra = %s::jsonb
+                    WHERE id::text = %s
+                    """,
+                    (json.dumps(extra, ensure_ascii=False), str(task_id)),
+                )
+                if cur.rowcount <= 0:
+                    return False
+                self._try_write_audit_log(
+                    cur,
+                    entity_type="task",
+                    entity_id=str(task_id),
+                    action="task_delete_soft",
+                    changes={"deleted": True},
+                    actor_ctx=actor_ctx,
+                )
+                self._sync_case_fields_from_primary_task(cur, str(task_id), actor_ctx=actor_ctx)
+        return True
+
+    # ------------------------------------------------------------------
+    # GOOGLE CALENDAR CONNECTIONS + MAPPINGS
+    # ------------------------------------------------------------------
+
+    def _connection_row_to_model(self, row: Dict[str, Any]) -> GoogleCalendarConnection:
+        extra = row.get("extra") or {}
+        if isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except Exception:
+                extra = {}
+        if not isinstance(extra, dict):
+            extra = {}
+        return GoogleCalendarConnection(
+            id=str(row.get("id", "") or ""),
+            user_id=str(row.get("user_id", "") or ""),
+            google_email=str(row.get("google_email", "") or ""),
+            calendar_id=str(row.get("calendar_id", "") or "primary"),
+            refresh_token_enc=str(row.get("refresh_token_enc", "") or ""),
+            scope=str(row.get("scope", "") or ""),
+            sync_token=str(row.get("sync_token", "") or ""),
+            status=str(row.get("status", "") or "active"),
+            created_at=row.get("created_at").isoformat() if row.get("created_at") else "",
+            updated_at=row.get("updated_at").isoformat() if row.get("updated_at") else "",
+            last_sync_at=row.get("last_sync_at").isoformat() if row.get("last_sync_at") else "",
+            extra=extra,
+        )
+
+    def _map_row_to_model(self, row: Dict[str, Any]) -> GoogleEventMap:
+        return GoogleEventMap(
+            id=str(row.get("id", "") or ""),
+            task_id=str(row.get("task_id", "") or ""),
+            connection_id=str(row.get("connection_id", "") or ""),
+            google_event_id=str(row.get("google_event_id", "") or ""),
+            google_etag=str(row.get("google_etag", "") or ""),
+            google_updated_at=row.get("google_updated_at").isoformat() if row.get("google_updated_at") else "",
+            last_local_updated_at=row.get("last_local_updated_at").isoformat() if row.get("last_local_updated_at") else "",
+            is_deleted=bool(row.get("is_deleted", False)),
+            created_at=row.get("created_at").isoformat() if row.get("created_at") else "",
+            updated_at=row.get("updated_at").isoformat() if row.get("updated_at") else "",
+        )
+
+    def upsert_google_calendar_connection(
+        self,
+        *,
+        user_id: str,
+        google_email: str,
+        refresh_token_enc: str,
+        calendar_id: str = "primary",
+        scope: str = "",
+        status: str = "active",
+        extra: Optional[Dict[str, Any]] = None,
+        actor_ctx: Optional[ActorContext] = None,
+    ) -> Optional[GoogleCalendarConnection]:
+        user_id_norm = str(user_id or "").strip()
+        if not user_id_norm:
+            return None
+        payload_extra = dict(extra or {})
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO google_calendar_connections (
+                        user_id, google_email, calendar_id, refresh_token_enc, scope, status, extra
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
+                    ON CONFLICT (user_id, calendar_id)
+                    DO UPDATE SET
+                        google_email = EXCLUDED.google_email,
+                        refresh_token_enc = EXCLUDED.refresh_token_enc,
+                        scope = EXCLUDED.scope,
+                        status = EXCLUDED.status,
+                        extra = EXCLUDED.extra,
+                        updated_at = NOW()
+                    RETURNING *
+                    """,
+                    (
+                        user_id_norm,
+                        str(google_email or "").strip(),
+                        str(calendar_id or "primary").strip() or "primary",
+                        str(refresh_token_enc or ""),
+                        str(scope or ""),
+                        str(status or "active"),
+                        json.dumps(payload_extra, ensure_ascii=False),
+                    ),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                columns = [d[0] for d in cur.description]
+                model = self._connection_row_to_model(dict(zip(columns, row)))
+                self._try_write_audit_log(
+                    cur,
+                    entity_type="google_calendar_connection",
+                    entity_id=model.id,
+                    action="calendar_connect",
+                    changes={"user_id": user_id_norm, "calendar_id": model.calendar_id},
+                    actor_ctx=actor_ctx,
+                )
+                return model
+
+    def obtener_google_calendar_connection_by_user(self, user_id: str, calendar_id: str = "primary") -> Optional[GoogleCalendarConnection]:
+        user_id_norm = str(user_id or "").strip()
+        if not user_id_norm:
+            return None
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT *
+                    FROM google_calendar_connections
+                    WHERE user_id::text = %s
+                      AND calendar_id = %s
+                    LIMIT 1
+                    """,
+                    (user_id_norm, str(calendar_id or "primary")),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                columns = [d[0] for d in cur.description]
+                return self._connection_row_to_model(dict(zip(columns, row)))
+
+    def listar_google_calendar_connections(self, *, only_active: bool = True) -> List[GoogleCalendarConnection]:
+        clauses = []
+        params: List[Any] = []
+        if only_active:
+            clauses.append("status = 'active'")
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        query = f"SELECT * FROM google_calendar_connections {where} ORDER BY updated_at DESC"
+        rows: List[GoogleCalendarConnection] = []
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, tuple(params))
+                columns = [d[0] for d in cur.description]
+                for raw in cur.fetchall():
+                    rows.append(self._connection_row_to_model(dict(zip(columns, raw))))
+        return rows
+
+    def marcar_google_calendar_sincronizado(
+        self,
+        connection_id: str,
+        *,
+        sync_token: str = "",
+        actor_ctx: Optional[ActorContext] = None,
+    ) -> bool:
+        conn_id = str(connection_id or "").strip()
+        if not conn_id:
+            return False
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE google_calendar_connections
+                    SET sync_token = %s,
+                        last_sync_at = NOW(),
+                        updated_at = NOW()
+                    WHERE id::text = %s
+                    """,
+                    (str(sync_token or ""), conn_id),
+                )
+                ok = cur.rowcount > 0
+                if ok:
+                    self._try_write_audit_log(
+                        cur,
+                        entity_type="google_calendar_connection",
+                        entity_id=conn_id,
+                        action="calendar_sync",
+                        changes={"sync_token_set": bool(sync_token)},
+                        actor_ctx=actor_ctx,
+                    )
+                return ok
+
+    def eliminar_google_calendar_connection(self, user_id: str, calendar_id: str = "primary", *, actor_ctx: Optional[ActorContext] = None) -> bool:
+        user_id_norm = str(user_id or "").strip()
+        if not user_id_norm:
+            return False
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE google_calendar_connections
+                    SET status = 'revoked',
+                        refresh_token_enc = '',
+                        sync_token = '',
+                        updated_at = NOW()
+                    WHERE user_id::text = %s
+                      AND calendar_id = %s
+                    RETURNING id::text
+                    """,
+                    (user_id_norm, str(calendar_id or "primary")),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return False
+                conn_id = str(row[0])
+                self._try_write_audit_log(
+                    cur,
+                    entity_type="google_calendar_connection",
+                    entity_id=conn_id,
+                    action="calendar_disconnect",
+                    changes={"user_id": user_id_norm, "calendar_id": str(calendar_id or "primary")},
+                    actor_ctx=actor_ctx,
+                )
+                return True
+
+    def upsert_google_event_mapping(
+        self,
+        *,
+        task_id: str,
+        connection_id: str,
+        google_event_id: str,
+        google_etag: str = "",
+        google_updated_at: Optional[datetime] = None,
+        last_local_updated_at: Optional[datetime] = None,
+        is_deleted: bool = False,
+        actor_ctx: Optional[ActorContext] = None,
+    ) -> Optional[GoogleEventMap]:
+        task_id_norm = str(task_id or "").strip()
+        connection_id_norm = str(connection_id or "").strip()
+        event_id_norm = str(google_event_id or "").strip()
+        if not task_id_norm or not connection_id_norm or not event_id_norm:
+            return None
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO google_calendar_event_map (
+                        task_id,
+                        connection_id,
+                        google_event_id,
+                        google_etag,
+                        google_updated_at,
+                        last_local_updated_at,
+                        is_deleted
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (connection_id, task_id)
+                    DO UPDATE SET
+                        google_event_id = EXCLUDED.google_event_id,
+                        google_etag = EXCLUDED.google_etag,
+                        google_updated_at = EXCLUDED.google_updated_at,
+                        last_local_updated_at = EXCLUDED.last_local_updated_at,
+                        is_deleted = EXCLUDED.is_deleted,
+                        updated_at = NOW()
+                    RETURNING *
+                    """,
+                    (
+                        task_id_norm,
+                        connection_id_norm,
+                        event_id_norm,
+                        str(google_etag or ""),
+                        google_updated_at,
+                        last_local_updated_at,
+                        bool(is_deleted),
+                    ),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                columns = [d[0] for d in cur.description]
+                model = self._map_row_to_model(dict(zip(columns, row)))
+                self._try_write_audit_log(
+                    cur,
+                    entity_type="task",
+                    entity_id=task_id_norm,
+                    action="task_sync_map_upsert",
+                    changes={"connection_id": connection_id_norm, "google_event_id": event_id_norm},
+                    actor_ctx=actor_ctx,
+                )
+                return model
+
+    def obtener_google_event_mapping_por_task(self, connection_id: str, task_id: str) -> Optional[GoogleEventMap]:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT *
+                    FROM google_calendar_event_map
+                    WHERE connection_id::text = %s
+                      AND task_id::text = %s
+                    LIMIT 1
+                    """,
+                    (str(connection_id or "").strip(), str(task_id or "").strip()),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                columns = [d[0] for d in cur.description]
+                return self._map_row_to_model(dict(zip(columns, row)))
+
+    def obtener_google_event_mapping_por_evento(self, connection_id: str, google_event_id: str) -> Optional[GoogleEventMap]:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT *
+                    FROM google_calendar_event_map
+                    WHERE connection_id::text = %s
+                      AND google_event_id = %s
+                    LIMIT 1
+                    """,
+                    (str(connection_id or "").strip(), str(google_event_id or "").strip()),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                columns = [d[0] for d in cur.description]
+                return self._map_row_to_model(dict(zip(columns, row)))
+
+    def listar_google_event_mappings(self, connection_id: str) -> List[GoogleEventMap]:
+        conn_id = str(connection_id or "").strip()
+        if not conn_id:
+            return []
+        out: List[GoogleEventMap] = []
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT *
+                    FROM google_calendar_event_map
+                    WHERE connection_id::text = %s
+                    ORDER BY updated_at DESC
+                    """,
+                    (conn_id,),
+                )
+                columns = [d[0] for d in cur.description]
+                for row in cur.fetchall():
+                    out.append(self._map_row_to_model(dict(zip(columns, row))))
+        return out

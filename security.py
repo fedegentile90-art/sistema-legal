@@ -49,7 +49,10 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "configuracion:view",
         "cases:create",
         "cases:write",
+        "tasks:write",
         "finance:write",
+        "calendar:connect",
+        "calendar:sync",
         "exports:download",
     },
     "asistente": {
@@ -59,7 +62,10 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "finanzas:view",
         "auditoria:view",
         "cases:write",
+        "tasks:write",
         "finance:write",
+        "calendar:connect",
+        "calendar:sync",
         "exports:download",
     },
     "auditor": {

@@ -1,8 +1,8 @@
 """
-Modelo de datos: Caso juridico (unidad atomica del sistema).
+Modelo de datos principal del dominio legal.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List
@@ -118,6 +118,59 @@ class Caso:
             "_MISSING_QUALITY": "; ".join(status_info["missing_quality"]),
             "_RUTA": str(self.ruta)  # Columna oculta para referencia
         }
+
+
+@dataclass
+class TaskRecord:
+    """Representa una tarea operativa de agenda (tabla tasks)."""
+    id: str
+    case_id: str
+    case_ref: str
+    title: str
+    description: str = ""
+    due_date: str = ""
+    priority: str = "normal"
+    status: str = "pendiente"
+    assigned_to: str = ""
+    completed_at: str = ""
+    created_at: str = ""
+    updated_at: str = ""
+    client_name: str = ""
+    case_causa: str = ""
+    case_estado: str = ""
+    extra: Dict[str, object] = field(default_factory=dict)
+
+
+@dataclass
+class GoogleCalendarConnection:
+    """Conexion OAuth de un usuario a Google Calendar."""
+    id: str
+    user_id: str
+    google_email: str = ""
+    calendar_id: str = "primary"
+    refresh_token_enc: str = ""
+    scope: str = ""
+    sync_token: str = ""
+    status: str = "active"
+    created_at: str = ""
+    updated_at: str = ""
+    last_sync_at: str = ""
+    extra: Dict[str, object] = field(default_factory=dict)
+
+
+@dataclass
+class GoogleEventMap:
+    """Mapeo entre task interna y evento Google Calendar."""
+    id: str
+    task_id: str
+    connection_id: str
+    google_event_id: str
+    google_etag: str = ""
+    google_updated_at: str = ""
+    last_local_updated_at: str = ""
+    is_deleted: bool = False
+    created_at: str = ""
+    updated_at: str = ""
 
 
 def is_blank(value) -> bool:

@@ -51,6 +51,9 @@ Los dos manuales cubren:
 - Bootstrap de DB de pruebas aislada:
   - `python db/setup_test_db.py --write-dotenv`
   - (alternativa UI) `Configuracion > Operativo > Preparar DB de pruebas`
+- Backfill agenda tasks-first (idempotente):
+  - `python db/backfill_tasks_from_cases.py --dry-run`
+  - `python db/backfill_tasks_from_cases.py`
 - Baseline de seguridad DB:
   - `python db/security_baseline.py --mode warn`
 - Baseline de performance/capacidad DB:
@@ -62,6 +65,9 @@ Los dos manuales cubren:
   - `python db/ops_behavior_test.py`
 - Contratos UI (visual/orden/texto/persistencia):
   - `python -m pytest -q tests/test_ui_theme_contract.py tests/test_ui_visual_order_contract.py tests/test_ui_text_encoding_contract.py tests/test_ui_theme_persistence_db.py`
+- Worker sync Google Calendar (polling incremental):
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\google_calendar_sync_worker.ps1`
+  - `python integrations/run_sync_worker.py`
 - CI DB-first (PostgreSQL efimero):
   - workflow `.github/workflows/ci-db.yml`
   - ejecuta `python db/env_contract.py --profile release_gate_full`

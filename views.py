@@ -11,6 +11,7 @@ import html
 import io
 import json
 import logging
+import math
 import os
 import re
 import subprocess
@@ -52,7 +53,7 @@ from domain import Caso, case_status, is_blank
 from exports import build_export_metadata, df_to_xlsx_bytes, payload_to_json_bytes
 from grids import render_aggrid
 from repo import GestorCasos, is_db_mode
-from security import build_actor_context, can_access_route, can_export, has_permission, is_rbac_strict
+from security import build_actor_context, can_access_route, can_export, current_user, has_permission, is_rbac_strict
 from ui import (
     _ensure_bool_state,
     _swap,
@@ -154,17 +155,50 @@ def _render_timeseries_line_chart(
         value_vars=valid_y,
         var_name="Serie",
         value_name="Valor",
-    ).dropna(subset=["Valor"])
+    ).dropna(subset=["Valor"]).reset_index(drop=True)
 
     if long_df.empty:
         return False
+
+    # Vega-Lite puede advertir "Infinite extent" si recibe series con menos de 2 puntos.
+    long_df[x_col] = pd.to_datetime(long_df[x_col], errors="coerce")
+    long_df["Valor"] = pd.to_numeric(long_df["Valor"], errors="coerce")
+    long_df = long_df.dropna(subset=[x_col, "Valor"])
+    long_df = long_df[long_df["Valor"].apply(lambda v: math.isfinite(float(v)))]
+    if long_df.empty:
+        return False
+
+    if long_df[x_col].nunique() < 2:
+        return False
+
+    counts = long_df.groupby("Serie").size()
+    keep_series = counts[counts >= 2].index.tolist()
+    if not keep_series:
+        return False
+    long_df = long_df[long_df["Serie"].isin(keep_series)].copy()
+    if long_df.empty:
+        return False
+
+    x_min = long_df[x_col].min()
+    x_max = long_df[x_col].max()
+    if pd.isna(x_min) or pd.isna(x_max):
+        return False
+
+    y_min = float(long_df["Valor"].min())
+    y_max = float(long_df["Valor"].max())
+    if not (math.isfinite(y_min) and math.isfinite(y_max)):
+        return False
+    if y_min == y_max:
+        pad = 1.0 if y_min == 0 else max(0.1, abs(y_min) * 0.05)
+        y_min -= pad
+        y_max += pad
 
     chart = (
         alt.Chart(long_df)
         .mark_line(point=True)
         .encode(
-            x=alt.X(f"{x_col}:T", title="Fecha"),
-            y=alt.Y("Valor:Q", title=y_title),
+            x=alt.X(f"{x_col}:T", title="Fecha", scale=alt.Scale(domain=[x_min, x_max], nice=False)),
+            y=alt.Y("Valor:Q", title=y_title, scale=alt.Scale(domain=[y_min, y_max], nice=False)),
             color=alt.Color("Serie:N", title="Serie"),
             tooltip=[
                 alt.Tooltip(f"{x_col}:T", title="Fecha"),
@@ -2107,6 +2141,17 @@ def _build_weekly_campaign_df(trend_rows: List[Dict]) -> pd.DataFrame:
 
 def render_gestion(gestor: GestorCasos, casos: List[Caso], df: pd.DataFrame | None):
     """Gestion: pipeline fijo (header > seccion > modo > toolbar > cuerpo)."""
+    if _env_bool("VG_GESTION_AGENDA_V2", default=False):
+        from views_gestion_v2 import render_gestion_v2
+
+        return render_gestion_v2(
+            gestor,
+            casos,
+            df,
+            go_route=lambda route, mode, item_id=None: _go_route(route, mode=mode, item_id=item_id),
+            actor_ctx_fn=_actor_ctx,
+        )
+
     start_ui_block_order("Gestion")
     st.markdown("<style>.main .block-container { max-width: 100% !important; }</style>", unsafe_allow_html=True)
 
@@ -2287,6 +2332,16 @@ def _render_standalone_modebar(section: str, mode: str) -> str:
 
 
 def render_agenda(gestor: GestorCasos, casos: List[Caso]):
+    if _env_bool("VG_GESTION_AGENDA_V2", default=False):
+        from views_agenda_v2 import render_agenda_v2
+
+        return render_agenda_v2(
+            gestor,
+            casos,
+            go_route=lambda route, mode, item_id=None: _go_route(route, mode=mode, item_id=item_id),
+            actor_ctx_fn=_actor_ctx,
+        )
+
     st.markdown("<style>.main .block-container { max-width: 100% !important; }</style>", unsafe_allow_html=True)
     section, mode = _prepare_standalone_section("agenda")
 
@@ -5309,6 +5364,163 @@ def render_auditoria(gestor: GestorCasos, casos: List[Caso]):
 
 
 # ------------------------------------------------------------------------------
+# CONFIGURACION > INTEGRACIONES
+# ------------------------------------------------------------------------------
+
+def _render_google_calendar_integrations_panel(gestor: GestorCasos) -> None:
+    enabled = _env_bool("VG_GOOGLE_CALENDAR_ENABLED", default=False)
+    sync_enabled = _env_bool("VG_GOOGLE_CALENDAR_SYNC_ENABLED", default=False)
+    can_connect = has_permission("calendar:connect")
+    can_sync = has_permission("calendar:sync")
+
+    card_begin("Google Calendar", subtitle="OAuth por usuario + sync bidireccional", variant="tight")
+    s1, s2, s3, s4 = st.columns(4)
+    with s1:
+        kpi_card("Calendar", "ON" if enabled else "OFF")
+    with s2:
+        kpi_card("Sync worker", "ON" if sync_enabled else "OFF")
+    with s3:
+        kpi_card("Permiso connect", "ON" if can_connect else "OFF")
+    with s4:
+        kpi_card("Permiso sync", "ON" if can_sync else "OFF")
+
+    if not enabled:
+        st.info("Integracion desactivada por entorno (VG_GOOGLE_CALENDAR_ENABLED=0).")
+        card_end()
+        return
+
+    user = current_user()
+    user_id = str(getattr(user, "user_id", "") or "").strip()
+    if not user_id:
+        st.warning("Debe iniciar sesion para vincular Google Calendar.")
+        card_end()
+        return
+
+    if not hasattr(gestor, "obtener_google_calendar_connection_by_user"):
+        st.warning("Repositorio activo sin API de Google Calendar.")
+        card_end()
+        return
+
+    try:
+        connection = gestor.obtener_google_calendar_connection_by_user(user_id)
+    except Exception as exc:
+        st.error(f"No se pudo leer conexion actual: {exc}")
+        card_end()
+        return
+
+    oauth_state_key = "config.integrations.google.oauth.state"
+    oauth_url_key = "config.integrations.google.oauth.url"
+
+    if not connection:
+        st.caption("No hay conexion activa para este usuario.")
+        if not can_connect:
+            st.warning("No tiene permiso para conectar Google Calendar.")
+            card_end()
+            return
+        try:
+            from integrations.google_oauth import build_authorization_url, oauth_is_configured
+        except Exception as exc:
+            st.error(f"No se pudo cargar modulo OAuth: {exc}")
+            card_end()
+            return
+
+        if not oauth_is_configured():
+            st.warning("Falta configurar VG_GOOGLE_OAUTH_CLIENT_ID / SECRET / REDIRECT_URI.")
+            card_end()
+            return
+
+        if st.button("Generar URL de autorizacion", key="config.integrations.google.oauth.generate", width="stretch", type="secondary"):
+            try:
+                auth_url, state = build_authorization_url(state=f"{user_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}")
+                st.session_state[oauth_state_key] = state
+                st.session_state[oauth_url_key] = auth_url
+            except Exception as exc:
+                st.error(f"No se pudo generar URL OAuth: {exc}")
+
+        oauth_url = str(st.session_state.get(oauth_url_key, "") or "").strip()
+        if oauth_url:
+            st.markdown(f"[Abrir consentimiento Google Calendar]({oauth_url})")
+            st.caption("Tras autorizar, copie el `code` de la URL de redireccion y peguelo abajo.")
+
+        code = st.text_input("OAuth code", key="config.integrations.google.oauth.code", placeholder="4/0A...")
+        if st.button("Conectar cuenta Google", key="config.integrations.google.oauth.connect", width="stretch"):
+            try:
+                from integrations.google_calendar_crypto import encrypt_token, has_encryption_key
+                from integrations.google_oauth import exchange_code_for_tokens
+            except Exception as exc:
+                st.error(f"No se pudo cargar modulos Google: {exc}")
+                card_end()
+                return
+
+            if not has_encryption_key():
+                st.error("Falta VG_GOOGLE_CALENDAR_ENC_KEY para cifrar refresh token.")
+                card_end()
+                return
+
+            try:
+                tokens = exchange_code_for_tokens(code=code, state=str(st.session_state.get(oauth_state_key, "") or ""))
+                refresh_token = str(tokens.get("refresh_token", "") or "")
+                if not refresh_token:
+                    st.error("Google no devolvio refresh_token. Revocar consentimiento y reintentar con prompt=consent.")
+                    card_end()
+                    return
+                enc = encrypt_token(refresh_token)
+                upsert = gestor.upsert_google_calendar_connection(
+                    user_id=user_id,
+                    google_email=str(tokens.get("google_email", "") or ""),
+                    refresh_token_enc=enc,
+                    calendar_id="primary",
+                    scope=str(tokens.get("scope", "") or ""),
+                    status="active",
+                    extra={"timezone": "America/Argentina/Buenos_Aires"},
+                    actor_ctx=_actor_ctx(),
+                )
+                if upsert:
+                    st.success("Google Calendar conectado correctamente.")
+                    st.rerun()
+                else:
+                    st.error("No se pudo persistir la conexion.")
+            except Exception as exc:
+                st.error(f"Error durante vinculacion OAuth: {exc}")
+        card_end()
+        return
+
+    st.success(f"Conectado: {connection.google_email or 'cuenta Google'} · calendario `{connection.calendar_id}`")
+    st.caption(f"Ultimo sync: {connection.last_sync_at or 'nunca'}")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("Sincronizar ahora", key="config.integrations.google.sync.now", width="stretch", disabled=not can_sync):
+            try:
+                from integrations.google_calendar_sync import sync_user
+
+                result = sync_user(gestor, user_id, actor_ctx=_actor_ctx())
+                if result.get("ok"):
+                    st.success("Sincronizacion completada.")
+                else:
+                    st.warning(f"Sync finalizo con alertas: {result}")
+            except Exception as exc:
+                st.error(f"No se pudo sincronizar: {exc}")
+    with c2:
+        if st.button("Desconectar", key="config.integrations.google.disconnect", width="stretch", type="secondary", disabled=not can_connect):
+            try:
+                ok = gestor.eliminar_google_calendar_connection(user_id, calendar_id="primary", actor_ctx=_actor_ctx())
+                if ok:
+                    st.success("Conexion Google revocada.")
+                    st.rerun()
+                else:
+                    st.error("No se pudo desconectar.")
+            except Exception as exc:
+                st.error(f"Error al desconectar: {exc}")
+    with c3:
+        st.caption(
+            "Worker: scripts/google_calendar_sync_worker.ps1 "
+            f"| poll={int(os.environ.get('VG_GOOGLE_CALENDAR_POLL_MINUTES', '5') or 5)} min"
+        )
+
+    card_end()
+
+
+# ------------------------------------------------------------------------------
 # CONFIGURACION
 # ------------------------------------------------------------------------------
 
@@ -5363,7 +5575,7 @@ def render_configuracion(gestor: GestorCasos, casos: List[Caso]):
     )
 
     mark_ui_block("Configuracion", "work")
-    tab1, tab2, tab3 = st.tabs(["Operativo", "Editar caso", "Ayuda"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Operativo", "Editar caso", "Integraciones", "Ayuda"])
 
     with tab1:
         if AUTO_SAVE_OVERRIDE_KEY not in st.session_state:
@@ -5445,6 +5657,9 @@ def render_configuracion(gestor: GestorCasos, casos: List[Caso]):
             st.info("No hay casos para editar.")
 
     with tab3:
+        _render_google_calendar_integrations_panel(gestor)
+
+    with tab4:
         ui_centro_ayuda_content()
 
 
