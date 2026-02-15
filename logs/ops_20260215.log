@@ -1,0 +1,1511 @@
+[2026-02-15 03:31:34.697] [INFO] Variables cargadas desde .env: 26 (C:\Users\Pc\Desktop\SistemaLegal\.env)
+[2026-02-15 03:31:34.728] [WARN] VG_RELEASE_GATE_MODE invalida ('invalid_mode'). Se fuerza 'read_only' para DailyOps.
+[2026-02-15 03:31:34.731] === DAILY OPS START ===
+[2026-02-15 03:31:34.731] RepoDir: C:\Users\Pc\Desktop\SistemaLegal
+[2026-02-15 03:31:34.741] Run ID: rg-20260215063114-c9a40931 (env VG_RUN_ID)
+[2026-02-15 03:31:34.743] Step timeout: 1200s (env VG_STEP_TIMEOUT_SEC)
+[2026-02-15 03:31:34.745] Release gate mode efectivo: read_only (env VG_RELEASE_GATE_MODE)
+[2026-02-15 03:31:34.761] [OBS] ts="2026-02-15T06:31:34.750Z" run_id="rg-20260215063114-c9a40931" stage="daily_ops_start" suite="daily_ops" status="RUN" detail=-
+[2026-02-15 03:31:34.776] [RUN] env_contract_daily_ops: C:\Users\Pc\Desktop\SistemaLegal\.venv\Scripts\python.exe db/env_contract.py --profile daily_ops
+[2026-02-15 03:31:34.779] [OBS] ts="2026-02-15T06:31:34.778Z" run_id="rg-20260215063114-c9a40931" stage="step_start" suite="env_contract_daily_ops" status="RUN" detail="timeout_sec=1200"
+
+[1mENV CONTRACT CHECK[0m
+Profile: daily_ops
+[94m[INFO] VG_RUNTIME_DATABASE_URL detectada (mask): postgresql://postgres:***@localhost:5432/sistemalegal[0m
+[92m[OK] DATABASE_URL presente: postgresql://postgres:***@localhost:5432/sistemalegal_test[0m
+[94m[INFO] DB runtime: sistemalegal_test[0m
+[92m[OK] VG_RELEASE_GATE_MODE=read_only[0m
+[94m[INFO] Modo read_only: no se exige VG_TEST_DATABASE_URL para daily_ops.[0m
+[92m[OK] VG_QUALITY_GATE_KPI_MODE=warn[0m
+[92m[OK] VG_SECURITY_GATE_MODE=warn[0m
+[94m[INFO] VG_DB_APP_ROLE no definida. Se omite validacion de rol esperado.[0m
+[94m[INFO] VG_DB_TEST_ROLE no definida. Se omite validacion de rol esperado.[0m
+[94m[INFO] VG_SECURITY_GATE_REQUIRE_TEST_ROLE_SPLIT no definida. Se usa default=0.[0m
+[92m[OK] VG_PERFORMANCE_GATE_MODE=warn[0m
+[94m[INFO] VG_PERFORMANCE_GATE_MAX_SELECT1_MS no definida. Se usa default=250.[0m
+[94m[INFO] VG_PERFORMANCE_GATE_MAX_CORE_COUNTS_MS no definida. Se usa default=600.[0m
+[94m[INFO] VG_PERFORMANCE_GATE_MAX_RECENT_DOCS_MS no definida. Se usa default=800.[0m
+[94m[INFO] VG_PERFORMANCE_GATE_MAX_RECENT_CASES_MS no definida. Se usa default=600.[0m
+[94m[INFO] VG_PERFORMANCE_GATE_MAX_DOCS_PER_CASE no definida. Se usa default=300.[0m
+[94m[INFO] VG_PERFORMANCE_GATE_MAX_AUDIT_ROWS no definida. Se usa default=200000.[0m
+[94m[INFO] VG_QUALITY_GATE_KPI_MIN_CASES no definida. Se usa default=1.[0m
+[94m[INFO] VG_STEP_TIMEOUT_SEC no definida. Se usa default=1200.[0m
+
+[92m[1mENV CONTRACT: PASS[0m
+[2026-02-15 03:31:35.084] [PASS] env_contract_daily_ops exit=0
+[2026-02-15 03:31:35.086] [OBS] ts="2026-02-15T06:31:35.086Z" run_id="rg-20260215063114-c9a40931" stage="step_end" suite="env_contract_daily_ops" status="PASS" detail="exit=0"
+[2026-02-15 03:31:35.090] [RUN] nightly_audit: C:\Users\Pc\Desktop\SistemaLegal\.venv\Scripts\python.exe db/nightly_audit.py
+[2026-02-15 03:31:35.093] [OBS] ts="2026-02-15T06:31:35.092Z" run_id="rg-20260215063114-c9a40931" stage="step_start" suite="nightly_audit" status="RUN" detail="timeout_sec=1200"
+[94m[INFO] Run ID: rg-20260215063114-c9a40931 (env VG_RUN_ID)[0m
+[OBS] {"detail": "source=nightly_cli", "run_id": "rg-20260215063114-c9a40931", "stage": "nightly_start", "status": "RUN", "suite": "nightly_audit", "ts": "2026-02-15T06:31:35Z"}
+[92m[OK] Preflight DB: OK[0m
+[OBS] {"detail": "DATABASE_URL reachable", "run_id": "rg-20260215063114-c9a40931", "stage": "db_preflight", "status": "PASS", "suite": "nightly_audit", "ts": "2026-02-15T06:31:35Z"}
+[OBS] {"detail": "casos=1", "run_id": "rg-20260215063114-c9a40931", "stage": "load_cases", "status": "PASS", "suite": "nightly_audit", "ts": "2026-02-15T06:31:35Z"}
+[OBS] {"run_id": "rg-20260215063114-c9a40931", "stage": "build_snapshot", "status": "PASS", "suite": "nightly_audit", "ts": "2026-02-15T06:31:35Z"}
+
+[1m============================================================
+  NIGHTLY AUDIT - SISTEMALEGAL
+============================================================[0m
+
+[94m[INFO] Backend: database (GestorCasosDB)[0m
+[94m[INFO] Generado: 2026-02-15T06:31:35.410422Z[0m
+[94m[INFO] Casos auditados: 1[0m
+[94m[INFO] Resumen: errores=0 warnings=0 info=1[0m
+[92m[OK] Audit OK: SI[0m
+[94m[INFO] KPI %: FECHA_TAREA=0.0 | EXPEDIENTE=0.0 | EVENTO/FECHA_EVENTO=0.0 | COBERTURA_FINANCIERA=100.0[0m
+[92m[OK] Snapshot diario: C:\Users\Pc\Desktop\SistemaLegal\db\snapshots\audit_daily\audit_snapshot_20260215_063135410422.json[0m
+[92m[OK] Historial tendencia: C:\Users\Pc\Desktop\SistemaLegal\db\snapshots\audit_history.csv[0m
+[OBS] {"detail": "snapshot=C:\\Users\\Pc\\Desktop\\SistemaLegal\\db\\snapshots\\audit_daily\\audit_snapshot_20260215_063135410422.json", "run_id": "rg-20260215063114-c9a40931", "stage": "persist_snapshot", "status": "PASS", "suite": "nightly_audit", "ts": "2026-02-15T06:31:35Z"}
+
+Tendencia (ultimos dias):
+  2026-02-13 | E=1 W=41 I=1 | FT=7.0% EXP=9.3%
+  2026-02-14 | E=0 W=0 I=1 | FT=0.0% EXP=0.0%
+  2026-02-15 | E=0 W=0 I=1 | FT=0.0% EXP=0.0%
+[OBS] {"detail": "rows=3", "run_id": "rg-20260215063114-c9a40931", "stage": "history", "status": "PASS", "suite": "nightly_audit", "ts": "2026-02-15T06:31:35Z"}
+[OBS] {"run_id": "rg-20260215063114-c9a40931", "stage": "nightly_end", "status": "PASS", "suite": "nightly_audit", "ts": "2026-02-15T06:31:35Z"}
+[2026-02-15 03:31:35.562] [PASS] nightly_audit exit=0
+[2026-02-15 03:31:35.562] [OBS] ts="2026-02-15T06:31:35.562Z" run_id="rg-20260215063114-c9a40931" stage="step_end" suite="nightly_audit" status="PASS" detail="exit=0"
+[2026-02-15 03:31:35.569] [RUN] release_gate: C:\Users\Pc\Desktop\SistemaLegal\.venv\Scripts\python.exe db/release_gate.py
+[2026-02-15 03:31:35.577] [OBS] ts="2026-02-15T06:31:35.572Z" run_id="rg-20260215063114-c9a40931" stage="step_start" suite="release_gate" status="RUN" detail="timeout_sec=1200"
+
+[1m========================================================================
+  RELEASE QA GATE
+========================================================================[0m
+Run ID: rg-20260215063114-c9a40931 (env VG_RUN_ID)
+[OBS] {"detail": "mode_arg=-", "run_id": "rg-20260215063114-c9a40931", "stage": "gate_start", "status": "RUN", "suite": "release_gate", "ts": "2026-02-15T06:31:35Z"}
+Modo de ejecucion: read_only (env VG_RELEASE_GATE_MODE)
+Modo KPI quality gate: warn (env VG_QUALITY_GATE_KPI_MODE, default=warn)
+Modo security gate: warn (env VG_SECURITY_GATE_MODE, default=warn)
+Modo performance gate: warn (env VG_PERFORMANCE_GATE_MODE, default=warn)
+Min casos KPI gate: 1 (env VG_QUALITY_GATE_KPI_MIN_CASES, default=1)
+[OBS] {"detail": "mode=read_only kpi_mode=warn kpi_min_cases=1 security_mode=warn performance_mode=warn", "run_id": "rg-20260215063114-c9a40931", "stage": "gate_init", "status": "PASS", "suite": "release_gate", "ts": "2026-02-15T06:31:35Z"}
+Politica DB de pruebas:
+  - read_only: suites DB quedan SKIPPED por seguridad.
+  - full: ejecutar para validar suites DB en DB de pruebas aislada.
+Timeout por suite: 900s (env VG_SUITE_TIMEOUT_SEC)
+[OBS] {"detail": "mode=read_only", "run_id": "rg-20260215063114-c9a40931", "stage": "env_contract", "status": "SKIPPED", "suite": "release_gate", "ts": "2026-02-15T06:31:35Z"}
+[OBS] {"detail": "timeout_sec=900 cmd=C:\\Users\\Pc\\Desktop\\SistemaLegal\\.venv\\Scripts\\python.exe db/contract_test.py", "run_id": "rg-20260215063114-c9a40931", "stage": "suite_start", "status": "RUN", "suite": "contract_test", "ts": "2026-02-15T06:31:35Z"}
+[94m[RUN] contract_test: C:\Users\Pc\Desktop\SistemaLegal\.venv\Scripts\python.exe db/contract_test.py (timeout=900s)[0m
+
+[1m============================================================
+  CONTRACT TESTS - VACA & GENTILE ERP
+  Validacion de API entre backends FS y DB
+============================================================[0m
+
+[1m============================================================
+  CONTRACT TEST: obtener_clientes_existentes
+============================================================[0m
+
+[92m[OK] Imports exitosos: GestorCasos (FS) y GestorCasosDB (DB)[0m
+[92m[OK] GestorCasos (FS) tiene metodo obtener_clientes_existentes[0m
+[92m[OK] GestorCasosDB (DB) tiene metodo obtener_clientes_existentes[0m
+[92m[OK] Firma: ambos metodos no reciben parametros (solo self)[0m
+[92m[OK] Return annotation: ambos -> List[str][0m
+[92m[OK] Docstring FS menciona clientes unicos/existentes[0m
+[92m[OK] Docstring DB menciona casos/unicos[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: escanear_casos
+============================================================[0m
+
+[92m[OK] Imports exitosos[0m
+[92m[OK] FS tiene metodo escanear_casos[0m
+[92m[OK] DB tiene metodo escanear_casos[0m
+[92m[OK] FS.escanear_casos() no recibe parametros[0m
+[92m[OK] DB.escanear_casos() no recibe parametros[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: _leer_ficha
+============================================================[0m
+
+[92m[OK] Imports exitosos[0m
+[92m[OK] FS tiene metodo _leer_ficha[0m
+[92m[OK] FS._leer_ficha recibe 1 parametro de ruta[0m
+[92m[OK] DB tiene metodo _leer_ficha[0m
+[92m[OK] DB._leer_ficha recibe 1 parametro de ruta[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: actualizar_campos_ficha
+============================================================[0m
+
+[92m[OK] Imports exitosos[0m
+[92m[OK] FS tiene metodo actualizar_campos_ficha[0m
+[92m[OK] FS.actualizar_campos_ficha firma compatible: ['ruta_caso', 'cambios', 'actor_ctx'][0m
+[92m[OK] FS.actualizar_campos_ficha -> bool[0m
+[92m[OK] DB tiene metodo actualizar_campos_ficha[0m
+[92m[OK] DB.actualizar_campos_ficha firma compatible: ['ruta_caso', 'cambios', 'actor_ctx'][0m
+[92m[OK] DB.actualizar_campos_ficha -> bool[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: Caso attributes (detalle cliente)
+============================================================[0m
+
+[92m[OK] Import Caso exitoso[0m
+[92m[OK] Caso es un dataclass[0m
+[92m[OK] Caso tiene campo 'ruta'[0m
+[92m[OK] Caso tiene campo 'año'[0m
+[92m[OK] Caso tiene campo 'estado'[0m
+[92m[OK] Caso tiene campo 'cliente'[0m
+[92m[OK] Caso tiene campo 'fuero'[0m
+[92m[OK] Caso tiene campo 'causa'[0m
+[92m[OK] Caso tiene campo 'tipo_proceso'[0m
+[92m[OK] Caso tiene campo 'jurisdiccion'[0m
+[92m[OK] Caso tiene campo 'organismo'[0m
+[92m[OK] Caso tiene campo 'expediente'[0m
+[92m[OK] Caso tiene campo 'caratula'[0m
+[92m[OK] Caso tiene campo 'responsable'[0m
+[92m[OK] Caso tiene campo 'control'[0m
+[92m[OK] Caso tiene campo 'evento'[0m
+[92m[OK] Caso tiene campo 'fecha_evento'[0m
+[92m[OK] Caso tiene campo 'tarea_pendiente'[0m
+[92m[OK] Caso tiene campo 'fecha_tarea'[0m
+[92m[OK] Caso tiene campo 'observaciones'[0m
+[92m[OK] Caso tiene propiedad 'semaforo'[0m
+[92m[OK] Caso tiene metodo 'to_dict'[0m
+[92m[OK] Caso tiene metodo '_parsear_fecha'[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: Caso.to_dict() (Case Digital File)
+============================================================[0m
+
+[92m[OK] Import Caso exitoso[0m
+[92m[OK] to_dict() contiene 'AÑO'[0m
+[92m[OK] to_dict() contiene 'ESTADO'[0m
+[92m[OK] to_dict() contiene 'CLIENTE'[0m
+[92m[OK] to_dict() contiene 'FUERO'[0m
+[92m[OK] to_dict() contiene 'CAUSA'[0m
+[92m[OK] to_dict() contiene 'TIPO PROCESO'[0m
+[92m[OK] to_dict() contiene 'JURISDICCION'[0m
+[92m[OK] to_dict() contiene 'ORGANISMO'[0m
+[92m[OK] to_dict() contiene 'EXPEDIENTE'[0m
+[92m[OK] to_dict() contiene 'CARATULA'[0m
+[92m[OK] to_dict() contiene 'RESPONSABLE'[0m
+[92m[OK] to_dict() contiene 'CONTROL'[0m
+[92m[OK] to_dict() contiene 'EVENTO'[0m
+[92m[OK] to_dict() contiene 'FECHA EVENTO'[0m
+[92m[OK] to_dict() contiene 'TAREA PENDIENTE'[0m
+[92m[OK] to_dict() contiene 'FECHA TAREA'[0m
+[92m[OK] to_dict() contiene 'OBSERVACIONES'[0m
+[92m[OK] to_dict() contiene 'SEMÁFORO'[0m
+[92m[OK] to_dict() contiene '_RUTA'[0m
+[92m[OK] _RUTA == str(caso.ruta)[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: DB pseudo-path (seleccion de caso)
+============================================================[0m
+
+[92m[OK] Imports exitosos[0m
+[92m[OK] _db_path retorna Path: db:\cases\123e4567-e89b-12d3-a456-426614174000[0m
+[92m[OK] Formato correcto (OS-specific): db:\cases\123e4567-e89b-12d3-a456-426614174000[0m
+[92m[OK] str(pseudo_path) es estable para comparacion[0m
+[92m[OK] _get_case_id_from_path inversa correcta: 123e4567-e89b-12d3-a456-426614174000[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: Caso construction (FS vs DB)
+============================================================[0m
+
+[92m[OK] Imports exitosos[0m
+[92m[OK] GestorDB tiene metodo _row_to_caso[0m
+[92m[OK] FS.escanear_casos annotation incluye Caso/List[0m
+[92m[OK] DB.escanear_casos annotation incluye Caso/List[0m
+[92m[OK] Caso.ruta: <class 'pathlib.Path'>[0m
+[92m[OK] Caso.año: <class 'str'>[0m
+[92m[OK] Caso.estado: <class 'str'>[0m
+[92m[OK] Caso.cliente: <class 'str'>[0m
+[92m[OK] Caso.fuero: <class 'str'>[0m
+[92m[OK] Caso.causa: <class 'str'>[0m
+[92m[OK] Caso.tipo_proceso: <class 'str'>[0m
+[92m[OK] Caso.jurisdiccion: <class 'str'>[0m
+[92m[OK] Caso.organismo: <class 'str'>[0m
+[92m[OK] Caso.expediente: <class 'str'>[0m
+[92m[OK] Caso.caratula: <class 'str'>[0m
+[92m[OK] Caso.responsable: <class 'str'>[0m
+[92m[OK] Caso.control: <class 'str'>[0m
+[92m[OK] Caso.evento: <class 'str'>[0m
+[92m[OK] Caso.fecha_evento: <class 'str'>[0m
+[92m[OK] Caso.tarea_pendiente: <class 'str'>[0m
+[92m[OK] Caso.fecha_tarea: <class 'str'>[0m
+[92m[OK] Caso.observaciones: <class 'str'>[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: listar_documentos_recientes (shape)
+============================================================[0m
+
+[92m[OK] Imports exitosos: FS, DB y API publica (repo.GestorCasos)[0m
+[92m[OK] FS tiene metodo listar_documentos_recientes[0m
+[92m[OK] DB tiene metodo listar_documentos_recientes[0m
+[92m[OK] API publica (repo.GestorCasos) expone listar_documentos_recientes[0m
+[92m[OK] FS.listar_documentos_recientes(ruta_caso, n) - firma correcta[0m
+[92m[OK] DB.listar_documentos_recientes(ruta_caso, n) - firma correcta[0m
+[92m[OK] FS docstring menciona claves requeridas[0m
+[92m[OK] DB docstring menciona claves requeridas[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: listar_documentos_recientes (empty)
+============================================================[0m
+
+[92m[OK] Imports exitosos[0m
+[92m[OK] FS: ruta inexistente -> lista vacia[0m
+[92m[OK] DB: case_id invalido -> lista vacia[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: evento fields in Caso.to_dict()
+============================================================[0m
+
+[92m[OK] Import Caso exitoso[0m
+[92m[OK] to_dict() contiene clave 'EVENTO'[0m
+[92m[OK] to_dict() contiene clave 'FECHA EVENTO'[0m
+[92m[OK] EVENTO es str: 'Audiencia preliminar'[0m
+[92m[OK] FECHA EVENTO es str: '20/03/2026'[0m
+[92m[OK] EVENTO vacio -> string vacio[0m
+[92m[OK] FECHA EVENTO vacia -> string vacio[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: tarea fields in Caso.to_dict()
+============================================================[0m
+
+[92m[OK] Import Caso exitoso[0m
+[92m[OK] to_dict() contiene clave 'TAREA PENDIENTE'[0m
+[92m[OK] to_dict() contiene clave 'FECHA TAREA'[0m
+[92m[OK] to_dict() contiene clave 'SEMÁFORO'[0m
+[92m[OK] TAREA PENDIENTE es str: 'Contestar demanda'[0m
+[92m[OK] FECHA TAREA es str: '20/03/2026'[0m
+[92m[OK] SEMÁFORO es str: '🟢'[0m
+[92m[OK] TAREA PENDIENTE vacio -> string vacio[0m
+[92m[OK] FECHA TAREA vacio -> string vacio[0m
+[92m[OK] Sin tarea -> semáforo ⚪[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: DailyOps runner (P2-02)
+============================================================[0m
+
+[92m[OK] RUN_ERP.ps1 contiene: [switch]$DailyOps[0m
+[92m[OK] RUN_ERP.ps1 contiene: $EXIT_OK = 0[0m
+[92m[OK] RUN_ERP.ps1 contiene: $EXIT_NIGHTLY_FAIL = 20[0m
+[92m[OK] RUN_ERP.ps1 contiene: $EXIT_GATE_FAIL = 30[0m
+[92m[OK] RUN_ERP.ps1 contiene: $EXIT_RUNTIME_FAIL = 99[0m
+[92m[OK] RUN_ERP.ps1 contiene: function Get-PositiveIntEnv[0m
+[92m[OK] RUN_ERP.ps1 contiene: VG_STEP_TIMEOUT_SEC[0m
+[92m[OK] RUN_ERP.ps1 contiene: Step timeout: {0}s (env VG_STEP_TIMEOUT_SEC)[0m
+[92m[OK] RUN_ERP.ps1 contiene: function Run-DailyOps[0m
+[92m[OK] RUN_ERP.ps1 contiene: Invoke-PythonStep -StepName "env_contract_daily_ops" -StepArgs @("db/env_contract.py", "--profile", "daily_ops") -TimeoutSec $StepTimeoutSec[0m
+[92m[OK] RUN_ERP.ps1 contiene: Invoke-PythonStep -StepName "nightly_audit" -StepArgs @("db/nightly_audit.py") -TimeoutSec $StepTimeoutSec[0m
+[92m[OK] RUN_ERP.ps1 contiene: Invoke-PythonStep -StepName "release_gate" -StepArgs @("db/release_gate.py") -TimeoutSec $StepTimeoutSec[0m
+[92m[OK] RUN_ERP.ps1 contiene: [TIMEOUT] {0} excedio {1}s. Terminando proceso PID={2}.[0m
+[92m[OK] RUN_ERP.ps1 contiene: [CUT] env_contract_daily_ops timeout. Se corta flujo antes de nightly_audit.[0m
+[92m[OK] RUN_ERP.ps1 contiene: [CUT] env_contract_daily_ops fallido. Se corta flujo antes de nightly_audit.[0m
+[92m[OK] RUN_ERP.ps1 contiene: [CUT] nightly_audit timeout. Se corta flujo antes de release_gate.[0m
+[92m[OK] RUN_ERP.ps1 contiene: [CUT] release_gate timeout.[0m
+[92m[OK] RUN_ERP.ps1 contiene: [CUT] nightly_audit fallido. Se corta flujo antes de release_gate.[0m
+[92m[OK] Secuencia correcta: env_contract_daily_ops -> nightly_audit -> release_gate[0m
+[92m[OK] RUN_ERP.cmd contiene: if /I "%~1"=="ops" goto run_ops[0m
+[92m[OK] RUN_ERP.cmd contiene: if /I "%~1"=="-DailyOps" goto run_ops[0m
+[92m[OK] RUN_ERP.cmd contiene: powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0RUN_ERP.ps1" -DailyOps[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: release_gate timeout contract (P3-03)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: _env_int("VG_SUITE_TIMEOUT_SEC", 900)[0m
+[92m[OK] release_gate.py contiene: Timeout por suite: {suite_timeout_sec}s (env VG_SUITE_TIMEOUT_SEC)[0m
+[92m[OK] release_gate.py contiene: timeout=max(1, int(timeout_sec))[0m
+[92m[OK] release_gate.py contiene: except subprocess.TimeoutExpired:[0m
+[92m[OK] release_gate.py contiene: [TIMEOUT][0m
+[92m[OK] release_gate.py contiene: "status": "TIMEOUT"[0m
+[92m[OK] release_gate.py contiene: Motivo: al menos una suite excedio el timeout[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: release_gate mode contract (P3-05)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: RELEASE_GATE_MODE_ENV = "VG_RELEASE_GATE_MODE"[0m
+[92m[OK] release_gate.py contiene: RELEASE_MODE_READ_ONLY = "read_only"[0m
+[92m[OK] release_gate.py contiene: RELEASE_MODE_FULL = "full"[0m
+[92m[OK] release_gate.py contiene: "--mode"[0m
+[92m[OK] release_gate.py contiene: default: {RELEASE_MODE_FULL}[0m
+[92m[OK] release_gate.py contiene: Modo read_only: suite DB deshabilitada por seguridad.[0m
+[92m[OK] release_gate.py contiene: "status": "SKIPPED"[0m
+[92m[OK] release_gate.py contiene: Modo de ejecucion: {release_mode} (env {RELEASE_GATE_MODE_ENV})[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: env reproducible + docs sync (P3-06)
+============================================================[0m
+
+[92m[OK] env_contract.py contiene: PROFILE_APP = "app"[0m
+[92m[OK] env_contract.py contiene: PROFILE_DB_SUITE = "db_suite"[0m
+[92m[OK] env_contract.py contiene: PROFILE_RELEASE_GATE_FULL = "release_gate_full"[0m
+[92m[OK] env_contract.py contiene: PROFILE_RELEASE_GATE_READ_ONLY = "release_gate_read_only"[0m
+[92m[OK] env_contract.py contiene: PROFILE_DAILY_OPS = "daily_ops"[0m
+[92m[OK] env_contract.py contiene: RELEASE_GATE_MODE_ENV = "VG_RELEASE_GATE_MODE"[0m
+[92m[OK] env_contract.py contiene: ENV CONTRACT: PASS[0m
+[92m[OK] env_contract.py contiene: "--profile"[0m
+[92m[OK] .env.example contiene: DATABASE_URL=[0m
+[92m[OK] .env.example contiene: VG_TEST_DATABASE_URL=[0m
+[92m[OK] .env.example contiene: VG_RELEASE_GATE_MODE=[0m
+[92m[OK] .env.example contiene: VG_SUITE_TIMEOUT_SEC=[0m
+[92m[OK] .env.example contiene: VG_STEP_TIMEOUT_SEC=[0m
+[92m[OK] README.md contiene: python db/env_contract.py --profile daily_ops[0m
+[92m[OK] README.md contiene: .env.example[0m
+[92m[OK] README.md contiene: python db/env_contract.py --profile daily_ops[0m
+[92m[OK] README.md contiene: VG_RELEASE_GATE_MODE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: db/env_contract.py --profile daily_ops[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_STEP_TIMEOUT_SEC[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: ops behavior suite contract (P4-01)
+============================================================[0m
+
+[92m[OK] ops_behavior_test.py contiene: RUN_ERP.ps1[0m
+[92m[OK] ops_behavior_test.py contiene: VG_RELEASE_GATE_MODE[0m
+[92m[OK] ops_behavior_test.py contiene: daily_ops[0m
+[92m[OK] ops_behavior_test.py contiene: read_only[0m
+[92m[OK] ops_behavior_test.py contiene: invalid_mode[0m
+[92m[OK] ops_behavior_test.py contiene: RELEASE QA GATE: PASS[0m
+[92m[OK] ops_behavior_test.py contiene: OPS BEHAVIOR TEST[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: DB suite isolation contract (P3-04)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: TEST_DATABASE_URL_ENV[0m
+[92m[OK] release_gate.py contiene: build_isolated_suite_env[0m
+[92m[OK] release_gate.py contiene: requires_test_database=True[0m
+[92m[OK] smoke_test.py usa require_isolated_test_database_env[0m
+[92m[OK] ux_phase2_test.py usa require_isolated_test_database_env[0m
+[92m[OK] ux_gestion_regression_test.py usa require_isolated_test_database_env[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: test_env negative guard (P3-04)
+============================================================[0m
+
+[92m[OK] Import validate_isolated_test_database_url exitoso[0m
+[92m[OK] DB de test dedicada aceptada (caso positivo)[0m
+[92m[OK] Falta VG_TEST_DATABASE_URL => rechazo esperado[0m
+[92m[OK] VG_TEST_DATABASE_URL == DATABASE_URL => rechazo esperado[0m
+[92m[OK] Nombre de DB sin marcador de test => rechazo esperado[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: CI PostgreSQL efimero (P4-02)
+============================================================[0m
+
+[92m[OK] ci-db.yml contiene: services:[0m
+[92m[OK] ci-db.yml contiene: image: postgres:16[0m
+[92m[OK] ci-db.yml contiene: VG_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sistemalegal_ci_test[0m
+[92m[OK] ci-db.yml contiene: VG_RELEASE_GATE_MODE: full[0m
+[92m[OK] ci-db.yml contiene: python db/env_contract.py --profile release_gate_full[0m
+[92m[OK] ci-db.yml contiene: python db/release_gate.py --mode full[0m
+[92m[OK] ci-db.yml contiene: CREATE DATABASE sistemalegal_ci_test;[0m
+[92m[OK] ci-db.yml contiene: -f db/schema.sql[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: structured observability (P4-03)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: RUN_ID_ENV = "VG_RUN_ID"[0m
+[92m[OK] release_gate.py contiene: def _emit_obs([0m
+[92m[OK] release_gate.py contiene: stage="gate_start"[0m
+[92m[OK] release_gate.py contiene: stage="suite_start"[0m
+[92m[OK] release_gate.py contiene: stage="suite_end"[0m
+[92m[OK] release_gate.py contiene: stage="gate_end"[0m
+[92m[OK] nightly_audit.py contiene: RUN_ID_ENV = "VG_RUN_ID"[0m
+[92m[OK] nightly_audit.py contiene: def _emit_obs([0m
+[92m[OK] nightly_audit.py contiene: stage="nightly_start"[0m
+[92m[OK] nightly_audit.py contiene: stage="db_preflight"[0m
+[92m[OK] nightly_audit.py contiene: stage="nightly_end"[0m
+[92m[OK] RUN_ERP.ps1 contiene: function New-RunId[0m
+[92m[OK] RUN_ERP.ps1 contiene: function Write-OpsObs[0m
+[92m[OK] RUN_ERP.ps1 contiene: env VG_RUN_ID[0m
+[92m[OK] RUN_ERP.ps1 contiene: stage=[0m
+[92m[OK] RUN_ERP.ps1 contiene: suite=[0m
+[92m[OK] RUN_ERP.ps1 contiene: Write-OpsObs -RunId $runId -Stage "daily_ops_start"[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: quality gate KPI (P4-04)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: QUALITY_GATE_KPI_MODE_ENV = "VG_QUALITY_GATE_KPI_MODE"[0m
+[92m[OK] release_gate.py contiene: QUALITY_GATE_KPI_MIN_CASES_ENV = "VG_QUALITY_GATE_KPI_MIN_CASES"[0m
+[92m[OK] release_gate.py contiene: KPI_MODE_ENFORCE = "enforce"[0m
+[92m[OK] release_gate.py contiene: "--kpi-mode"[0m
+[92m[OK] release_gate.py contiene: "--kpi-min-cases"[0m
+[92m[OK] release_gate.py contiene: QUALITY GATE KPI[0m
+[92m[OK] release_gate.py contiene: stage="kpi_gate"[0m
+[92m[OK] release_gate.py contiene: quality_gate_kpi[0m
+[92m[OK] env_contract.py contiene: QUALITY_GATE_KPI_MODE_ENV = "VG_QUALITY_GATE_KPI_MODE"[0m
+[92m[OK] env_contract.py contiene: QUALITY_GATE_KPI_MIN_CASES_ENV = "VG_QUALITY_GATE_KPI_MIN_CASES"[0m
+[92m[OK] env_contract.py contiene: VALID_KPI_GATE_MODES = {"off", "warn", "enforce"}[0m
+[92m[OK] .env.example contiene: VG_QUALITY_GATE_KPI_MODE=[0m
+[92m[OK] .env.example contiene: VG_QUALITY_GATE_KPI_MIN_CASES=[0m
+[92m[OK] README.md contiene: VG_QUALITY_GATE_KPI_MODE[0m
+[92m[OK] README.md contiene: VG_QUALITY_GATE_KPI_MIN_CASES[0m
+[92m[OK] README.md contiene: VG_QUALITY_GATE_KPI_MODE[0m
+[92m[OK] README.md contiene: VG_QUALITY_GATE_KPI_MIN_CASES[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_QUALITY_GATE_KPI_MODE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_QUALITY_GATE_KPI_MIN_CASES[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: security baseline (P5-02)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: "--security-mode"[0m
+[92m[OK] release_gate.py contiene: evaluate_security_baseline([0m
+[92m[OK] release_gate.py contiene: stage="security_gate"[0m
+[92m[OK] release_gate.py contiene: security_gate[0m
+[92m[OK] release_gate.py contiene: SECURITY_GATE_MODE_ENV[0m
+[92m[OK] env_contract.py contiene: VALID_SECURITY_GATE_MODES[0m
+[92m[OK] env_contract.py contiene: SECURITY_GATE_MODE_ENV[0m
+[92m[OK] env_contract.py contiene: DB_APP_ROLE_ENV[0m
+[92m[OK] env_contract.py contiene: DB_TEST_ROLE_ENV[0m
+[92m[OK] env_contract.py contiene: SECURITY_REQUIRE_TEST_ROLE_SPLIT_ENV[0m
+[92m[OK] .env.example contiene: VG_SECURITY_GATE_MODE=[0m
+[92m[OK] .env.example contiene: VG_DB_APP_ROLE=[0m
+[92m[OK] .env.example contiene: VG_DB_TEST_ROLE=[0m
+[92m[OK] .env.example contiene: VG_SECURITY_GATE_REQUIRE_TEST_ROLE_SPLIT=[0m
+[92m[OK] security_baseline.py contiene: SECURITY_GATE_MODE_ENV = "VG_SECURITY_GATE_MODE"[0m
+[92m[OK] security_baseline.py contiene: DB_APP_ROLE_ENV = "VG_DB_APP_ROLE"[0m
+[92m[OK] security_baseline.py contiene: DB_TEST_ROLE_ENV = "VG_DB_TEST_ROLE"[0m
+[92m[OK] security_baseline.py contiene: SECURITY_REQUIRE_TEST_ROLE_SPLIT_ENV = "VG_SECURITY_GATE_REQUIRE_TEST_ROLE_SPLIT"[0m
+[92m[OK] security_baseline.py contiene: def evaluate_security_baseline([0m
+[92m[OK] README.md contiene: VG_SECURITY_GATE_MODE[0m
+[92m[OK] README.md contiene: VG_DB_APP_ROLE[0m
+[92m[OK] README.md contiene: VG_DB_TEST_ROLE[0m
+[92m[OK] README.md contiene: VG_SECURITY_GATE_REQUIRE_TEST_ROLE_SPLIT[0m
+[92m[OK] README.md contiene: security_baseline.py[0m
+[92m[OK] README.md contiene: VG_SECURITY_GATE_MODE[0m
+[92m[OK] README.md contiene: VG_DB_APP_ROLE[0m
+[92m[OK] README.md contiene: VG_DB_TEST_ROLE[0m
+[92m[OK] README.md contiene: VG_SECURITY_GATE_REQUIRE_TEST_ROLE_SPLIT[0m
+[92m[OK] README.md contiene: security_baseline.py[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_SECURITY_GATE_MODE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_DB_APP_ROLE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_DB_TEST_ROLE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_SECURITY_GATE_REQUIRE_TEST_ROLE_SPLIT[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: security_baseline.py[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: performance/capacity gate (P5-04)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: "--performance-mode"[0m
+[92m[OK] release_gate.py contiene: evaluate_performance_capacity([0m
+[92m[OK] release_gate.py contiene: stage="performance_gate"[0m
+[92m[OK] release_gate.py contiene: performance_gate[0m
+[92m[OK] release_gate.py contiene: PERFORMANCE_GATE_MODE_ENV[0m
+[92m[OK] env_contract.py contiene: VALID_PERFORMANCE_GATE_MODES[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_GATE_MODE_ENV[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_MAX_SELECT1_MS_ENV[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_MAX_CORE_COUNTS_MS_ENV[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_MAX_RECENT_DOCS_MS_ENV[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_MAX_RECENT_CASES_MS_ENV[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_MAX_DOCS_PER_CASE_ENV[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_MAX_AUDIT_ROWS_ENV[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MODE=[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MAX_SELECT1_MS=[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MAX_CORE_COUNTS_MS=[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MAX_RECENT_DOCS_MS=[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MAX_RECENT_CASES_MS=[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MAX_DOCS_PER_CASE=[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MAX_AUDIT_ROWS=[0m
+[92m[OK] performance_capacity.py contiene: PERFORMANCE_GATE_MODE_ENV = "VG_PERFORMANCE_GATE_MODE"[0m
+[92m[OK] performance_capacity.py contiene: PERFORMANCE_MODE_ENFORCE = "enforce"[0m
+[92m[OK] performance_capacity.py contiene: def load_performance_thresholds([0m
+[92m[OK] performance_capacity.py contiene: def evaluate_performance_capacity([0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MODE[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_SELECT1_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_CORE_COUNTS_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_RECENT_DOCS_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_RECENT_CASES_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_DOCS_PER_CASE[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_AUDIT_ROWS[0m
+[92m[OK] README.md contiene: performance_capacity.py[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MODE[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_SELECT1_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_CORE_COUNTS_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_RECENT_DOCS_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_RECENT_CASES_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_DOCS_PER_CASE[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_AUDIT_ROWS[0m
+[92m[OK] README.md contiene: performance_capacity.py[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MODE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MAX_SELECT1_MS[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MAX_CORE_COUNTS_MS[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MAX_RECENT_DOCS_MS[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MAX_RECENT_CASES_MS[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MAX_DOCS_PER_CASE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MAX_AUDIT_ROWS[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: performance_capacity.py[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: backup restore drill (P5-03)
+============================================================[0m
+
+[92m[OK] backup_restore_drill.py contiene: CORE_TABLES = ("clients", "cases", "documents", "tasks", "audit_log")[0m
+[92m[OK] backup_restore_drill.py contiene: validate_isolated_test_database_url([0m
+[92m[OK] backup_restore_drill.py contiene: CREATE SCHEMA[0m
+[92m[OK] backup_restore_drill.py contiene: DROP SCHEMA IF EXISTS[0m
+[92m[OK] backup_restore_drill.py contiene: json_populate_recordset[0m
+[92m[OK] backup_restore_drill.py contiene: BACKUP RESTORE DRILL: PASS[0m
+[92m[OK] backup_restore_drill.py contiene: stage="restore_table"[0m
+[92m[OK] env_contract.py contiene: PROFILE_BACKUP_RESTORE_DRILL = "backup_restore_drill"[0m
+[92m[OK] env_contract.py contiene: BACKUP_DIR_ENV = "VG_BACKUP_DIR"[0m
+[92m[OK] env_contract.py contiene: BACKUP_DRILL_SCHEMA_PREFIX_ENV = "VG_BACKUP_DRILL_SCHEMA_PREFIX"[0m
+[92m[OK] env_contract.py contiene: if profile == PROFILE_BACKUP_RESTORE_DRILL:[0m
+[92m[OK] .env.example contiene: VG_BACKUP_DIR=[0m
+[92m[OK] .env.example contiene: VG_BACKUP_DRILL_SCHEMA_PREFIX=[0m
+[92m[OK] README.md contiene: backup_restore_drill.py[0m
+[92m[OK] README.md contiene: VG_BACKUP_DIR[0m
+[92m[OK] README.md contiene: VG_BACKUP_DRILL_SCHEMA_PREFIX[0m
+[92m[OK] README.md contiene: backup_restore_drill.py[0m
+[92m[OK] README.md contiene: VG_BACKUP_DIR[0m
+[92m[OK] README.md contiene: VG_BACKUP_DRILL_SCHEMA_PREFIX[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: backup_restore_drill.py[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_BACKUP_DIR[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_BACKUP_DRILL_SCHEMA_PREFIX[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: legacy FS extraction (P5-01)
+============================================================[0m
+
+[92m[OK] app.py sin import runtime de fs_repo[0m
+[92m[OK] views.py sin import runtime de fs_repo[0m
+[92m[OK] audit.py sin import runtime de fs_repo[0m
+[92m[OK] app.py contiene: gestor = GestorCasos()[0m
+[92m[OK] app.py contiene: Conectando a base de datos...[0m
+[92m[OK] app.py limpio de token legacy: GestorCasos(RUTA_BASE)[0m
+[92m[OK] app.py limpio de token legacy: RUTA_BASE_AUTO_CREATE[0m
+[92m[OK] app.py limpio de token legacy: _show_ruta_error([0m
+[92m[OK] audit.py usa GestorCasos desde repo.py (DB-first)[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: trend degradation alert (P2-03)
+============================================================[0m
+
+[92m[OK] Import build_trend_degradation_alert exitoso[0m
+[92m[OK] Datos insuficientes -> ready=False y show_alert=False[0m
+[92m[OK] Sin degradacion -> show_alert=False, severity=ok[0m
+[92m[OK] Degradacion critica detectada[0m
+[92m[OK] Incluye ratio de degradacion en salida[0m
+[92m[OK] Mensaje incluye severidad critica[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: operational hallazgos export (P2-04)
+============================================================[0m
+
+[92m[OK] Imports de export operativo exitosos[0m
+[92m[OK] Snapshots -> rows: cantidad esperada (3)[0m
+[92m[OK] Rows incluyen metadata operativa requerida[0m
+[92m[OK] Filtros nivel/codigo/fecha aplicados correctamente[0m
+[92m[OK] Payload summary incluye rows/snapshots esperados[0m
+[92m[OK] Payload summary incluye backend_modes[0m
+[92m[OK] payload_to_json_bytes serializa JSON UTF-8 valido[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: streamlit width hardening (P3-01)
+============================================================[0m
+
+[92m[OK] Archivos runtime presentes para hardening[0m
+[91m[FAIL] Se detectaron usos de use_container_width en runtime:[0m
+[91m[FAIL]   - views.py:211[0m
+
+[91m[1mCONTRACT TEST FAILED (1 issues)[0m
+
+[1m============================================================
+  RESUMEN
+============================================================[0m
+  obtener_clientes_existentes         [[92mPASS[0m]
+  escanear_casos                      [[92mPASS[0m]
+  _leer_ficha                         [[92mPASS[0m]
+  actualizar_campos_ficha             [[92mPASS[0m]
+  Caso_attributes                     [[92mPASS[0m]
+  Caso_to_dict                        [[92mPASS[0m]
+  DB_pseudo_path                      [[92mPASS[0m]
+  Caso_construction                   [[92mPASS[0m]
+  recent_documents_shape              [[92mPASS[0m]
+  recent_documents_empty              [[92mPASS[0m]
+  evento_fields                       [[92mPASS[0m]
+  tarea_fields                        [[92mPASS[0m]
+  dailyops_runner_contract            [[92mPASS[0m]
+  release_gate_timeout_contract       [[92mPASS[0m]
+  release_gate_mode_contract          [[92mPASS[0m]
+  env_contract_reproducible_docs_sync [[92mPASS[0m]
+  ops_behavior_suite_contract         [[92mPASS[0m]
+  db_suite_isolation_contract         [[92mPASS[0m]
+  test_env_guard_negative             [[92mPASS[0m]
+  ci_postgres_ephemeral_contract      [[92mPASS[0m]
+  structured_observability_contract   [[92mPASS[0m]
+  quality_gate_kpi_contract           [[92mPASS[0m]
+  security_baseline_contract          [[92mPASS[0m]
+  performance_capacity_contract       [[92mPASS[0m]
+  backup_restore_drill_contract       [[92mPASS[0m]
+  legacy_fs_extraction_contract       [[92mPASS[0m]
+  trend_degradation_alert             [[92mPASS[0m]
+  operational_hallazgos_export        [[92mPASS[0m]
+  streamlit_width_hardening           [[91mFAIL[0m]
+
+[91m[1m=== CONTRACT TESTS FAILED (28/29) ===[0m
+[91m[FAIL] contract_test (exit=1, 1.47s)[0m
+[OBS] {"detail": "code=1 duration_sec=1.47", "run_id": "rg-20260215063114-c9a40931", "stage": "suite_end", "status": "FAIL", "suite": "contract_test", "ts": "2026-02-15T06:31:37Z"}
+[94m[SKIPPED] ux_gestion_regression_test: Modo read_only: suite DB deshabilitada por seguridad.[0m
+[OBS] {"detail": "Modo read_only: suite DB deshabilitada por seguridad.", "run_id": "rg-20260215063114-c9a40931", "stage": "suite_decision", "status": "SKIPPED", "suite": "ux_gestion_regression_test", "ts": "2026-02-15T06:31:37Z"}
+[94m[SKIPPED] ux_phase2_test: Modo read_only: suite DB deshabilitada por seguridad.[0m
+[OBS] {"detail": "Modo read_only: suite DB deshabilitada por seguridad.", "run_id": "rg-20260215063114-c9a40931", "stage": "suite_decision", "status": "SKIPPED", "suite": "ux_phase2_test", "ts": "2026-02-15T06:31:37Z"}
+[94m[SKIPPED] smoke_test: Modo read_only: suite DB deshabilitada por seguridad.[0m
+[OBS] {"detail": "Modo read_only: suite DB deshabilitada por seguridad.", "run_id": "rg-20260215063114-c9a40931", "stage": "suite_decision", "status": "SKIPPED", "suite": "smoke_test", "ts": "2026-02-15T06:31:37Z"}
+[OBS] {"detail": "Modo read_only: quality gate KPI omitido.", "run_id": "rg-20260215063114-c9a40931", "stage": "kpi_gate", "status": "SKIPPED", "suite": "quality_gate_kpi", "ts": "2026-02-15T06:31:37Z"}
+
+[1m========================================================================
+  SECURITY GATE
+========================================================================[0m
+Modo security gate: warn (env VG_SECURITY_GATE_MODE, default=warn)
+[94m[INFO] security snapshot runtime: role=postgres db=sistemalegal_test[0m
+[93m[WARN] SEC-ROLE-010: runtime: rol con superuser activo.[0m
+[93m[WARN] SEC-ROLE-011: runtime: rol con CREATEROLE activo.[0m
+[93m[WARN] SEC-ROLE-012: runtime: rol con CREATEDB activo.[0m
+[93m[WARN] SEC-SCHEMA-002: runtime: rol con CREATE en schema public.[0m
+[93m[WARN] SEC-TABLE-011: runtime: privilegio TRUNCATE activo en tabla clients.[0m
+[93m[WARN] SEC-TABLE-011: runtime: privilegio TRUNCATE activo en tabla cases.[0m
+[93m[WARN] SEC-TABLE-011: runtime: privilegio TRUNCATE activo en tabla documents.[0m
+[93m[WARN] SEC-TABLE-011: runtime: privilegio TRUNCATE activo en tabla tasks.[0m
+[93m[WARN] SEC-TABLE-011: runtime: privilegio TRUNCATE activo en tabla audit_log.[0m
+[93m[WARN] security_gate: Se detectaron 9 desvio(s) de seguridad (mode=warn).[0m
+[OBS] {"detail": "Se detectaron 9 desvio(s) de seguridad (mode=warn).", "run_id": "rg-20260215063114-c9a40931", "stage": "security_gate", "status": "WARN", "suite": "security_gate", "ts": "2026-02-15T06:31:37Z"}
+
+[1m========================================================================
+  PERFORMANCE/CAPACITY GATE
+========================================================================[0m
+Modo performance gate: warn (env VG_PERFORMANCE_GATE_MODE, default=warn)
+[94m[INFO] performance snapshot runtime: role=postgres db=sistemalegal_test[0m
+[94m[INFO] latency ms: select_1=0.7 core_counts=4.7 recent_documents=1.2 recent_cases=1.1[0m
+[94m[INFO] capacity: clients=1 cases=1 documents=0 tasks=1 audit_log=86 docs_per_case=0.0[0m
+[92m[PASS] performance_gate: Performance/capacidad dentro de umbral (db=sistemalegal_test).[0m
+[OBS] {"detail": "Performance/capacidad dentro de umbral (db=sistemalegal_test).", "run_id": "rg-20260215063114-c9a40931", "stage": "performance_gate", "status": "PASS", "suite": "performance_gate", "ts": "2026-02-15T06:31:37Z"}
+
+[1m========================================================================
+  RESUMEN RELEASE GATE
+========================================================================[0m
+  contract_test                  [[91mFAIL[0m] exit=1 (1.47s)
+  ux_gestion_regression_test     [[94mSKIPPED[0m] Modo read_only: suite DB deshabilitada por seguridad.
+  ux_phase2_test                 [[94mSKIPPED[0m] Modo read_only: suite DB deshabilitada por seguridad.
+  smoke_test                     [[94mSKIPPED[0m] Modo read_only: suite DB deshabilitada por seguridad.
+  quality_gate_kpi               [[94mSKIPPED[0m] Modo read_only: quality gate KPI omitido.
+  security_gate                  [[93mWARN[0m] Se detectaron 9 desvio(s) de seguridad (mode=warn).
+  performance_gate               [[92mPASS[0m] Performance/capacidad dentro de umbral (db=sistemalegal_test).
+
+[OBS] {"detail": "fallo en al menos una suite", "run_id": "rg-20260215063114-c9a40931", "stage": "gate_end", "status": "FAIL", "suite": "release_gate", "ts": "2026-02-15T06:31:37Z"}
+[91m[1mRELEASE QA GATE: FAIL[0m
+[2026-02-15 03:31:39.420] [WARN] release_gate reporto se�ales de fallo en output con exit=0. Se fuerza exit=1.
+[2026-02-15 03:31:39.426] [FAIL] release_gate exit=1
+[2026-02-15 03:31:39.429] [OBS] ts="2026-02-15T06:31:39.428Z" run_id="rg-20260215063114-c9a40931" stage="step_end" suite="release_gate" status="FAIL" detail="exit=1"
+[2026-02-15 03:31:39.431] [OBS] ts="2026-02-15T06:31:39.431Z" run_id="rg-20260215063114-c9a40931" stage="daily_ops_end" suite="daily_ops" status="FAIL" detail="exit=30"
+[2026-02-15 03:31:39.435] === DAILY OPS END (FAIL:30) ===
+[2026-02-15 03:31:39.764] [INFO] Variables cargadas desde .env: 26 (C:\Users\Pc\Desktop\SistemaLegal\.env)
+[2026-02-15 03:31:39.798] === DAILY OPS START ===
+[2026-02-15 03:31:39.803] RepoDir: C:\Users\Pc\Desktop\SistemaLegal
+[2026-02-15 03:31:39.803] Run ID: rg-20260215063114-c9a40931 (env VG_RUN_ID)
+[2026-02-15 03:31:39.803] Step timeout: 1200s (env VG_STEP_TIMEOUT_SEC)
+[2026-02-15 03:31:39.803] Release gate mode efectivo: read_only (env VG_RELEASE_GATE_MODE)
+[2026-02-15 03:31:39.825] [OBS] ts="2026-02-15T06:31:39.815Z" run_id="rg-20260215063114-c9a40931" stage="daily_ops_start" suite="daily_ops" status="RUN" detail=-
+[2026-02-15 03:31:39.838] [RUN] env_contract_daily_ops: C:\Users\Pc\Desktop\SistemaLegal\.venv\Scripts\python.exe db/env_contract.py --profile daily_ops
+[2026-02-15 03:31:39.841] [OBS] ts="2026-02-15T06:31:39.840Z" run_id="rg-20260215063114-c9a40931" stage="step_start" suite="env_contract_daily_ops" status="RUN" detail="timeout_sec=1200"
+
+[1mENV CONTRACT CHECK[0m
+Profile: daily_ops
+[94m[INFO] VG_RUNTIME_DATABASE_URL detectada (mask): postgresql://postgres:***@localhost:5432/sistemalegal[0m
+[92m[OK] DATABASE_URL presente: postgresql://postgres:***@localhost:5432/sistemalegal_test[0m
+[94m[INFO] DB runtime: sistemalegal_test[0m
+[92m[OK] VG_RELEASE_GATE_MODE=read_only[0m
+[94m[INFO] Modo read_only: no se exige VG_TEST_DATABASE_URL para daily_ops.[0m
+[92m[OK] VG_QUALITY_GATE_KPI_MODE=warn[0m
+[92m[OK] VG_SECURITY_GATE_MODE=warn[0m
+[94m[INFO] VG_DB_APP_ROLE no definida. Se omite validacion de rol esperado.[0m
+[94m[INFO] VG_DB_TEST_ROLE no definida. Se omite validacion de rol esperado.[0m
+[94m[INFO] VG_SECURITY_GATE_REQUIRE_TEST_ROLE_SPLIT no definida. Se usa default=0.[0m
+[92m[OK] VG_PERFORMANCE_GATE_MODE=warn[0m
+[94m[INFO] VG_PERFORMANCE_GATE_MAX_SELECT1_MS no definida. Se usa default=250.[0m
+[94m[INFO] VG_PERFORMANCE_GATE_MAX_CORE_COUNTS_MS no definida. Se usa default=600.[0m
+[94m[INFO] VG_PERFORMANCE_GATE_MAX_RECENT_DOCS_MS no definida. Se usa default=800.[0m
+[94m[INFO] VG_PERFORMANCE_GATE_MAX_RECENT_CASES_MS no definida. Se usa default=600.[0m
+[94m[INFO] VG_PERFORMANCE_GATE_MAX_DOCS_PER_CASE no definida. Se usa default=300.[0m
+[94m[INFO] VG_PERFORMANCE_GATE_MAX_AUDIT_ROWS no definida. Se usa default=200000.[0m
+[94m[INFO] VG_QUALITY_GATE_KPI_MIN_CASES no definida. Se usa default=1.[0m
+[94m[INFO] VG_STEP_TIMEOUT_SEC no definida. Se usa default=1200.[0m
+
+[92m[1mENV CONTRACT: PASS[0m
+[2026-02-15 03:31:40.148] [PASS] env_contract_daily_ops exit=0
+[2026-02-15 03:31:40.150] [OBS] ts="2026-02-15T06:31:40.150Z" run_id="rg-20260215063114-c9a40931" stage="step_end" suite="env_contract_daily_ops" status="PASS" detail="exit=0"
+[2026-02-15 03:31:40.153] [RUN] nightly_audit: C:\Users\Pc\Desktop\SistemaLegal\.venv\Scripts\python.exe db/nightly_audit.py
+[2026-02-15 03:31:40.156] [OBS] ts="2026-02-15T06:31:40.156Z" run_id="rg-20260215063114-c9a40931" stage="step_start" suite="nightly_audit" status="RUN" detail="timeout_sec=1200"
+[94m[INFO] Run ID: rg-20260215063114-c9a40931 (env VG_RUN_ID)[0m
+[OBS] {"detail": "source=nightly_cli", "run_id": "rg-20260215063114-c9a40931", "stage": "nightly_start", "status": "RUN", "suite": "nightly_audit", "ts": "2026-02-15T06:31:40Z"}
+[92m[OK] Preflight DB: OK[0m
+[OBS] {"detail": "DATABASE_URL reachable", "run_id": "rg-20260215063114-c9a40931", "stage": "db_preflight", "status": "PASS", "suite": "nightly_audit", "ts": "2026-02-15T06:31:40Z"}
+[OBS] {"detail": "casos=1", "run_id": "rg-20260215063114-c9a40931", "stage": "load_cases", "status": "PASS", "suite": "nightly_audit", "ts": "2026-02-15T06:31:40Z"}
+[OBS] {"run_id": "rg-20260215063114-c9a40931", "stage": "build_snapshot", "status": "PASS", "suite": "nightly_audit", "ts": "2026-02-15T06:31:40Z"}
+
+[1m============================================================
+  NIGHTLY AUDIT - SISTEMALEGAL
+============================================================[0m
+
+[94m[INFO] Backend: database (GestorCasosDB)[0m
+[94m[INFO] Generado: 2026-02-15T06:31:40.475970Z[0m
+[94m[INFO] Casos auditados: 1[0m
+[94m[INFO] Resumen: errores=0 warnings=0 info=1[0m
+[92m[OK] Audit OK: SI[0m
+[94m[INFO] KPI %: FECHA_TAREA=0.0 | EXPEDIENTE=0.0 | EVENTO/FECHA_EVENTO=0.0 | COBERTURA_FINANCIERA=100.0[0m
+[92m[OK] Snapshot diario: C:\Users\Pc\Desktop\SistemaLegal\db\snapshots\audit_daily\audit_snapshot_20260215_063140475970.json[0m
+[92m[OK] Historial tendencia: C:\Users\Pc\Desktop\SistemaLegal\db\snapshots\audit_history.csv[0m
+[OBS] {"detail": "snapshot=C:\\Users\\Pc\\Desktop\\SistemaLegal\\db\\snapshots\\audit_daily\\audit_snapshot_20260215_063140475970.json", "run_id": "rg-20260215063114-c9a40931", "stage": "persist_snapshot", "status": "PASS", "suite": "nightly_audit", "ts": "2026-02-15T06:31:40Z"}
+
+Tendencia (ultimos dias):
+  2026-02-13 | E=1 W=41 I=1 | FT=7.0% EXP=9.3%
+  2026-02-14 | E=0 W=0 I=1 | FT=0.0% EXP=0.0%
+  2026-02-15 | E=0 W=0 I=1 | FT=0.0% EXP=0.0%
+[OBS] {"detail": "rows=3", "run_id": "rg-20260215063114-c9a40931", "stage": "history", "status": "PASS", "suite": "nightly_audit", "ts": "2026-02-15T06:31:40Z"}
+[OBS] {"run_id": "rg-20260215063114-c9a40931", "stage": "nightly_end", "status": "PASS", "suite": "nightly_audit", "ts": "2026-02-15T06:31:40Z"}
+[2026-02-15 03:31:40.635] [PASS] nightly_audit exit=0
+[2026-02-15 03:31:40.636] [OBS] ts="2026-02-15T06:31:40.636Z" run_id="rg-20260215063114-c9a40931" stage="step_end" suite="nightly_audit" status="PASS" detail="exit=0"
+[2026-02-15 03:31:40.636] [RUN] release_gate: C:\Users\Pc\Desktop\SistemaLegal\.venv\Scripts\python.exe db/release_gate.py
+[2026-02-15 03:31:40.636] [OBS] ts="2026-02-15T06:31:40.636Z" run_id="rg-20260215063114-c9a40931" stage="step_start" suite="release_gate" status="RUN" detail="timeout_sec=1200"
+
+[1m========================================================================
+  RELEASE QA GATE
+========================================================================[0m
+Run ID: rg-20260215063114-c9a40931 (env VG_RUN_ID)
+[OBS] {"detail": "mode_arg=-", "run_id": "rg-20260215063114-c9a40931", "stage": "gate_start", "status": "RUN", "suite": "release_gate", "ts": "2026-02-15T06:31:40Z"}
+Modo de ejecucion: read_only (env VG_RELEASE_GATE_MODE)
+Modo KPI quality gate: warn (env VG_QUALITY_GATE_KPI_MODE, default=warn)
+Modo security gate: warn (env VG_SECURITY_GATE_MODE, default=warn)
+Modo performance gate: warn (env VG_PERFORMANCE_GATE_MODE, default=warn)
+Min casos KPI gate: 1 (env VG_QUALITY_GATE_KPI_MIN_CASES, default=1)
+[OBS] {"detail": "mode=read_only kpi_mode=warn kpi_min_cases=1 security_mode=warn performance_mode=warn", "run_id": "rg-20260215063114-c9a40931", "stage": "gate_init", "status": "PASS", "suite": "release_gate", "ts": "2026-02-15T06:31:40Z"}
+Politica DB de pruebas:
+  - read_only: suites DB quedan SKIPPED por seguridad.
+  - full: ejecutar para validar suites DB en DB de pruebas aislada.
+Timeout por suite: 900s (env VG_SUITE_TIMEOUT_SEC)
+[OBS] {"detail": "mode=read_only", "run_id": "rg-20260215063114-c9a40931", "stage": "env_contract", "status": "SKIPPED", "suite": "release_gate", "ts": "2026-02-15T06:31:40Z"}
+[OBS] {"detail": "timeout_sec=900 cmd=C:\\Users\\Pc\\Desktop\\SistemaLegal\\.venv\\Scripts\\python.exe db/contract_test.py", "run_id": "rg-20260215063114-c9a40931", "stage": "suite_start", "status": "RUN", "suite": "contract_test", "ts": "2026-02-15T06:31:40Z"}
+[94m[RUN] contract_test: C:\Users\Pc\Desktop\SistemaLegal\.venv\Scripts\python.exe db/contract_test.py (timeout=900s)[0m
+
+[1m============================================================
+  CONTRACT TESTS - VACA & GENTILE ERP
+  Validacion de API entre backends FS y DB
+============================================================[0m
+
+[1m============================================================
+  CONTRACT TEST: obtener_clientes_existentes
+============================================================[0m
+
+[92m[OK] Imports exitosos: GestorCasos (FS) y GestorCasosDB (DB)[0m
+[92m[OK] GestorCasos (FS) tiene metodo obtener_clientes_existentes[0m
+[92m[OK] GestorCasosDB (DB) tiene metodo obtener_clientes_existentes[0m
+[92m[OK] Firma: ambos metodos no reciben parametros (solo self)[0m
+[92m[OK] Return annotation: ambos -> List[str][0m
+[92m[OK] Docstring FS menciona clientes unicos/existentes[0m
+[92m[OK] Docstring DB menciona casos/unicos[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: escanear_casos
+============================================================[0m
+
+[92m[OK] Imports exitosos[0m
+[92m[OK] FS tiene metodo escanear_casos[0m
+[92m[OK] DB tiene metodo escanear_casos[0m
+[92m[OK] FS.escanear_casos() no recibe parametros[0m
+[92m[OK] DB.escanear_casos() no recibe parametros[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: _leer_ficha
+============================================================[0m
+
+[92m[OK] Imports exitosos[0m
+[92m[OK] FS tiene metodo _leer_ficha[0m
+[92m[OK] FS._leer_ficha recibe 1 parametro de ruta[0m
+[92m[OK] DB tiene metodo _leer_ficha[0m
+[92m[OK] DB._leer_ficha recibe 1 parametro de ruta[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: actualizar_campos_ficha
+============================================================[0m
+
+[92m[OK] Imports exitosos[0m
+[92m[OK] FS tiene metodo actualizar_campos_ficha[0m
+[92m[OK] FS.actualizar_campos_ficha firma compatible: ['ruta_caso', 'cambios', 'actor_ctx'][0m
+[92m[OK] FS.actualizar_campos_ficha -> bool[0m
+[92m[OK] DB tiene metodo actualizar_campos_ficha[0m
+[92m[OK] DB.actualizar_campos_ficha firma compatible: ['ruta_caso', 'cambios', 'actor_ctx'][0m
+[92m[OK] DB.actualizar_campos_ficha -> bool[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: Caso attributes (detalle cliente)
+============================================================[0m
+
+[92m[OK] Import Caso exitoso[0m
+[92m[OK] Caso es un dataclass[0m
+[92m[OK] Caso tiene campo 'ruta'[0m
+[92m[OK] Caso tiene campo 'año'[0m
+[92m[OK] Caso tiene campo 'estado'[0m
+[92m[OK] Caso tiene campo 'cliente'[0m
+[92m[OK] Caso tiene campo 'fuero'[0m
+[92m[OK] Caso tiene campo 'causa'[0m
+[92m[OK] Caso tiene campo 'tipo_proceso'[0m
+[92m[OK] Caso tiene campo 'jurisdiccion'[0m
+[92m[OK] Caso tiene campo 'organismo'[0m
+[92m[OK] Caso tiene campo 'expediente'[0m
+[92m[OK] Caso tiene campo 'caratula'[0m
+[92m[OK] Caso tiene campo 'responsable'[0m
+[92m[OK] Caso tiene campo 'control'[0m
+[92m[OK] Caso tiene campo 'evento'[0m
+[92m[OK] Caso tiene campo 'fecha_evento'[0m
+[92m[OK] Caso tiene campo 'tarea_pendiente'[0m
+[92m[OK] Caso tiene campo 'fecha_tarea'[0m
+[92m[OK] Caso tiene campo 'observaciones'[0m
+[92m[OK] Caso tiene propiedad 'semaforo'[0m
+[92m[OK] Caso tiene metodo 'to_dict'[0m
+[92m[OK] Caso tiene metodo '_parsear_fecha'[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: Caso.to_dict() (Case Digital File)
+============================================================[0m
+
+[92m[OK] Import Caso exitoso[0m
+[92m[OK] to_dict() contiene 'AÑO'[0m
+[92m[OK] to_dict() contiene 'ESTADO'[0m
+[92m[OK] to_dict() contiene 'CLIENTE'[0m
+[92m[OK] to_dict() contiene 'FUERO'[0m
+[92m[OK] to_dict() contiene 'CAUSA'[0m
+[92m[OK] to_dict() contiene 'TIPO PROCESO'[0m
+[92m[OK] to_dict() contiene 'JURISDICCION'[0m
+[92m[OK] to_dict() contiene 'ORGANISMO'[0m
+[92m[OK] to_dict() contiene 'EXPEDIENTE'[0m
+[92m[OK] to_dict() contiene 'CARATULA'[0m
+[92m[OK] to_dict() contiene 'RESPONSABLE'[0m
+[92m[OK] to_dict() contiene 'CONTROL'[0m
+[92m[OK] to_dict() contiene 'EVENTO'[0m
+[92m[OK] to_dict() contiene 'FECHA EVENTO'[0m
+[92m[OK] to_dict() contiene 'TAREA PENDIENTE'[0m
+[92m[OK] to_dict() contiene 'FECHA TAREA'[0m
+[92m[OK] to_dict() contiene 'OBSERVACIONES'[0m
+[92m[OK] to_dict() contiene 'SEMÁFORO'[0m
+[92m[OK] to_dict() contiene '_RUTA'[0m
+[92m[OK] _RUTA == str(caso.ruta)[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: DB pseudo-path (seleccion de caso)
+============================================================[0m
+
+[92m[OK] Imports exitosos[0m
+[92m[OK] _db_path retorna Path: db:\cases\123e4567-e89b-12d3-a456-426614174000[0m
+[92m[OK] Formato correcto (OS-specific): db:\cases\123e4567-e89b-12d3-a456-426614174000[0m
+[92m[OK] str(pseudo_path) es estable para comparacion[0m
+[92m[OK] _get_case_id_from_path inversa correcta: 123e4567-e89b-12d3-a456-426614174000[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: Caso construction (FS vs DB)
+============================================================[0m
+
+[92m[OK] Imports exitosos[0m
+[92m[OK] GestorDB tiene metodo _row_to_caso[0m
+[92m[OK] FS.escanear_casos annotation incluye Caso/List[0m
+[92m[OK] DB.escanear_casos annotation incluye Caso/List[0m
+[92m[OK] Caso.ruta: <class 'pathlib.Path'>[0m
+[92m[OK] Caso.año: <class 'str'>[0m
+[92m[OK] Caso.estado: <class 'str'>[0m
+[92m[OK] Caso.cliente: <class 'str'>[0m
+[92m[OK] Caso.fuero: <class 'str'>[0m
+[92m[OK] Caso.causa: <class 'str'>[0m
+[92m[OK] Caso.tipo_proceso: <class 'str'>[0m
+[92m[OK] Caso.jurisdiccion: <class 'str'>[0m
+[92m[OK] Caso.organismo: <class 'str'>[0m
+[92m[OK] Caso.expediente: <class 'str'>[0m
+[92m[OK] Caso.caratula: <class 'str'>[0m
+[92m[OK] Caso.responsable: <class 'str'>[0m
+[92m[OK] Caso.control: <class 'str'>[0m
+[92m[OK] Caso.evento: <class 'str'>[0m
+[92m[OK] Caso.fecha_evento: <class 'str'>[0m
+[92m[OK] Caso.tarea_pendiente: <class 'str'>[0m
+[92m[OK] Caso.fecha_tarea: <class 'str'>[0m
+[92m[OK] Caso.observaciones: <class 'str'>[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: listar_documentos_recientes (shape)
+============================================================[0m
+
+[92m[OK] Imports exitosos: FS, DB y API publica (repo.GestorCasos)[0m
+[92m[OK] FS tiene metodo listar_documentos_recientes[0m
+[92m[OK] DB tiene metodo listar_documentos_recientes[0m
+[92m[OK] API publica (repo.GestorCasos) expone listar_documentos_recientes[0m
+[92m[OK] FS.listar_documentos_recientes(ruta_caso, n) - firma correcta[0m
+[92m[OK] DB.listar_documentos_recientes(ruta_caso, n) - firma correcta[0m
+[92m[OK] FS docstring menciona claves requeridas[0m
+[92m[OK] DB docstring menciona claves requeridas[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: listar_documentos_recientes (empty)
+============================================================[0m
+
+[92m[OK] Imports exitosos[0m
+[92m[OK] FS: ruta inexistente -> lista vacia[0m
+[92m[OK] DB: case_id invalido -> lista vacia[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: evento fields in Caso.to_dict()
+============================================================[0m
+
+[92m[OK] Import Caso exitoso[0m
+[92m[OK] to_dict() contiene clave 'EVENTO'[0m
+[92m[OK] to_dict() contiene clave 'FECHA EVENTO'[0m
+[92m[OK] EVENTO es str: 'Audiencia preliminar'[0m
+[92m[OK] FECHA EVENTO es str: '20/03/2026'[0m
+[92m[OK] EVENTO vacio -> string vacio[0m
+[92m[OK] FECHA EVENTO vacia -> string vacio[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: tarea fields in Caso.to_dict()
+============================================================[0m
+
+[92m[OK] Import Caso exitoso[0m
+[92m[OK] to_dict() contiene clave 'TAREA PENDIENTE'[0m
+[92m[OK] to_dict() contiene clave 'FECHA TAREA'[0m
+[92m[OK] to_dict() contiene clave 'SEMÁFORO'[0m
+[92m[OK] TAREA PENDIENTE es str: 'Contestar demanda'[0m
+[92m[OK] FECHA TAREA es str: '20/03/2026'[0m
+[92m[OK] SEMÁFORO es str: '🟢'[0m
+[92m[OK] TAREA PENDIENTE vacio -> string vacio[0m
+[92m[OK] FECHA TAREA vacio -> string vacio[0m
+[92m[OK] Sin tarea -> semáforo ⚪[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: DailyOps runner (P2-02)
+============================================================[0m
+
+[92m[OK] RUN_ERP.ps1 contiene: [switch]$DailyOps[0m
+[92m[OK] RUN_ERP.ps1 contiene: $EXIT_OK = 0[0m
+[92m[OK] RUN_ERP.ps1 contiene: $EXIT_NIGHTLY_FAIL = 20[0m
+[92m[OK] RUN_ERP.ps1 contiene: $EXIT_GATE_FAIL = 30[0m
+[92m[OK] RUN_ERP.ps1 contiene: $EXIT_RUNTIME_FAIL = 99[0m
+[92m[OK] RUN_ERP.ps1 contiene: function Get-PositiveIntEnv[0m
+[92m[OK] RUN_ERP.ps1 contiene: VG_STEP_TIMEOUT_SEC[0m
+[92m[OK] RUN_ERP.ps1 contiene: Step timeout: {0}s (env VG_STEP_TIMEOUT_SEC)[0m
+[92m[OK] RUN_ERP.ps1 contiene: function Run-DailyOps[0m
+[92m[OK] RUN_ERP.ps1 contiene: Invoke-PythonStep -StepName "env_contract_daily_ops" -StepArgs @("db/env_contract.py", "--profile", "daily_ops") -TimeoutSec $StepTimeoutSec[0m
+[92m[OK] RUN_ERP.ps1 contiene: Invoke-PythonStep -StepName "nightly_audit" -StepArgs @("db/nightly_audit.py") -TimeoutSec $StepTimeoutSec[0m
+[92m[OK] RUN_ERP.ps1 contiene: Invoke-PythonStep -StepName "release_gate" -StepArgs @("db/release_gate.py") -TimeoutSec $StepTimeoutSec[0m
+[92m[OK] RUN_ERP.ps1 contiene: [TIMEOUT] {0} excedio {1}s. Terminando proceso PID={2}.[0m
+[92m[OK] RUN_ERP.ps1 contiene: [CUT] env_contract_daily_ops timeout. Se corta flujo antes de nightly_audit.[0m
+[92m[OK] RUN_ERP.ps1 contiene: [CUT] env_contract_daily_ops fallido. Se corta flujo antes de nightly_audit.[0m
+[92m[OK] RUN_ERP.ps1 contiene: [CUT] nightly_audit timeout. Se corta flujo antes de release_gate.[0m
+[92m[OK] RUN_ERP.ps1 contiene: [CUT] release_gate timeout.[0m
+[92m[OK] RUN_ERP.ps1 contiene: [CUT] nightly_audit fallido. Se corta flujo antes de release_gate.[0m
+[92m[OK] Secuencia correcta: env_contract_daily_ops -> nightly_audit -> release_gate[0m
+[92m[OK] RUN_ERP.cmd contiene: if /I "%~1"=="ops" goto run_ops[0m
+[92m[OK] RUN_ERP.cmd contiene: if /I "%~1"=="-DailyOps" goto run_ops[0m
+[92m[OK] RUN_ERP.cmd contiene: powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0RUN_ERP.ps1" -DailyOps[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: release_gate timeout contract (P3-03)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: _env_int("VG_SUITE_TIMEOUT_SEC", 900)[0m
+[92m[OK] release_gate.py contiene: Timeout por suite: {suite_timeout_sec}s (env VG_SUITE_TIMEOUT_SEC)[0m
+[92m[OK] release_gate.py contiene: timeout=max(1, int(timeout_sec))[0m
+[92m[OK] release_gate.py contiene: except subprocess.TimeoutExpired:[0m
+[92m[OK] release_gate.py contiene: [TIMEOUT][0m
+[92m[OK] release_gate.py contiene: "status": "TIMEOUT"[0m
+[92m[OK] release_gate.py contiene: Motivo: al menos una suite excedio el timeout[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: release_gate mode contract (P3-05)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: RELEASE_GATE_MODE_ENV = "VG_RELEASE_GATE_MODE"[0m
+[92m[OK] release_gate.py contiene: RELEASE_MODE_READ_ONLY = "read_only"[0m
+[92m[OK] release_gate.py contiene: RELEASE_MODE_FULL = "full"[0m
+[92m[OK] release_gate.py contiene: "--mode"[0m
+[92m[OK] release_gate.py contiene: default: {RELEASE_MODE_FULL}[0m
+[92m[OK] release_gate.py contiene: Modo read_only: suite DB deshabilitada por seguridad.[0m
+[92m[OK] release_gate.py contiene: "status": "SKIPPED"[0m
+[92m[OK] release_gate.py contiene: Modo de ejecucion: {release_mode} (env {RELEASE_GATE_MODE_ENV})[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: env reproducible + docs sync (P3-06)
+============================================================[0m
+
+[92m[OK] env_contract.py contiene: PROFILE_APP = "app"[0m
+[92m[OK] env_contract.py contiene: PROFILE_DB_SUITE = "db_suite"[0m
+[92m[OK] env_contract.py contiene: PROFILE_RELEASE_GATE_FULL = "release_gate_full"[0m
+[92m[OK] env_contract.py contiene: PROFILE_RELEASE_GATE_READ_ONLY = "release_gate_read_only"[0m
+[92m[OK] env_contract.py contiene: PROFILE_DAILY_OPS = "daily_ops"[0m
+[92m[OK] env_contract.py contiene: RELEASE_GATE_MODE_ENV = "VG_RELEASE_GATE_MODE"[0m
+[92m[OK] env_contract.py contiene: ENV CONTRACT: PASS[0m
+[92m[OK] env_contract.py contiene: "--profile"[0m
+[92m[OK] .env.example contiene: DATABASE_URL=[0m
+[92m[OK] .env.example contiene: VG_TEST_DATABASE_URL=[0m
+[92m[OK] .env.example contiene: VG_RELEASE_GATE_MODE=[0m
+[92m[OK] .env.example contiene: VG_SUITE_TIMEOUT_SEC=[0m
+[92m[OK] .env.example contiene: VG_STEP_TIMEOUT_SEC=[0m
+[92m[OK] README.md contiene: python db/env_contract.py --profile daily_ops[0m
+[92m[OK] README.md contiene: .env.example[0m
+[92m[OK] README.md contiene: python db/env_contract.py --profile daily_ops[0m
+[92m[OK] README.md contiene: VG_RELEASE_GATE_MODE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: db/env_contract.py --profile daily_ops[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_STEP_TIMEOUT_SEC[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: ops behavior suite contract (P4-01)
+============================================================[0m
+
+[92m[OK] ops_behavior_test.py contiene: RUN_ERP.ps1[0m
+[92m[OK] ops_behavior_test.py contiene: VG_RELEASE_GATE_MODE[0m
+[92m[OK] ops_behavior_test.py contiene: daily_ops[0m
+[92m[OK] ops_behavior_test.py contiene: read_only[0m
+[92m[OK] ops_behavior_test.py contiene: invalid_mode[0m
+[92m[OK] ops_behavior_test.py contiene: RELEASE QA GATE: PASS[0m
+[92m[OK] ops_behavior_test.py contiene: OPS BEHAVIOR TEST[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: DB suite isolation contract (P3-04)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: TEST_DATABASE_URL_ENV[0m
+[92m[OK] release_gate.py contiene: build_isolated_suite_env[0m
+[92m[OK] release_gate.py contiene: requires_test_database=True[0m
+[92m[OK] smoke_test.py usa require_isolated_test_database_env[0m
+[92m[OK] ux_phase2_test.py usa require_isolated_test_database_env[0m
+[92m[OK] ux_gestion_regression_test.py usa require_isolated_test_database_env[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: test_env negative guard (P3-04)
+============================================================[0m
+
+[92m[OK] Import validate_isolated_test_database_url exitoso[0m
+[92m[OK] DB de test dedicada aceptada (caso positivo)[0m
+[92m[OK] Falta VG_TEST_DATABASE_URL => rechazo esperado[0m
+[92m[OK] VG_TEST_DATABASE_URL == DATABASE_URL => rechazo esperado[0m
+[92m[OK] Nombre de DB sin marcador de test => rechazo esperado[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: CI PostgreSQL efimero (P4-02)
+============================================================[0m
+
+[92m[OK] ci-db.yml contiene: services:[0m
+[92m[OK] ci-db.yml contiene: image: postgres:16[0m
+[92m[OK] ci-db.yml contiene: VG_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sistemalegal_ci_test[0m
+[92m[OK] ci-db.yml contiene: VG_RELEASE_GATE_MODE: full[0m
+[92m[OK] ci-db.yml contiene: python db/env_contract.py --profile release_gate_full[0m
+[92m[OK] ci-db.yml contiene: python db/release_gate.py --mode full[0m
+[92m[OK] ci-db.yml contiene: CREATE DATABASE sistemalegal_ci_test;[0m
+[92m[OK] ci-db.yml contiene: -f db/schema.sql[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: structured observability (P4-03)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: RUN_ID_ENV = "VG_RUN_ID"[0m
+[92m[OK] release_gate.py contiene: def _emit_obs([0m
+[92m[OK] release_gate.py contiene: stage="gate_start"[0m
+[92m[OK] release_gate.py contiene: stage="suite_start"[0m
+[92m[OK] release_gate.py contiene: stage="suite_end"[0m
+[92m[OK] release_gate.py contiene: stage="gate_end"[0m
+[92m[OK] nightly_audit.py contiene: RUN_ID_ENV = "VG_RUN_ID"[0m
+[92m[OK] nightly_audit.py contiene: def _emit_obs([0m
+[92m[OK] nightly_audit.py contiene: stage="nightly_start"[0m
+[92m[OK] nightly_audit.py contiene: stage="db_preflight"[0m
+[92m[OK] nightly_audit.py contiene: stage="nightly_end"[0m
+[92m[OK] RUN_ERP.ps1 contiene: function New-RunId[0m
+[92m[OK] RUN_ERP.ps1 contiene: function Write-OpsObs[0m
+[92m[OK] RUN_ERP.ps1 contiene: env VG_RUN_ID[0m
+[92m[OK] RUN_ERP.ps1 contiene: stage=[0m
+[92m[OK] RUN_ERP.ps1 contiene: suite=[0m
+[92m[OK] RUN_ERP.ps1 contiene: Write-OpsObs -RunId $runId -Stage "daily_ops_start"[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: quality gate KPI (P4-04)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: QUALITY_GATE_KPI_MODE_ENV = "VG_QUALITY_GATE_KPI_MODE"[0m
+[92m[OK] release_gate.py contiene: QUALITY_GATE_KPI_MIN_CASES_ENV = "VG_QUALITY_GATE_KPI_MIN_CASES"[0m
+[92m[OK] release_gate.py contiene: KPI_MODE_ENFORCE = "enforce"[0m
+[92m[OK] release_gate.py contiene: "--kpi-mode"[0m
+[92m[OK] release_gate.py contiene: "--kpi-min-cases"[0m
+[92m[OK] release_gate.py contiene: QUALITY GATE KPI[0m
+[92m[OK] release_gate.py contiene: stage="kpi_gate"[0m
+[92m[OK] release_gate.py contiene: quality_gate_kpi[0m
+[92m[OK] env_contract.py contiene: QUALITY_GATE_KPI_MODE_ENV = "VG_QUALITY_GATE_KPI_MODE"[0m
+[92m[OK] env_contract.py contiene: QUALITY_GATE_KPI_MIN_CASES_ENV = "VG_QUALITY_GATE_KPI_MIN_CASES"[0m
+[92m[OK] env_contract.py contiene: VALID_KPI_GATE_MODES = {"off", "warn", "enforce"}[0m
+[92m[OK] .env.example contiene: VG_QUALITY_GATE_KPI_MODE=[0m
+[92m[OK] .env.example contiene: VG_QUALITY_GATE_KPI_MIN_CASES=[0m
+[92m[OK] README.md contiene: VG_QUALITY_GATE_KPI_MODE[0m
+[92m[OK] README.md contiene: VG_QUALITY_GATE_KPI_MIN_CASES[0m
+[92m[OK] README.md contiene: VG_QUALITY_GATE_KPI_MODE[0m
+[92m[OK] README.md contiene: VG_QUALITY_GATE_KPI_MIN_CASES[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_QUALITY_GATE_KPI_MODE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_QUALITY_GATE_KPI_MIN_CASES[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: security baseline (P5-02)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: "--security-mode"[0m
+[92m[OK] release_gate.py contiene: evaluate_security_baseline([0m
+[92m[OK] release_gate.py contiene: stage="security_gate"[0m
+[92m[OK] release_gate.py contiene: security_gate[0m
+[92m[OK] release_gate.py contiene: SECURITY_GATE_MODE_ENV[0m
+[92m[OK] env_contract.py contiene: VALID_SECURITY_GATE_MODES[0m
+[92m[OK] env_contract.py contiene: SECURITY_GATE_MODE_ENV[0m
+[92m[OK] env_contract.py contiene: DB_APP_ROLE_ENV[0m
+[92m[OK] env_contract.py contiene: DB_TEST_ROLE_ENV[0m
+[92m[OK] env_contract.py contiene: SECURITY_REQUIRE_TEST_ROLE_SPLIT_ENV[0m
+[92m[OK] .env.example contiene: VG_SECURITY_GATE_MODE=[0m
+[92m[OK] .env.example contiene: VG_DB_APP_ROLE=[0m
+[92m[OK] .env.example contiene: VG_DB_TEST_ROLE=[0m
+[92m[OK] .env.example contiene: VG_SECURITY_GATE_REQUIRE_TEST_ROLE_SPLIT=[0m
+[92m[OK] security_baseline.py contiene: SECURITY_GATE_MODE_ENV = "VG_SECURITY_GATE_MODE"[0m
+[92m[OK] security_baseline.py contiene: DB_APP_ROLE_ENV = "VG_DB_APP_ROLE"[0m
+[92m[OK] security_baseline.py contiene: DB_TEST_ROLE_ENV = "VG_DB_TEST_ROLE"[0m
+[92m[OK] security_baseline.py contiene: SECURITY_REQUIRE_TEST_ROLE_SPLIT_ENV = "VG_SECURITY_GATE_REQUIRE_TEST_ROLE_SPLIT"[0m
+[92m[OK] security_baseline.py contiene: def evaluate_security_baseline([0m
+[92m[OK] README.md contiene: VG_SECURITY_GATE_MODE[0m
+[92m[OK] README.md contiene: VG_DB_APP_ROLE[0m
+[92m[OK] README.md contiene: VG_DB_TEST_ROLE[0m
+[92m[OK] README.md contiene: VG_SECURITY_GATE_REQUIRE_TEST_ROLE_SPLIT[0m
+[92m[OK] README.md contiene: security_baseline.py[0m
+[92m[OK] README.md contiene: VG_SECURITY_GATE_MODE[0m
+[92m[OK] README.md contiene: VG_DB_APP_ROLE[0m
+[92m[OK] README.md contiene: VG_DB_TEST_ROLE[0m
+[92m[OK] README.md contiene: VG_SECURITY_GATE_REQUIRE_TEST_ROLE_SPLIT[0m
+[92m[OK] README.md contiene: security_baseline.py[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_SECURITY_GATE_MODE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_DB_APP_ROLE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_DB_TEST_ROLE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_SECURITY_GATE_REQUIRE_TEST_ROLE_SPLIT[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: security_baseline.py[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: performance/capacity gate (P5-04)
+============================================================[0m
+
+[92m[OK] release_gate.py contiene: "--performance-mode"[0m
+[92m[OK] release_gate.py contiene: evaluate_performance_capacity([0m
+[92m[OK] release_gate.py contiene: stage="performance_gate"[0m
+[92m[OK] release_gate.py contiene: performance_gate[0m
+[92m[OK] release_gate.py contiene: PERFORMANCE_GATE_MODE_ENV[0m
+[92m[OK] env_contract.py contiene: VALID_PERFORMANCE_GATE_MODES[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_GATE_MODE_ENV[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_MAX_SELECT1_MS_ENV[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_MAX_CORE_COUNTS_MS_ENV[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_MAX_RECENT_DOCS_MS_ENV[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_MAX_RECENT_CASES_MS_ENV[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_MAX_DOCS_PER_CASE_ENV[0m
+[92m[OK] env_contract.py contiene: PERFORMANCE_MAX_AUDIT_ROWS_ENV[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MODE=[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MAX_SELECT1_MS=[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MAX_CORE_COUNTS_MS=[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MAX_RECENT_DOCS_MS=[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MAX_RECENT_CASES_MS=[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MAX_DOCS_PER_CASE=[0m
+[92m[OK] .env.example contiene: VG_PERFORMANCE_GATE_MAX_AUDIT_ROWS=[0m
+[92m[OK] performance_capacity.py contiene: PERFORMANCE_GATE_MODE_ENV = "VG_PERFORMANCE_GATE_MODE"[0m
+[92m[OK] performance_capacity.py contiene: PERFORMANCE_MODE_ENFORCE = "enforce"[0m
+[92m[OK] performance_capacity.py contiene: def load_performance_thresholds([0m
+[92m[OK] performance_capacity.py contiene: def evaluate_performance_capacity([0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MODE[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_SELECT1_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_CORE_COUNTS_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_RECENT_DOCS_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_RECENT_CASES_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_DOCS_PER_CASE[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_AUDIT_ROWS[0m
+[92m[OK] README.md contiene: performance_capacity.py[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MODE[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_SELECT1_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_CORE_COUNTS_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_RECENT_DOCS_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_RECENT_CASES_MS[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_DOCS_PER_CASE[0m
+[92m[OK] README.md contiene: VG_PERFORMANCE_GATE_MAX_AUDIT_ROWS[0m
+[92m[OK] README.md contiene: performance_capacity.py[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MODE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MAX_SELECT1_MS[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MAX_CORE_COUNTS_MS[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MAX_RECENT_DOCS_MS[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MAX_RECENT_CASES_MS[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MAX_DOCS_PER_CASE[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_PERFORMANCE_GATE_MAX_AUDIT_ROWS[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: performance_capacity.py[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: backup restore drill (P5-03)
+============================================================[0m
+
+[92m[OK] backup_restore_drill.py contiene: CORE_TABLES = ("clients", "cases", "documents", "tasks", "audit_log")[0m
+[92m[OK] backup_restore_drill.py contiene: validate_isolated_test_database_url([0m
+[92m[OK] backup_restore_drill.py contiene: CREATE SCHEMA[0m
+[92m[OK] backup_restore_drill.py contiene: DROP SCHEMA IF EXISTS[0m
+[92m[OK] backup_restore_drill.py contiene: json_populate_recordset[0m
+[92m[OK] backup_restore_drill.py contiene: BACKUP RESTORE DRILL: PASS[0m
+[92m[OK] backup_restore_drill.py contiene: stage="restore_table"[0m
+[92m[OK] env_contract.py contiene: PROFILE_BACKUP_RESTORE_DRILL = "backup_restore_drill"[0m
+[92m[OK] env_contract.py contiene: BACKUP_DIR_ENV = "VG_BACKUP_DIR"[0m
+[92m[OK] env_contract.py contiene: BACKUP_DRILL_SCHEMA_PREFIX_ENV = "VG_BACKUP_DRILL_SCHEMA_PREFIX"[0m
+[92m[OK] env_contract.py contiene: if profile == PROFILE_BACKUP_RESTORE_DRILL:[0m
+[92m[OK] .env.example contiene: VG_BACKUP_DIR=[0m
+[92m[OK] .env.example contiene: VG_BACKUP_DRILL_SCHEMA_PREFIX=[0m
+[92m[OK] README.md contiene: backup_restore_drill.py[0m
+[92m[OK] README.md contiene: VG_BACKUP_DIR[0m
+[92m[OK] README.md contiene: VG_BACKUP_DRILL_SCHEMA_PREFIX[0m
+[92m[OK] README.md contiene: backup_restore_drill.py[0m
+[92m[OK] README.md contiene: VG_BACKUP_DIR[0m
+[92m[OK] README.md contiene: VG_BACKUP_DRILL_SCHEMA_PREFIX[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: backup_restore_drill.py[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_BACKUP_DIR[0m
+[92m[OK] MANUAL_ADMINISTRACION.md contiene: VG_BACKUP_DRILL_SCHEMA_PREFIX[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: legacy FS extraction (P5-01)
+============================================================[0m
+
+[92m[OK] app.py sin import runtime de fs_repo[0m
+[92m[OK] views.py sin import runtime de fs_repo[0m
+[92m[OK] audit.py sin import runtime de fs_repo[0m
+[92m[OK] app.py contiene: gestor = GestorCasos()[0m
+[92m[OK] app.py contiene: Conectando a base de datos...[0m
+[92m[OK] app.py limpio de token legacy: GestorCasos(RUTA_BASE)[0m
+[92m[OK] app.py limpio de token legacy: RUTA_BASE_AUTO_CREATE[0m
+[92m[OK] app.py limpio de token legacy: _show_ruta_error([0m
+[92m[OK] audit.py usa GestorCasos desde repo.py (DB-first)[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: trend degradation alert (P2-03)
+============================================================[0m
+
+[92m[OK] Import build_trend_degradation_alert exitoso[0m
+[92m[OK] Datos insuficientes -> ready=False y show_alert=False[0m
+[92m[OK] Sin degradacion -> show_alert=False, severity=ok[0m
+[92m[OK] Degradacion critica detectada[0m
+[92m[OK] Incluye ratio de degradacion en salida[0m
+[92m[OK] Mensaje incluye severidad critica[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: operational hallazgos export (P2-04)
+============================================================[0m
+
+[92m[OK] Imports de export operativo exitosos[0m
+[92m[OK] Snapshots -> rows: cantidad esperada (3)[0m
+[92m[OK] Rows incluyen metadata operativa requerida[0m
+[92m[OK] Filtros nivel/codigo/fecha aplicados correctamente[0m
+[92m[OK] Payload summary incluye rows/snapshots esperados[0m
+[92m[OK] Payload summary incluye backend_modes[0m
+[92m[OK] payload_to_json_bytes serializa JSON UTF-8 valido[0m
+
+[92m[1mCONTRACT TEST PASSED[0m
+
+[1m============================================================
+  CONTRACT TEST: streamlit width hardening (P3-01)
+============================================================[0m
+
+[92m[OK] Archivos runtime presentes para hardening[0m
+[91m[FAIL] Se detectaron usos de use_container_width en runtime:[0m
+[91m[FAIL]   - views.py:211[0m
+
+[91m[1mCONTRACT TEST FAILED (1 issues)[0m
+
+[1m============================================================
+  RESUMEN
+============================================================[0m
+  obtener_clientes_existentes         [[92mPASS[0m]
+  escanear_casos                      [[92mPASS[0m]
+  _leer_ficha                         [[92mPASS[0m]
+  actualizar_campos_ficha             [[92mPASS[0m]
+  Caso_attributes                     [[92mPASS[0m]
+  Caso_to_dict                        [[92mPASS[0m]
+  DB_pseudo_path                      [[92mPASS[0m]
+  Caso_construction                   [[92mPASS[0m]
+  recent_documents_shape              [[92mPASS[0m]
+  recent_documents_empty              [[92mPASS[0m]
+  evento_fields                       [[92mPASS[0m]
+  tarea_fields                        [[92mPASS[0m]
+  dailyops_runner_contract            [[92mPASS[0m]
+  release_gate_timeout_contract       [[92mPASS[0m]
+  release_gate_mode_contract          [[92mPASS[0m]
+  env_contract_reproducible_docs_sync [[92mPASS[0m]
+  ops_behavior_suite_contract         [[92mPASS[0m]
+  db_suite_isolation_contract         [[92mPASS[0m]
+  test_env_guard_negative             [[92mPASS[0m]
+  ci_postgres_ephemeral_contract      [[92mPASS[0m]
+  structured_observability_contract   [[92mPASS[0m]
+  quality_gate_kpi_contract           [[92mPASS[0m]
+  security_baseline_contract          [[92mPASS[0m]
+  performance_capacity_contract       [[92mPASS[0m]
+  backup_restore_drill_contract       [[92mPASS[0m]
+  legacy_fs_extraction_contract       [[92mPASS[0m]
+  trend_degradation_alert             [[92mPASS[0m]
+  operational_hallazgos_export        [[92mPASS[0m]
+  streamlit_width_hardening           [[91mFAIL[0m]
+
+[91m[1m=== CONTRACT TESTS FAILED (28/29) ===[0m
+[91m[FAIL] contract_test (exit=1, 1.29s)[0m
+[OBS] {"detail": "code=1 duration_sec=1.29", "run_id": "rg-20260215063114-c9a40931", "stage": "suite_end", "status": "FAIL", "suite": "contract_test", "ts": "2026-02-15T06:31:42Z"}
+[94m[SKIPPED] ux_gestion_regression_test: Modo read_only: suite DB deshabilitada por seguridad.[0m
+[OBS] {"detail": "Modo read_only: suite DB deshabilitada por seguridad.", "run_id": "rg-20260215063114-c9a40931", "stage": "suite_decision", "status": "SKIPPED", "suite": "ux_gestion_regression_test", "ts": "2026-02-15T06:31:42Z"}
+[94m[SKIPPED] ux_phase2_test: Modo read_only: suite DB deshabilitada por seguridad.[0m
+[OBS] {"detail": "Modo read_only: suite DB deshabilitada por seguridad.", "run_id": "rg-20260215063114-c9a40931", "stage": "suite_decision", "status": "SKIPPED", "suite": "ux_phase2_test", "ts": "2026-02-15T06:31:42Z"}
+[94m[SKIPPED] smoke_test: Modo read_only: suite DB deshabilitada por seguridad.[0m
+[OBS] {"detail": "Modo read_only: suite DB deshabilitada por seguridad.", "run_id": "rg-20260215063114-c9a40931", "stage": "suite_decision", "status": "SKIPPED", "suite": "smoke_test", "ts": "2026-02-15T06:31:42Z"}
+[OBS] {"detail": "Modo read_only: quality gate KPI omitido.", "run_id": "rg-20260215063114-c9a40931", "stage": "kpi_gate", "status": "SKIPPED", "suite": "quality_gate_kpi", "ts": "2026-02-15T06:31:42Z"}
+
+[1m========================================================================
+  SECURITY GATE
+========================================================================[0m
+Modo security gate: warn (env VG_SECURITY_GATE_MODE, default=warn)
+[94m[INFO] security snapshot runtime: role=postgres db=sistemalegal_test[0m
+[93m[WARN] SEC-ROLE-010: runtime: rol con superuser activo.[0m
+[93m[WARN] SEC-ROLE-011: runtime: rol con CREATEROLE activo.[0m
+[93m[WARN] SEC-ROLE-012: runtime: rol con CREATEDB activo.[0m
+[93m[WARN] SEC-SCHEMA-002: runtime: rol con CREATE en schema public.[0m
+[93m[WARN] SEC-TABLE-011: runtime: privilegio TRUNCATE activo en tabla clients.[0m
+[93m[WARN] SEC-TABLE-011: runtime: privilegio TRUNCATE activo en tabla cases.[0m
+[93m[WARN] SEC-TABLE-011: runtime: privilegio TRUNCATE activo en tabla documents.[0m
+[93m[WARN] SEC-TABLE-011: runtime: privilegio TRUNCATE activo en tabla tasks.[0m
+[93m[WARN] SEC-TABLE-011: runtime: privilegio TRUNCATE activo en tabla audit_log.[0m
+[93m[WARN] security_gate: Se detectaron 9 desvio(s) de seguridad (mode=warn).[0m
+[OBS] {"detail": "Se detectaron 9 desvio(s) de seguridad (mode=warn).", "run_id": "rg-20260215063114-c9a40931", "stage": "security_gate", "status": "WARN", "suite": "security_gate", "ts": "2026-02-15T06:31:42Z"}
+
+[1m========================================================================
+  PERFORMANCE/CAPACITY GATE
+========================================================================[0m
+Modo performance gate: warn (env VG_PERFORMANCE_GATE_MODE, default=warn)
+[94m[INFO] performance snapshot runtime: role=postgres db=sistemalegal_test[0m
+[94m[INFO] latency ms: select_1=0.7 core_counts=2.9 recent_documents=1.1 recent_cases=0.9[0m
+[94m[INFO] capacity: clients=1 cases=1 documents=0 tasks=1 audit_log=86 docs_per_case=0.0[0m
+[92m[PASS] performance_gate: Performance/capacidad dentro de umbral (db=sistemalegal_test).[0m
+[OBS] {"detail": "Performance/capacidad dentro de umbral (db=sistemalegal_test).", "run_id": "rg-20260215063114-c9a40931", "stage": "performance_gate", "status": "PASS", "suite": "performance_gate", "ts": "2026-02-15T06:31:42Z"}
+
+[1m========================================================================
+  RESUMEN RELEASE GATE
+========================================================================[0m
+  contract_test                  [[91mFAIL[0m] exit=1 (1.29s)
+  ux_gestion_regression_test     [[94mSKIPPED[0m] Modo read_only: suite DB deshabilitada por seguridad.
+  ux_phase2_test                 [[94mSKIPPED[0m] Modo read_only: suite DB deshabilitada por seguridad.
+  smoke_test                     [[94mSKIPPED[0m] Modo read_only: suite DB deshabilitada por seguridad.
+  quality_gate_kpi               [[94mSKIPPED[0m] Modo read_only: quality gate KPI omitido.
+  security_gate                  [[93mWARN[0m] Se detectaron 9 desvio(s) de seguridad (mode=warn).
+  performance_gate               [[92mPASS[0m] Performance/capacidad dentro de umbral (db=sistemalegal_test).
+
+[OBS] {"detail": "fallo en al menos una suite", "run_id": "rg-20260215063114-c9a40931", "stage": "gate_end", "status": "FAIL", "suite": "release_gate", "ts": "2026-02-15T06:31:42Z"}
+[91m[1mRELEASE QA GATE: FAIL[0m
+[2026-02-15 03:31:43.811] [WARN] release_gate reporto se�ales de fallo en output con exit=0. Se fuerza exit=1.
+[2026-02-15 03:31:43.811] [FAIL] release_gate exit=1
+[2026-02-15 03:31:43.822] [OBS] ts="2026-02-15T06:31:43.822Z" run_id="rg-20260215063114-c9a40931" stage="step_end" suite="release_gate" status="FAIL" detail="exit=1"
+[2026-02-15 03:31:43.822] [OBS] ts="2026-02-15T06:31:43.822Z" run_id="rg-20260215063114-c9a40931" stage="daily_ops_end" suite="daily_ops" status="FAIL" detail="exit=30"
+[2026-02-15 03:31:43.822] === DAILY OPS END (FAIL:30) ===

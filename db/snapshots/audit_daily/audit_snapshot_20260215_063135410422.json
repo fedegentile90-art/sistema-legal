@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-15T06:31:40.475970Z",
+  "generated_at": "2026-02-15T06:31:35.410422Z",
   "date": "2026-02-15",
   "source": "nightly_cli",
   "backend_mode": "database",
@@ -88,7 +88,7 @@
     }
   },
   "kpi_snapshot": {
-    "generated_at": "2026-02-15T06:31:40.475970Z",
+    "generated_at": "2026-02-15T06:31:35.410422Z",
     "casos_total": 1,
     "kpis": {
       "FECHA_TAREA": {
@@ -126,7 +126,7 @@
     }
   },
   "trend_point": {
-    "generated_at": "2026-02-15T06:31:40.475970Z",
+    "generated_at": "2026-02-15T06:31:35.410422Z",
     "date": "2026-02-15",
     "source": "nightly_cli",
     "audit_ok": true,
