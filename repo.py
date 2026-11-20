@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Dict
 
 from repo_db import GestorCasosDB as _GestorBackend
+from runtime_config import get_database_url
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "")
 USE_DB = True  # backend fijo: DB
 
 # Re-exportar la clase con el nombre original para compatibilidad con la UI
@@ -33,7 +33,7 @@ def get_backend_info() -> Dict[str, str]:
     return {
         "mode": "database",
         "backend_class": _GestorBackend.__name__,
-        "database_url_set": "yes" if DATABASE_URL else "no",
+        "database_url_set": "yes" if get_database_url() else "no",
         "ruta_base": "N/A (DB mode)",
     }
 

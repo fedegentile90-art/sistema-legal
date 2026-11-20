@@ -9,7 +9,8 @@ RUN apt-get update \
     && pip install --no-cache-dir -r requirements.txt \
     && apt-get purge -y --auto-remove gcc libc6-dev libpq-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && python -c "import psycopg2; print('psycopg2', psycopg2.__version__)"
+    && python -c "import psycopg2; print('psycopg2', psycopg2.__version__)" \
+    && python -m unittest -q test_runtime_security
 
 EXPOSE 10000
 

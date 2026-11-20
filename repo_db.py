@@ -13,12 +13,12 @@ from urllib.parse import urlparse
 
 from config import CAMPOS_FICHA, CAMPOS_FINANCIEROS, AÑOS_ACTIVOS
 from domain import Caso
+from runtime_config import get_database_url
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CONEXION A BASE DE DATOS
 # ══════════════════════════════════════════════════════════════════════════════
 
-_DB_URL = os.environ.get("DATABASE_URL", "")
 
 
 def _mask_db_url(u: str) -> str:
@@ -41,14 +41,16 @@ def _get_connection():
     """Obtiene conexion a PostgreSQL usando DATABASE_URL."""
     import psycopg2
 
-    url = os.environ.get("DATABASE_URL", "")
+    url = get_database_url()
+    if not url:
+        raise RuntimeError("La conexión a PostgreSQL no está configurada.")
     if os.environ.get("VG_DEBUG") == "1":
-        print("[repo_db] DATABASE_URL =", _mask_db_url(url))
+        print("[repo_db] PostgreSQL configurado:", bool(url))
     # Render usa postgres:// pero psycopg2 requiere postgresql://
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
 
-    return psycopg2.connect(url)
+    return psycopg2.connect(url, connect_timeout=10)
 
 
 @contextmanager
@@ -182,12 +184,12 @@ class GestorCasosDB:
 
     def _get_case_id_from_path(self, ruta: Path) -> Optional[str]:
         """Extrae el UUID del caso desde el pseudo-path db://cases/<uuid>."""
-        path_str = str(ruta)
-        # Compatibilidad Windows: Path normaliza a backslash
-        if path_str.startswith("db://cases/"):
-            return path_str.replace("db://cases/", "")
-        if path_str.startswith("db:\\cases\\"):
-            return path_str.replace("db:\\cases\\", "")
+        # Path normaliza separadores de forma distinta en POSIX y Windows.
+        path_str = str(ruta).replace("\\", "/")
+        for prefix in ("db://cases/", "db:/cases/"):
+            if path_str.startswith(prefix):
+                case_id = path_str[len(prefix):]
+                return case_id if case_id and "/" not in case_id else None
         return None
 
     def _leer_ficha(self, ruta_caso: Path) -> Dict[str, str]:
