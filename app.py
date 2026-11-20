@@ -106,6 +106,10 @@ def main():
     # ══════════════════════════════════════════════════════════════════════════
 
     if is_db_mode():
+        if get_backend_info()["database_url_set"] != "yes":
+            st.error("Sistema Legal todavía no tiene configurada su conexión a la base de datos.")
+            st.info("La aplicación podrá abrir los casos cuando el administrador complete esa conexión.")
+            st.stop()
         # Modo base de datos: no necesita validar filesystem
         gestor = GestorCasos(RUTA_BASE)  # RUTA_BASE se ignora en modo DB
         spinner_msg = "Conectando a base de datos..."
