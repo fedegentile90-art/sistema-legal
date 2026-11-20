@@ -104,6 +104,24 @@ class RuntimeSecurityTests(unittest.TestCase):
             with patch.object(runtime_config, "DATABASE_URL_FILE", secret), patch.dict("os.environ", {"DATABASE_URL": "wrong"}):
                 with self.assertRaises(RuntimeError): runtime_config.get_database_url()
 
+    def test_neon_json_copy_is_supported(self):
+        import json
+        value = "postgresql://fixture.invalid/database?sslmode=require"
+        with tempfile.TemporaryDirectory() as folder:
+            secret = Path(folder) / "database_url"
+            for record in ({"database_url":value}, [{"database_url":value}]):
+                secret.write_text(json.dumps(record), encoding="utf-8")
+                with patch.object(runtime_config, "DATABASE_URL_FILE", secret):
+                    self.assertEqual(runtime_config.get_database_url(), value)
+
+    def test_invalid_json_fails_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            secret = Path(folder) / "database_url"
+            for value in ("{broken", "[]", '[{"wrong":"fixture"}]'):
+                secret.write_text(value, encoding="utf-8")
+                with patch.object(runtime_config, "DATABASE_URL_FILE", secret):
+                    with self.assertRaises(RuntimeError): runtime_config.get_database_url()
+
     def test_public_startup_stops_before_case_repository(self):
         tree = ast.parse((Path(__file__).parent/"app.py").read_text(encoding="utf-8-sig"))
         main = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "main")
